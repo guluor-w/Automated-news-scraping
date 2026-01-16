@@ -1,0 +1,34 @@
+# 关键词：你可以随时增删
+keywords:
+  - 人工智能
+  - AI
+  - 大模型
+  - 智能制造
+  - 制造业
+  - 新型工业化
+  - 工业互联网
+  - 数字化
+  - 算力
+  - 机器人
+
+# 时间窗口：每周抓取建议 window_days=7；硬上限不超过 14 天（“不要超过半个月”）
+window_days: 7
+hard_cap_days: 14
+
+sources:
+  miit_home:
+    name: 工业和信息化部
+    url: https://www.miit.gov.cn/
+
+  gov_latest_policy_rss:
+    name: 中国政府网
+    rss: https://rsshub.app/gov/zhengce/zuixin
+
+output:
+  csv_path: data/policy_news.csv
+
+# 可选：写入 Google Sheets（后面第 6 部分会教你配置 secrets）
+google_sheets:
+  enabled: false
+  spreadsheet_id: ""   # 建议用 GitHub Secrets 注入
+  worksheet_name: "政策新闻"

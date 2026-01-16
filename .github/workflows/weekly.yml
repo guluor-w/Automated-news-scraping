@@ -1,0 +1,40 @@
+name: Weekly AI Policy Collector
+
+on:
+  schedule:
+    # GitHub cron 使用 UTC；新加坡时间周一 09:00 = UTC 周一 01:00
+    - cron: "0 1 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run collector
+        run: |
+          python src/collect.py
+          echo "added=$(cat added_count.txt)" >> $GITHUB_OUTPUT
+        id: collector
+
+      - name: Commit and push (only if new rows)
+        if: steps.collector.outputs.added != '0'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: weekly policy news update"
+          file_pattern: data/policy_news.csv added_count.txt

@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Tuple
+from pathlib import Path
 
 import feedparser
 import pandas as pd
@@ -39,8 +40,8 @@ class Item:
     source: str
     fetched_at: str          # ISO timestamp
 
-
-def load_config(path: str) -> dict:
+    
+def load_config(path: Path) -> dict:
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
@@ -285,27 +286,29 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
 
     return new_df, added
 
-
 def main():
-    config = load_config("config.yaml")
+    # collect.py 位于 src/，仓库根目录是它的上一级
+    repo_root = Path(__file__).resolve().parents[1]
+    config_path = repo_root / "config.yaml"
+
+    config = load_config(config_path)
+    # 后续所有相对路径也建议基于 repo_root
     now = datetime.now(tz=SG_TZ)
 
     all_items: List[Item] = []
     all_items.extend(parse_miit_home(config, now))
     all_items.extend(parse_gov_rss(config, now))
 
-    out_csv = config["output"]["csv_path"]
-    existing = load_existing(out_csv)
+    out_csv = repo_root / config["output"]["csv_path"]
+    existing = load_existing(str(out_csv))
     merged, added = dedup_merge(existing, all_items)
 
-    os.makedirs(os.path.dirname(out_csv), exist_ok=True)
-    merged.to_csv(out_csv, index=False, encoding="utf-8-sig")
+    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    merged.to_csv(str(out_csv), index=False, encoding="utf-8-sig")
 
-    print(f"Collected {len(all_items)} candidate items; added {added} new rows; total {len(merged)} rows.")
-    # 若需要让 Actions 在无新增时不提交，可用 added 输出做判断
-    with open("added_count.txt", "w", encoding="utf-8") as f:
+    added_path = repo_root / "added_count.txt"
+    with open(added_path, "w", encoding="utf-8") as f:
         f.write(str(added))
-
 
 if __name__ == "__main__":
     main()

@@ -24,6 +24,13 @@ sources:
     name: 中国政府网
     rss: https://rsshub.app/gov/zhengce/zuixin
 
+  gov_home: 
+    name: 中国政府网
+    url: https://www.gov.cn/
+
+resolve_pub_date: True
+resolve_pub_date_cap: 30
+
 output:
   csv_path: data/policy_news.csv
 

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>政策新闻（policy_news.csv）</title>
+
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.1.8/css/dataTables.dataTables.min.css">
+
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 24px; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    .meta { color: #555; margin-bottom: 16px; }
+    .hint { color: #666; font-size: 12px; margin-top: 8px; }
+    table { width: 100%; }
+    .nowrap { white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <h1>政策新闻列表</h1>
+  <div class="meta">
+    数据源：<code>docs/data/policy_news.csv</code>
+    <span id="status" style="margin-left:12px;">加载中…</span>
+  </div>
+
+  <table id="tbl" class="display">
+    <thead>
+      <tr>
+        <th>标题</th>
+        <th class="nowrap">发布单位</th>
+        <th class="nowrap">发布日期</th>
+        <th class="nowrap">来源</th>
+        <th class="nowrap">抓取时间</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="hint">
+    支持：搜索、排序、分页。标题点击可打开原文链接。
+  </div>
+
+  <!-- Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.1.8/js/dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <script>
+    const CSV_PATH = "./data/policy_news.csv";
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function loadCsv() {
+      const statusEl = document.getElementById("status");
+      try {
+        const resp = await fetch(CSV_PATH, { cache: "no-store" });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+        const csvText = await resp.text();
+
+        const parsed = Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true
+        });
+
+        if (parsed.errors?.length) {
+          console.warn("CSV parse warnings:", parsed.errors);
+        }
+
+        // 你的CSV列名（根据你当前流程）：标题, 发布单位, 新闻URL, 发布日期, 来源, 抓取时间
+        const rows = (parsed.data || []).map(r => {
+          const title = r["标题"] || "";
+          const url = r["新闻URL"] || "";
+          const publisher = r["发布单位"] || "";
+          const pubDate = r["发布日期"] || "";
+          const source = r["来源"] || "";
+          const fetchedAt = r["抓取时间"] || "";
+
+          const titleCell = url
+            ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
+            : escapeHtml(title);
+
+          return [titleCell, escapeHtml(publisher), escapeHtml(pubDate), escapeHtml(source), escapeHtml(fetchedAt)];
+        });
+
+        // 初始化 DataTable
+        $("#tbl").DataTable({
+          data: rows,
+          columns: [
+            { title: "标题" },
+            { title: "发布单位" },
+            { title: "发布日期" },
+            { title: "来源" },
+            { title: "抓取时间" }
+          ],
+          pageLength: 25,
+          order: [[2, "desc"]], // 默认按发布日期降序
+          deferRender: true
+        });
+
+        statusEl.textContent = `加载完成（${rows.length} 条）`;
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = "加载失败，请检查 CSV 路径与 Pages 设置。";
+        alert("加载 CSV 失败：" + e.message);
+      }
+    }
+
+    loadCsv();
+  </script>
+</body>
+</html>

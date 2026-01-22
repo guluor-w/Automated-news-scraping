@@ -38,7 +38,7 @@ resolve_pub_date: True
 resolve_pub_date_cap: 30
 
 output:
-  csv_path: data/policy_news.csv
+  csv_path: docs/data/policy_news.csv 
 
 # 可选：写入 Google Sheets
 google_sheets:

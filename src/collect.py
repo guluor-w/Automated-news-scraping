@@ -18,6 +18,7 @@ from urllib.parse import urlsplit, urlunsplit
 from typing import List, Dict, Optional, Tuple
 from urllib.parse import urlsplit, urlunsplit
 import re
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 
 SG_TZ = timezone(timedelta(hours=8))  # Asia/Singapore 固定 +08:00
 
@@ -27,7 +28,7 @@ USER_AGENT = (
 )
 
 DATE_PATTERNS = [
-    # 2026-01-16 / 2026/01/16
+    # 2026-01-16 或 2026/01/16
     re.compile(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})"),
     # 2026年1月16日
     re.compile(r"(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日"),
@@ -43,9 +44,9 @@ class Item:
     title: str
     publisher: str
     url: str
-    pub_date: Optional[str]  # YYYY-MM-DD
+    pub_date: Optional[str]  
     source: str
-    fetched_at: str          # ISO timestamp
+    fetched_at: str          
 
     
 def load_config(path: Path) -> dict:
@@ -79,7 +80,6 @@ def extract_date(text: str) -> Optional[str]:
                 return f"{y:04d}-{mo:02d}-{d:02d}"
             except Exception:
                 return None
-    # 尝试用 dateutil 宽松解析（避免误判，必须包含年份）
     try:
         dt = dtparser.parse(text, fuzzy=True)
         if dt.year >= 2000:
@@ -98,12 +98,6 @@ def keyword_hit(title: str, keywords: List[str]) -> bool:
 
 
 def within_window(pub_date: Optional[str], now: datetime, window_days: int, hard_cap_days: int) -> bool:
-    """
-    逻辑：
-    - 有发布日期：必须在 [now-hard_cap_days, now] 内
-      且建议窗口为 window_days（默认 7 天）；如果你希望“宁可多也不要漏”，可放宽到 hard_cap_days。
-    - 无发布日期：保守起见也收录，但建议你后续人工抽查（会在表里显示空日期）。
-    """
     if pub_date is None:
         return True
     try:
@@ -129,10 +123,6 @@ def http_get(url: str) -> str:
 
 
 def canonicalize_url_for_dedup(url: str) -> str:
-    """
-    用于去重：忽略 http/https；统一 www；去掉 fragment；规范化末尾斜杠；
-    保留 path 与 query（有些站点同路径不同 query 可能不同页面）。
-    """
     try:
         u = url.strip()
         if u.startswith("//"):
@@ -142,13 +132,11 @@ def canonicalize_url_for_dedup(url: str) -> str:
         if netloc.startswith("www."):
             netloc = netloc[4:]
         path = parts.path or "/"
-        # 统一末尾斜杠（但保留根路径）
         if path != "/" and path.endswith("/"):
             path = path[:-1]
-        # 忽略 scheme 与 fragment
         return urlunsplit(("", netloc, path, parts.query or "", ""))
     except Exception:
-        return url  # 兜底
+        return url  
 
 
 #---------------------------------------------------miit.gov.cn 相关解析代码---------------------------------------------------#
@@ -181,12 +169,6 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
         )
 
     def get_pub_date_from_container(container) -> Optional[str]:
-        """
-        统一从一条 li/p 容器里抽发布日期：
-        - 优先取最近的 span 文本（例如 <li><span>2026-01-20</span>...）
-        - 再取 p>span（政策文件那种）
-        - 最后 fallback 全文扫描日期
-        """
         date_text = ""
         span1 = container.find("span")
         if span1:
@@ -204,9 +186,6 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
         return pub_date
 
     def add_primary_link(container, source_tag: str):
-        """
-        抓主链接（一般是 p>a 或 li 内第一个 a）
-        """
         a = container.find("a", href=True)
         if not a:
             return
@@ -216,13 +195,8 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
             items.append(it)
 
     def add_related_links_from_policy_li(li, source_tag: str):
-        """
-        关键：抓取政策文件 li 中 <dl class="tslb-list"> 下的 <dd><a> 相关解读/相关新闻
-        并尽量继承该 li 的发布日期。
-        """
         pub_date = get_pub_date_from_container(li)
 
-        # 1) 主政策链接：通常在 <p><a ...></a><span>日期...</span></p>
         p = li.find("p")
         if p:
             a_main = p.find("a", href=True)
@@ -231,9 +205,7 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
                 if it:
                     items.append(it)
 
-        # 2) dl.tslb-list 下的 dd>a：相关解读、相关新闻
         for dl in li.select("dl.tslb-list"):
-            # dt 标题可作为子来源标签（可选）
             dt = dl.find("dt")
             dt_text = dt.get_text(" ", strip=True) if dt else ""
             sub_tag = source_tag
@@ -278,7 +250,7 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
         for p in con.select("p"):
             add_primary_link(p, f"MIIT-首页-{tab}")
 
-    # ===== 过滤（关键词 + 时间窗口）=====
+    # 过滤（关键词 + 时间窗口）
     filtered: List[Item] = []
     for it in items:
         if not keyword_hit(it.title, keywords):
@@ -287,7 +259,7 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
             continue
         filtered.append(it)
 
-    # ===== 去重（URL 归一化）=====
+    # 去重（URL 归一化）
     uniq: Dict[str, Item] = {}
     for it in filtered:
         key = canonicalize_url_for_dedup(it.url)
@@ -305,8 +277,9 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
                     pass
 
     return list(uniq.values())
+
 #---------------------------------------------------gov.cn 相关解析代码---------------------------------------------------#
-# 去重用：忽略 http/https，统一 www，去掉 fragment，规范化 path
+# 去重用：忽略 http/https
 def canonicalize_url_for_dedup(url: str) -> str:
     try:
         u = url.strip()
@@ -319,7 +292,6 @@ def canonicalize_url_for_dedup(url: str) -> str:
         path = parts.path or "/"
         if path != "/" and path.endswith("/"):
             path = path[:-1]
-        # 忽略 scheme 与 fragment；保留 query（一般不影响，但保险）
         return urlunsplit(("", netloc, path, parts.query or "", ""))
     except Exception:
         return url
@@ -329,14 +301,12 @@ def canonicalize_url_for_dedup(url: str) -> str:
 _RE_GOV_YYYYMM = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])/(?:content_|index\.htm|)$")
 _RE_GOV_ANY_YYYYMM = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])/")
 def extract_gov_date_from_url(url: str) -> Optional[str]:
-    # 先用更严格的匹配，失败再用宽松的
     m = _RE_GOV_YYYYMM.search(url)
     if not m:
         m = _RE_GOV_ANY_YYYYMM.search(url)
     if not m:
         return None
     yyyy, mm = m.group(1), m.group(2)
-    # 首页 URL 通常只有年月，没有日；这里用当月 01 日做“窗口过滤兜底”
     return f"{yyyy}-{mm}-01"
 
 
@@ -345,8 +315,6 @@ _RE_DATE_YMD = re.compile(r"(20\d{2})[.\-/年](0?[1-9]|1[0-2])[.\-/月](0?[1-9]|
 def extract_gov_pub_date_from_article_html(article_html: str) -> Optional[str]:
     # 1) 常见 meta（不同频道不一致，尽量多兜）
     # 例如：<meta name="others" content="页面生成时间 2026-01-21 08:52:30" />
-    # 注意：这是页面生成时间，不等于发布时间；但文章页通常会有“发布时间/日期”字段。
-    # 我们先对全文做日期扫描，结合“发布时间”等上下文更稳。
     text = article_html
 
     # 2) 优先：含“发布时间/日期/来源”等附近的日期
@@ -386,7 +354,7 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
     window_days = int(config["window_days"])
     hard_cap_days = int(config["hard_cap_days"])
 
-    # 是否请求文章页补发布时间（强烈建议 True）
+    # 是否请求文章页补发布时间
     resolve_pub_date = bool(config.get("resolve_pub_date", True))
     # 避免首页链接太多导致抓取过慢，可设置上限
     resolve_cap = int(config.get("resolve_pub_date_cap", 60))
@@ -456,7 +424,7 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
                 temp_uniq[k] = it
         uniq_items = list(temp_uniq.values())
 
-        # 只对前 N 条补日期（可通过配置调大）
+        # 只对前 N 条补日期（可调大）
         for it in uniq_items[:resolve_cap]:
             d = resolve_pub_date_for_url(it.url)
             if d:
@@ -483,7 +451,6 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
             uniq[key] = it
         else:
             old = uniq[key]
-            # 优先保留“有 pub_date”的；都有则保留更晚的
             if (not old.pub_date) and it.pub_date:
                 uniq[key] = it
             elif old.pub_date and it.pub_date:
@@ -494,6 +461,157 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
                     pass
 
     return list(uniq.values())
+
+#-------------------------------------- qqnews search (腾讯新闻) --------------------------------------#
+QQNEWS_API_URL = "https://i.news.qq.com/gw/pc_search/result"
+
+QQNEWS_HEADERS = {
+    "Accept": "application/json, text/plain, */*",
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    "User-Agent": USER_AGENT,
+    "Origin": "https://news.qq.com",
+    "Referer": "https://news.qq.com/",
+}
+
+
+def _parse_qqnews_time_to_dt(s: str, now: datetime) -> Optional[datetime]:
+    """
+    解析腾讯新闻搜索结果里的 time 字段，尽量转成带时区的 datetime（+08:00）。
+    典型值：2小时前 / 15分钟前 / 3天前 / 2026-01-21 10:11
+    """
+    s = (s or "").strip()
+    if not s:
+        return None
+    # 相对时间
+    try:
+        if s.endswith("分钟前"):
+            n = int(s.replace("分钟前", "").strip())
+            return now - timedelta(minutes=n)
+        if s.endswith("小时前"):
+            n = int(s.replace("小时前", "").strip())
+            return now - timedelta(hours=n)
+        if s.endswith("天前"):
+            n = int(s.replace("天前", "").strip())
+            return now - timedelta(days=n)
+    except Exception:
+        pass
+
+    # 绝对时间
+    try:
+        dt = dtparser.parse(s, fuzzy=True)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=SG_TZ)
+        else:
+            dt = dt.astimezone(SG_TZ)
+        return dt
+    except Exception:
+        return None
+
+
+def _qqnews_search_fetch_page(session: requests.Session, query: str, page: int, limit: int) -> dict:
+    payload = {
+        "page": str(page),                 # page 从 0 开始
+        "query": query,
+        "is_pc": "1",
+        "hippy_custom_version": "24",
+        "search_type": "all",
+        "search_count_limit": str(limit),
+        "appver": "15.5_qqnews_7.1.80",
+    }
+    resp = session.post(QQNEWS_API_URL, data=payload, headers=QQNEWS_HEADERS, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
+    """
+    目标：调用腾讯新闻 PC 搜索 API，搜索指定关键词（默认：工信微报），收集近 15 天的结果写入统一 CSV。
+    说明：
+    - 仅保留 secList 中 component=pictext（图文）且含 newsList 的条目
+    - 时间字段优先使用 API 返回的 time；无法解析则跳过（满足“近15天”约束）
+    """
+    src = config["sources"].get("qqnews_search")
+    if not src:
+        return []
+
+    query = (src.get("query") or "工信微报").strip()
+    window_days = int(src.get("window_days") or 15)
+    max_pages = int(src.get("max_pages") or 5)
+    page_size = int(src.get("page_size") or 20)
+
+    threshold = now - timedelta(days=window_days)
+    fetched_at = now.astimezone(SG_TZ).isoformat(timespec="seconds")
+
+    session = requests.Session()
+    items: List[Item] = []
+
+    for page in range(max_pages):
+        raw = _qqnews_search_fetch_page(session, query=query, page=page, limit=page_size)
+        sec_list = raw.get("secList") or []
+
+        page_items: List[Item] = []
+        page_min_dt: Optional[datetime] = None
+        page_has_any_dt = False
+
+        for sec in sec_list:
+            try:
+                # 图文：component=pictext；同时 secType 通常为 0
+                component = (sec.get("component") or "").strip()
+                if component and component != "pictext":
+                    continue
+
+                for n in (sec.get("newsList") or []):
+                    title = (n.get("title") or "").strip()
+                    url = (n.get("surl") or n.get("url") or "").strip()
+                    if not title or not url:
+                        continue
+
+                    t_raw = (n.get("time") or "").strip()
+                    dt = _parse_qqnews_time_to_dt(t_raw, now=now)
+                    if dt is None:
+                        # 近 15 天要求下，无法判断时间的条目直接跳过，避免误收旧文
+                        continue
+
+                    page_has_any_dt = True
+                    if page_min_dt is None or dt < page_min_dt:
+                        page_min_dt = dt
+
+                    if dt < threshold:
+                        continue
+
+                    pub_date = dt.date().isoformat()
+                    publisher = (n.get("source") or src.get("name") or "腾讯新闻").strip()
+
+                    page_items.append(Item(
+                        title=title,
+                        publisher=publisher,
+                        url=url,
+                        pub_date=pub_date,
+                        source=f"腾讯新闻搜索-{query}",
+                        fetched_at=fetched_at,
+                    ))
+            except Exception:
+                continue
+
+        items.extend(page_items)
+
+        # 终止条件：
+        # - hasMore=0 表示没有更多
+        # - 如果本页最老时间已早于阈值，后续页通常更老，可提前停止
+        if raw.get("hasMore") in (0, "0", False):
+            break
+        if page_has_any_dt and page_min_dt and page_min_dt < threshold:
+            break
+    
+    keywords = config["keywords"]
+    filtered: List[Item] = []
+    for it in items:
+        if not keyword_hit(it.title, keywords):
+            continue
+        filtered.append(it)    
+
+    return filtered
+#--------------------------------------------------------------------------------------------------------------——#
 
 
 def load_existing(csv_path: str) -> pd.DataFrame:
@@ -541,7 +659,6 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
     return new_df, added
 
 def main():
-    # collect.py 位于 src/，仓库根目录是它的上一级
     repo_root = Path(__file__).resolve().parents[1]
     config_path = repo_root / "config.yaml"
 
@@ -551,6 +668,7 @@ def main():
     all_items: List[Item] = []
     all_items.extend(parse_miit_home(config, now))
     all_items.extend(parse_gov_home(config, now))
+    all_items.extend(parse_qqnews_search(config, now))
 
     out_csv = repo_root / config["output"]["csv_path"]
     existing = load_existing(str(out_csv))

@@ -30,11 +30,11 @@ jobs:
         id: collector
         run: |
           python src/collect.py
-          echo "added=$(cat added_count.txt)" >> "$GITHUB_OUTPUT"
+          echo "added=$(cat docs/data/added_count.txt )" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push (only if new rows)
         if: steps.collector.outputs.added != '0'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: weekly policy news update"
-          file_pattern: data/policy_news.csv added_count.txt
+          file_pattern: docs/docs/data/policy_news.csv  docs/data/added_count.txt 

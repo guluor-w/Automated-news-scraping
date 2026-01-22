@@ -664,7 +664,7 @@ def main():
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     merged.to_csv(str(out_csv), index=False, encoding="utf-8-sig")
 
-    added_path = repo_root / "added_count.txt"  #记录新增的数量
+    added_path = repo_root / "docs/data/added_count.txt "  #记录新增的数量
     with open(added_path, "w", encoding="utf-8") as f:
         f.write(str(added))
 

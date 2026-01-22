@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Tuple
 from pathlib import Path
 
-import feedparser
 import pandas as pd
 import requests
 import yaml
@@ -476,8 +475,7 @@ QQNEWS_HEADERS = {
 
 def _parse_qqnews_time_to_dt(s: str, now: datetime) -> Optional[datetime]:
     """
-    解析腾讯新闻搜索结果里的 time 字段，尽量转成带时区的 datetime（+08:00）。
-    典型值：2小时前 / 15分钟前 / 3天前 / 2026-01-21 10:11
+    解析腾讯新闻搜索结果里的 time 字段，尽量转成带时区的 datetime。
     """
     s = (s or "").strip()
     if not s:
@@ -510,7 +508,7 @@ def _parse_qqnews_time_to_dt(s: str, now: datetime) -> Optional[datetime]:
 
 def _qqnews_search_fetch_page(session: requests.Session, query: str, page: int, limit: int) -> dict:
     payload = {
-        "page": str(page),                 # page 从 0 开始
+        "page": str(page),                 
         "query": query,
         "is_pc": "1",
         "hippy_custom_version": "24",
@@ -531,11 +529,8 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
     - 时间字段优先使用 API 返回的 time；无法解析则跳过（满足“近15天”约束）
     """
     src = config["sources"].get("qqnews_search")
-    if not src:
-        return []
-
+    window_days = config.get("window_days", 15)
     query = (src.get("query") or "工信微报").strip()
-    window_days = int(src.get("window_days") or 15)
     max_pages = int(src.get("max_pages") or 5)
     page_size = int(src.get("page_size") or 20)
 
@@ -551,8 +546,6 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
 
         page_items: List[Item] = []
         page_min_dt: Optional[datetime] = None
-        page_has_any_dt = False
-
         for sec in sec_list:
             try:
                 # 图文：component=pictext；同时 secType 通常为 0
@@ -569,10 +562,9 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
                     t_raw = (n.get("time") or "").strip()
                     dt = _parse_qqnews_time_to_dt(t_raw, now=now)
                     if dt is None:
-                        # 近 15 天要求下，无法判断时间的条目直接跳过，避免误收旧文
+                        # 无法判断时间的条目直接跳过
                         continue
 
-                    page_has_any_dt = True
                     if page_min_dt is None or dt < page_min_dt:
                         page_min_dt = dt
 
@@ -581,7 +573,6 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
 
                     pub_date = dt.date().isoformat()
                     publisher = (n.get("source") or src.get("name") or "腾讯新闻").strip()
-
                     page_items.append(Item(
                         title=title,
                         publisher=publisher,
@@ -595,12 +586,10 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
 
         items.extend(page_items)
 
-        # 终止条件：
-        # - hasMore=0 表示没有更多
-        # - 如果本页最老时间已早于阈值，后续页通常更老，可提前停止
+        # 终止
         if raw.get("hasMore") in (0, "0", False):
             break
-        if page_has_any_dt and page_min_dt and page_min_dt < threshold:
+        if page_min_dt and page_min_dt < threshold:
             break
     
     keywords = config["keywords"]

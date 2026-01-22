@@ -1,4 +1,3 @@
-# 关键词：你可以随时增删
 keywords:
   - 人工智能
   - AI
@@ -11,7 +10,7 @@ keywords:
   - 算力
   - 机器人
 
-# 时间窗口：每周抓取建议 window_days=7；硬上限不超过 14 天（“不要超过半个月”）
+# 时间窗口：“不要超过半个月”
 window_days: 7
 hard_cap_days: 14
 
@@ -27,6 +26,14 @@ sources:
   gov_home: 
     name: 中国政府网
     url: https://www.gov.cn/
+
+  qqnews_search:
+    name: 腾讯新闻
+    url: https://i.news.qq.com/gw/pc_search/result
+    query: 工信微报
+    window_days: 15
+    max_pages: 5
+    page_size: 20
 
 resolve_pub_date: True
 resolve_pub_date_cap: 30

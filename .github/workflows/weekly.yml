@@ -2,8 +2,7 @@ name: Weekly AI Policy Collector
 
 on:
   schedule:
-    # GitHub cron 使用 UTC；新加坡时间周一 09:00 = UTC 周一 01:00
-    - cron: "0 1 * * 1"
+    - cron: "0 1 * * 0,1,3,5"  # 每周日、周一、周三、周五的 UTC 01:00 运行
   workflow_dispatch: {}
 
 permissions:

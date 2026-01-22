@@ -1,4 +1,3 @@
-import csv
 import hashlib
 import os
 import re
@@ -17,7 +16,7 @@ from urllib.parse import urlsplit, urlunsplit
 from typing import List, Dict, Optional, Tuple
 from urllib.parse import urlsplit, urlunsplit
 import re
-from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+from urllib.parse import urlsplit, urlunsplit
 
 SG_TZ = timezone(timedelta(hours=8))  # Asia/Singapore 固定 +08:00
 
@@ -358,7 +357,6 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
     # 避免首页链接太多导致抓取过慢，可设置上限
     resolve_cap = int(config.get("resolve_pub_date_cap", 60))
 
-    # 文章页日期缓存，避免同 URL 重复请求
     pub_cache: Dict[str, Optional[str]] = {}
 
     def resolve_pub_date_for_url(url: str) -> Optional[str]:
@@ -415,7 +413,7 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
 
     # 补齐真实发布时间：访问文章页提取日期
     if resolve_pub_date:
-        # 先按 URL 去个粗重，减少请求量
+        # 按 URL 去个粗重
         temp_uniq: Dict[str, Item] = {}
         for it in items:
             k = canonicalize_url_for_dedup(it.url)
@@ -429,7 +427,7 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
             if d:
                 it.pub_date = d
 
-        # 用补完日期的对象回填
+        # 回填
         items = uniq_items
 
     # 过滤：关键词 + 时间窗口
@@ -666,7 +664,7 @@ def main():
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     merged.to_csv(str(out_csv), index=False, encoding="utf-8-sig")
 
-    added_path = repo_root / "added_count.txt"
+    added_path = repo_root / "added_count.txt"  #记录新增的数量
     with open(added_path, "w", encoding="utf-8") as f:
         f.write(str(added))
 

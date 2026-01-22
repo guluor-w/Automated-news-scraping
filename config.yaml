@@ -10,9 +10,9 @@ keywords:
   - 算力
   - 机器人
 
-# 时间窗口：“不要超过半个月”
-window_days: 7
-hard_cap_days: 14
+# 时间窗口：“不要超过半个月” 
+window_days: 15  #如果每周连续运行一般以7天为窗口，这里先设置和hard_cap_days一致
+hard_cap_days: 15 #最早时间（用于筛掉过早的新闻）
 
 sources:
   miit_home:
@@ -31,9 +31,8 @@ sources:
     name: 腾讯新闻
     url: https://i.news.qq.com/gw/pc_search/result
     query: 工信微报
-    window_days: 15
-    max_pages: 5
-    page_size: 20
+    max_pages: 5  #最多查询的页面
+    page_size: 20 # 每页条数
 
 resolve_pub_date: True
 resolve_pub_date_cap: 30
@@ -41,7 +40,7 @@ resolve_pub_date_cap: 30
 output:
   csv_path: data/policy_news.csv
 
-# 可选：写入 Google Sheets（后面第 6 部分会教你配置 secrets）
+# 可选：写入 Google Sheets
 google_sheets:
   enabled: false
   spreadsheet_id: ""   # 建议用 GitHub Secrets 注入

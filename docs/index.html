@@ -31,7 +31,7 @@
         <th class="nowrap">发布单位</th>
         <th class="nowrap">发布日期</th>
         <th class="nowrap">来源</th>
-        <th class="nowrap">抓取时间</th>
+        <th class="nowrap">查询时间</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -74,14 +74,14 @@
           console.warn("CSV parse warnings:", parsed.errors);
         }
 
-        // 你的CSV列名（根据你当前流程）：标题, 发布单位, 新闻URL, 发布日期, 来源, 抓取时间
+        // 你的CSV列名（根据你当前流程）：标题, 发布单位, 新闻URL, 发布日期, 来源, 查询时间
         const rows = (parsed.data || []).map(r => {
           const title = r["标题"] || "";
           const url = r["新闻URL"] || "";
           const publisher = r["发布单位"] || "";
           const pubDate = r["发布日期"] || "";
           const source = r["来源"] || "";
-          const fetchedAt = r["抓取时间"] || "";
+          const fetchedAt = r["查询时间"] || "";
 
           const titleCell = url
             ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a>`
@@ -98,7 +98,7 @@
             { title: "发布单位" },
             { title: "发布日期" },
             { title: "来源" },
-            { title: "抓取时间" }
+            { title: "查询时间" }
           ],
           pageLength: 25,
           order: [[2, "desc"]], // 默认按发布日期降序

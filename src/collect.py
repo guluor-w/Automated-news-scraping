@@ -354,7 +354,7 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
 
     # 是否请求文章页补发布时间
     resolve_pub_date = bool(config.get("resolve_pub_date", True))
-    # 避免首页链接太多导致抓取过慢，可设置上限
+    # 避免首页链接太多导致查询过慢，可设置上限
     resolve_cap = int(config.get("resolve_pub_date_cap", 60))
 
     pub_cache: Dict[str, Optional[str]] = {}
@@ -603,7 +603,7 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
 
 def load_existing(csv_path: str) -> pd.DataFrame:
     if not os.path.exists(csv_path):
-        return pd.DataFrame(columns=["标题", "发布单位", "新闻URL", "发布日期", "来源", "抓取时间"])
+        return pd.DataFrame(columns=["标题", "发布单位", "新闻URL", "发布日期", "来源", "查询时间"])
     return pd.read_csv(csv_path)
 
 
@@ -624,7 +624,7 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
             "新闻URL": it.url,
             "发布日期": it.pub_date or "",
             "来源": it.source,
-            "抓取时间": it.fetched_at,
+            "查询时间": it.fetched_at,
         })
         existing_urls.add(it.url)
         added += 1
@@ -634,14 +634,14 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
     else:
         new_df = existing.copy()
 
-    # 按发布日期（空值排后）和抓取时间排序
+    # 按发布日期（空值排后）和查询时间排序
     def sort_key(row):
         d = row.get("发布日期", "")
         return d if d else "0000-00-00"
 
     if not new_df.empty:
         new_df["__sortdate"] = new_df.apply(sort_key, axis=1)
-        new_df = new_df.sort_values(by=["__sortdate", "抓取时间"], ascending=[False, False]).drop(columns=["__sortdate"])
+        new_df = new_df.sort_values(by=["__sortdate", "查询时间"], ascending=[False, False]).drop(columns=["__sortdate"])
 
     return new_df, added
 

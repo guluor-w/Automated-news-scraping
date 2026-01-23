@@ -1,4 +1,4 @@
-name: Weekly AI Policy Collector
+﻿name: Weekly AI Policy Collector
 
 on:
   schedule:

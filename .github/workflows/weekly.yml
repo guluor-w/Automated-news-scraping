@@ -37,4 +37,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: weekly policy news update"
-          file_pattern: docs/docs/data/policy_news.csv  docs/data/added_count.txt 
+          file_pattern: docs/data/policy_news.csv  docs/data/added_count.txt 

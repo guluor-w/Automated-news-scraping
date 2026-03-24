@@ -612,6 +612,11 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
                         pub_date = dt.date().isoformat()
                         publisher = (n.get("source") or src.get("name") or "腾讯新闻").strip()
                         
+                        # Add validation: Verify if the publisher name contains the query keyword
+                        # 校验流程：仅保留发布单位（publisher）包含当前查询词（query）的新闻
+                        if query not in publisher:
+                            continue
+
                         # source 字段加上 query 区分来源
                         all_items.append(Item(
                             title=title,

@@ -1,6 +1,8 @@
 import hashlib
 import os
 import re
+import time
+import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Tuple
@@ -551,10 +553,22 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
     session = requests.Session()
     all_items: List[Item] = []
 
-    for query in queries:
+    # -------------------------------------------------------------------------
+    # 遍历所有查询词进行搜索
+    # 说明：
+    # 1. 对 queries 列表逐个发起搜索请求。
+    # 2. 为了避免短时间内高频访问导致被封禁，增加随机休眠机制。
+    # -------------------------------------------------------------------------
+    for i, query in enumerate(queries):
         query = str(query).strip()
         if not query:
             continue
+        
+        # 如果不是第一个查询词，则在两次查询之间进行随机休眠 (2~5秒)
+        if i > 0:
+            sleep_sec = random.uniform(2.0, 5.0)
+            # print(f"[INFO] 正在休眠 {sleep_sec:.2f} 秒，准备抓取下一个关键词...")
+            time.sleep(sleep_sec)
             
         # print(f"正在抓取腾讯新闻: {query}") # Optional: logging
         

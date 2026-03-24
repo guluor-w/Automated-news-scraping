@@ -6,6 +6,7 @@ keywords:
   - 制造业
   - 新型工业化
   - 工业互联网
+  - 产业互联网
   - 数字化
   - 数智化
   - 算力
@@ -44,7 +45,11 @@ sources:
   qqnews_search:
     name: 腾讯新闻
     url: https://i.news.qq.com/gw/pc_search/result
-    query: 工信微报
+    # 支持多关键词查询，可在此处添加更多公众号或关键词
+    queries: 
+      - 工信微报
+      - 微言教育
+      # - 其它关键词...
     max_pages: 5  #最多查询的页面
     page_size: 20 # 每页条数
 

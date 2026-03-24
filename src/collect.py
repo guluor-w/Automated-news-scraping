@@ -521,14 +521,27 @@ def _qqnews_search_fetch_page(session: requests.Session, query: str, page: int, 
 
 def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
     """
-    目标：调用腾讯新闻 PC 搜索 API，搜索指定关键词（默认：工信微报），收集近 15 天的结果写入统一 CSV。
+    目标：调用腾讯新闻 PC 搜索 API，搜索指定关键词（支持多个，例如工信微报、微言教育），
+    收集近 N 天的结果写入统一 CSV。
     说明：
     - 仅保留 secList 中 component=pictext（图文）且含 newsList 的条目
-    - 时间字段优先使用 API 返回的 time；无法解析则跳过（满足“近15天”约束）
+    - 时间字段优先使用 API 返回的 time；无法解析则跳过（满足“近N天”约束）
     """
     src = config["sources"].get("qqnews_search")
-    window_days = config.get("window_days", 15)
-    query = (src.get("query") or "工信微报").strip()
+    if not src:
+        return []
+
+    # 获取查询词列表（优先 queries，其次 query，最后默认）
+    queries = src.get("queries")
+    if not queries:
+        single_query = src.get("query")
+        queries = [single_query] if single_query else ["工信微报"]
+    
+    # 确保是列表
+    if isinstance(queries, str):
+        queries = [queries]
+
+    window_days = int(config.get("window_days", 15))
     max_pages = int(src.get("max_pages") or 5)
     page_size = int(src.get("page_size") or 20)
 
@@ -536,63 +549,80 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
     fetched_at = now.astimezone(SG_TZ).isoformat(timespec="seconds")
 
     session = requests.Session()
-    items: List[Item] = []
+    all_items: List[Item] = []
 
-    for page in range(max_pages):
-        raw = _qqnews_search_fetch_page(session, query=query, page=page, limit=page_size)
-        sec_list = raw.get("secList") or []
-
-        page_items: List[Item] = []
-        page_min_dt: Optional[datetime] = None
-        for sec in sec_list:
+    for query in queries:
+        query = str(query).strip()
+        if not query:
+            continue
+            
+        # print(f"正在抓取腾讯新闻: {query}") # Optional: logging
+        
+        for page in range(max_pages):
             try:
-                # 图文：component=pictext；同时 secType 通常为 0
-                component = (sec.get("component") or "").strip()
-                if component and component != "pictext":
-                    continue
-
-                for n in (sec.get("newsList") or []):
-                    title = (n.get("title") or "").strip()
-                    url = (n.get("surl") or n.get("url") or "").strip()
-                    if not title or not url:
-                        continue
-
-                    t_raw = (n.get("time") or "").strip()
-                    dt = _parse_qqnews_time_to_dt(t_raw, now=now)
-                    if dt is None:
-                        # 无法判断时间的条目直接跳过
-                        continue
-
-                    if page_min_dt is None or dt < page_min_dt:
-                        page_min_dt = dt
-
-                    if dt < threshold:
-                        continue
-
-                    pub_date = dt.date().isoformat()
-                    publisher = (n.get("source") or src.get("name") or "腾讯新闻").strip()
-                    page_items.append(Item(
-                        title=title,
-                        publisher=publisher,
-                        url=url,
-                        pub_date=pub_date,
-                        source=f"腾讯新闻搜索-{query}",
-                        fetched_at=fetched_at,
-                    ))
-            except Exception:
+                raw = _qqnews_search_fetch_page(session, query=query, page=page, limit=page_size)
+            except Exception as e:
+                # print(f"抓取腾讯新闻出错: query={query}, page={page}, err={e}")
                 continue
 
-        items.extend(page_items)
+            sec_list = raw.get("secList") or []
 
-        # 终止
-        if raw.get("hasMore") in (0, "0", False):
-            break
-        if page_min_dt and page_min_dt < threshold:
-            break
-    
-    keywords = config["keywords"]
+            page_min_dt: Optional[datetime] = None
+            
+            for sec in sec_list:
+                try:
+                    # 图文：component=pictext；同时 secType 通常为 0
+                    component = (sec.get("component") or "").strip()
+                    if component and component != "pictext":
+                        continue
+
+                    for n in (sec.get("newsList") or []):
+                        title = (n.get("title") or "").strip()
+                        url = (n.get("surl") or n.get("url") or "").strip()
+                        if not title or not url:
+                            continue
+
+                        t_raw = (n.get("time") or "").strip()
+                        dt = _parse_qqnews_time_to_dt(t_raw, now=now)
+                        if dt is None:
+                            # 无法判断时间的条目直接跳过
+                            continue
+                        
+                        # 记录本页最早时间，用于判断是否还要翻页
+                        if page_min_dt is None or dt < page_min_dt:
+                            page_min_dt = dt
+
+                        if dt < threshold:
+                            continue
+
+                        pub_date = dt.date().isoformat()
+                        publisher = (n.get("source") or src.get("name") or "腾讯新闻").strip()
+                        
+                        # source 字段加上 query 区分来源
+                        all_items.append(Item(
+                            title=title,
+                            publisher=publisher,
+                            url=url,
+                            pub_date=pub_date,
+                            source=f"腾讯新闻搜索-{query}",
+                            fetched_at=fetched_at,
+                        ))
+                except Exception:
+                    continue
+            
+            # 翻页终止条件
+            if raw.get("hasMore") in (0, "0", False):
+                break
+            
+            # 如果本页最早的时间都已经小于阈值，无需再往后翻
+            if page_min_dt and page_min_dt < threshold:
+                break
+
+    # 统一过滤（关键词）
+    keywords = config.get("keywords", [])
     filtered: List[Item] = []
-    for it in items:
+    
+    for it in all_items:
         if not keyword_hit(it.title, keywords):
             continue
         filtered.append(it)    

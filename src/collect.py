@@ -638,13 +638,27 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
                 break
 
     # 统一过滤（关键词）
-    keywords = config.get("keywords", [])
+    base_keywords = config.get("keywords", [])
+
+    # 特殊处理：关键词“印发”
+    # 仅当 query 为 "工信微报" 时保留 "印发"，其他情况需移除
+    keywords_full = base_keywords
+    keywords_no_yinfa = [k for k in base_keywords if k != "印发"]
+
     filtered: List[Item] = []
     
     for it in all_items:
-        if not keyword_hit(it.title, keywords):
+        # 判断该条目属于哪个查询词
+        # 简单通过 source 字符串判断。目前 source 格式为 "腾讯新闻搜索-{query}"
+        # 如果是“工信微报”来源，保留“印发”；否则不使用“印发”作为匹配词
+        if "工信微报" in it.source:
+            target_keywords = keywords_full
+        else:
+            target_keywords = keywords_no_yinfa
+            
+        if not keyword_hit(it.title, target_keywords):
             continue
-        filtered.append(it)    
+        filtered.append(it)
 
     return filtered
 #--------------------------------------------------------------------------------------------------------------——#

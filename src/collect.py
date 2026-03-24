@@ -433,9 +433,12 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
         items = uniq_items
 
     # 过滤：关键词 + 时间窗口
+    # 特殊处理：gov_home 不使用“印发”关键词
+    gov_keywords = [k for k in keywords if k != "印发"]
+
     filtered: List[Item] = []
     for it in items:
-        if not keyword_hit(it.title, keywords):
+        if not keyword_hit(it.title, gov_keywords):
             continue
         if it.pub_date:
             if not within_window(it.pub_date, now, window_days, hard_cap_days):
@@ -460,6 +463,84 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
                     pass
 
     return list(uniq.values())
+
+
+def parse_gov_rss(config: dict, now: datetime) -> List[Item]:
+    """
+    解析 gov_latest_policy_rss
+    使用 RSSHub 提供的 RSS：https://rsshub.app/gov/zhengce/zuixin
+    注意：本渠道同样不使用“印发”关键词过滤
+    """
+    src = config["sources"].get("gov_latest_policy_rss")
+    if not src:
+        return []
+    
+    rss_url = src.get("rss")
+    if not rss_url:
+        return []
+
+    try:
+        # Fetch RSS content
+        # 注意：http_get 内部有超时设置
+        xml_content = http_get(rss_url)
+    except Exception:
+        # 如果 RSS 抓取失败，直接忽略
+        return []
+
+    # 使用 lxml 解析 XML
+    soup = BeautifulSoup(xml_content, "xml")
+    
+    fetched_at = now.astimezone(SG_TZ).isoformat(timespec="seconds")
+    items: List[Item] = []
+
+    # 关键词过滤：排除“印发”
+    raw_keywords = config.get("keywords", [])
+    rss_keywords = [k for k in raw_keywords if k != "印发"]
+    
+    window_days = int(config.get("window_days", 15))
+    hard_cap_days = int(config.get("hard_cap_days", 15))
+
+    for entry in soup.find_all("item"):
+        title_tag = entry.find("title")
+        link_tag = entry.find("link")
+        pub_date_tag = entry.find("pubDate")
+
+        title = (title_tag.get_text() if title_tag else "").strip()
+        link = (link_tag.get_text() if link_tag else "").strip()
+        pub_date_str = (pub_date_tag.get_text() if pub_date_tag else "").strip()
+        
+        if not title or not link:
+            continue
+            
+        # 日期解析
+        pub_date = None
+        if pub_date_str:
+            try:
+                # RSS date: Wed, 02 Oct 2002 13:00:00 GMT
+                dt = dtparser.parse(pub_date_str)
+                pub_date = dt.date().isoformat()
+            except Exception:
+                pass
+        
+        # 关键词匹配
+        if not keyword_hit(title, rss_keywords):
+            continue
+            
+        # 时间窗口过滤
+        if not within_window(pub_date, now, window_days, hard_cap_days):
+            continue
+
+        items.append(Item(
+            title=title,
+            publisher=src.get("name", "中国政府网"),
+            url=link,
+            pub_date=pub_date,
+            source="GOV-最新政策-RSS",
+            fetched_at=fetched_at,
+        ))
+
+    return items
+
 
 #-------------------------------------- qqnews search (腾讯新闻) --------------------------------------#
 QQNEWS_API_URL = "https://i.news.qq.com/gw/pc_search/result"
@@ -718,6 +799,7 @@ def main():
     all_items: List[Item] = []
     all_items.extend(parse_miit_home(config, now))
     all_items.extend(parse_gov_home(config, now))
+    all_items.extend(parse_gov_rss(config, now))
     all_items.extend(parse_qqnews_search(config, now))
 
     out_csv = repo_root / config["output"]["csv_path"]

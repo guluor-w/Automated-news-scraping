@@ -645,9 +645,9 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
         if not query:
             continue
         
-        # 如果不是第一个查询词，则在两次查询之间进行随机休眠 (2~5秒)
+        # 如果不是第一个查询词，则在两次查询之间进行随机休眠 (10~20秒)
         if i > 0:
-            sleep_sec = random.uniform(2.0, 5.0)
+            sleep_sec = random.uniform(10.0, 20.0)
             # print(f"[INFO] 正在休眠 {sleep_sec:.2f} 秒，准备抓取下一个关键词...")
             time.sleep(sleep_sec)
             

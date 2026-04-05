@@ -55,6 +55,18 @@ sources:
     max_pages: 5  #最多查询的页面
     page_size: 20 # 每页条数
 
+
+# 微博监控数据源（调用 weibo_monitor.py，需要 Playwright）
+# 启用前请先安装：pip install playwright && python -m playwright install chromium
+weibo_monitor:
+  enabled: false      # 设为 true 启用微博/官网数据源
+  # mode 可选值：
+  #   all          - 同时抓取微博账号和官网（默认）
+  #   weibo_only   - 仅抓取微博账号，跳过官网
+  #   website_only - 仅抓取官网新闻，跳过微博账号（速度更快，推荐优先启用）
+  mode: website_only
+  max_pages: 2        # 每个微博账号最多抓取的页数（仅 mode=all/weibo_only 时有效）
+
 resolve_pub_date: True
 resolve_pub_date_cap: 30
 

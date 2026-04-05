@@ -1,23 +1,20 @@
+import asyncio
 import hashlib
 import os
 import re
+import sys
 import time
 import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Dict, Tuple
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 import requests
 import yaml
 from bs4 import BeautifulSoup
 from dateutil import parser as dtparser
-from typing import List, Dict, Optional
-from urllib.parse import urlsplit, urlunsplit
-from typing import List, Dict, Optional, Tuple
-from urllib.parse import urlsplit, urlunsplit
-import re
 from urllib.parse import urlsplit, urlunsplit
 
 SG_TZ = timezone(timedelta(hours=8))  # Asia/Singapore 固定 +08:00
@@ -110,7 +107,7 @@ def within_window(pub_date: Optional[str], now: datetime, window_days: int, hard
     if not (lower <= d <= upper):
         return False
 
-    return d >= (now - timedelta(days=window_days)).date() or True
+    return d >= (now - timedelta(days=window_days)).date()
 
 
 
@@ -279,24 +276,6 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
     return list(uniq.values())
 
 #---------------------------------------------------gov.cn 相关解析代码---------------------------------------------------#
-# 去重用：忽略 http/https
-def canonicalize_url_for_dedup(url: str) -> str:
-    try:
-        u = url.strip()
-        if u.startswith("//"):
-            u = "https:" + u
-        parts = urlsplit(u)
-        netloc = (parts.netloc or "").lower()
-        if netloc.startswith("www."):
-            netloc = netloc[4:]
-        path = parts.path or "/"
-        if path != "/" and path.endswith("/"):
-            path = path[:-1]
-        return urlunsplit(("", netloc, path, parts.query or "", ""))
-    except Exception:
-        return url
-
-
 # 从 gov.cn 的 URL 粗略提取日期（弱兜底）
 _RE_GOV_YYYYMM = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])/(?:content_|index\.htm|)$")
 _RE_GOV_ANY_YYYYMM = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])/")
@@ -789,6 +768,129 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
 
     return new_df, added
 
+def parse_weibo_monitor_sources(config: dict, now: datetime) -> List[Item]:
+    """
+    从 weibo_monitor 的微博账号和官网信息源获取新闻，
+    按关键词和时间窗口过滤后转换为 Item 列表。
+
+    需要 Playwright 支持：
+        pip install playwright
+        python -m playwright install chromium
+
+    通过 config.yaml 中的 weibo_monitor 节控制：
+        weibo_monitor:
+          enabled: true          # 是否启用
+          mode: website_only     # all | weibo_only | website_only
+          max_pages: 2           # 每个微博账号抓取的最大页数
+    """
+    weibo_cfg = config.get("weibo_monitor", {})
+    if not weibo_cfg.get("enabled", False):
+        return []
+
+    # 确保 weibo_monitor 模块可被导入（与 collect.py 同目录）
+    src_dir = str(Path(__file__).parent)
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+
+    try:
+        from weibo_monitor import (  # type: ignore[import]
+            MONITOR_ACCOUNTS,
+            WEBSITE_SOURCES,
+            WeiboMonitor,
+        )
+    except ImportError as exc:
+        print(f"[WARN] weibo_monitor 导入失败，跳过该数据源: {exc}")
+        return []
+
+    mode = weibo_cfg.get("mode", "all")
+    max_pages = int(weibo_cfg.get("max_pages", 2))
+
+    accounts = MONITOR_ACCOUNTS
+    website_sources = WEBSITE_SOURCES
+    if mode == "weibo_only":
+        website_sources = {}
+    elif mode == "website_only":
+        accounts = {}
+
+    keywords = config.get("keywords", [])
+    window_days = int(config.get("window_days", 15))
+    hard_cap_days = int(config.get("hard_cap_days", 15))
+    fetched_at = now.astimezone(SG_TZ).isoformat(timespec="seconds")
+
+    async def _fetch() -> dict:
+        monitor = WeiboMonitor(
+            accounts=accounts,
+            website_sources=website_sources,
+            max_pages=max_pages,
+        )
+        return await monitor.fetch_all(include_seen=True)
+
+    def _run_fetch() -> dict:
+        return asyncio.run(_fetch())
+
+    try:
+        # If a running event loop already exists (e.g. Jupyter / async scheduler),
+        # asyncio.run() would raise RuntimeError.  Fall back to a thread so the
+        # coroutine always runs in its own fresh loop.
+        try:
+            asyncio.get_running_loop()
+            running = True
+        except RuntimeError:
+            running = False
+
+        if running:
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                all_results: dict = pool.submit(_run_fetch).result()
+        else:
+            all_results = asyncio.run(_fetch())
+    except Exception as exc:
+        print(f"[WARN] weibo_monitor 抓取失败，跳过该数据源: {exc}")
+        return []
+
+    items: List[Item] = []
+    for source_name, posts in all_results.items():
+        for post in posts:
+            if "mid" in post:
+                # 微博帖子格式
+                title = post.get("title", "").strip()
+                # 优先使用头条文章链接，其次使用微博详情链接
+                url = post.get("article_url") or post.get("url", "")
+                pub_date_str = post.get("parsed_time", "")
+                pub_date = pub_date_str[:10] if pub_date_str and len(pub_date_str) >= 10 else None
+                publisher = source_name
+                source_tag = f"微博-{source_name}"
+            else:
+                # 官网文章格式
+                title = post.get("title", "").strip()
+                url = post.get("url", "")
+                pub_date = None
+                publisher = source_name
+                source_tag = f"官网-{source_name}"
+
+            if not title or not url:
+                continue
+
+            # 关键词过滤
+            if not keyword_hit(title, keywords):
+                continue
+
+            # 时间窗口过滤（仅当有发布日期时才限定范围）
+            if pub_date and not within_window(pub_date, now, window_days, hard_cap_days):
+                continue
+
+            items.append(Item(
+                title=title,
+                publisher=publisher,
+                url=url,
+                pub_date=pub_date,
+                source=source_tag,
+                fetched_at=fetched_at,
+            ))
+
+    return items
+
+
 def main():
     repo_root = Path(__file__).resolve().parents[1]
     config_path = repo_root / "config.yaml"
@@ -801,6 +903,7 @@ def main():
     all_items.extend(parse_gov_home(config, now))
     all_items.extend(parse_gov_rss(config, now))
     all_items.extend(parse_qqnews_search(config, now))
+    all_items.extend(parse_weibo_monitor_sources(config, now))
 
     out_csv = repo_root / config["output"]["csv_path"]
     existing = load_existing(str(out_csv))
@@ -809,7 +912,7 @@ def main():
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     merged.to_csv(str(out_csv), index=False, encoding="utf-8-sig")
 
-    added_path = repo_root / "docs/data/added_count.txt "  #记录新增的数量
+    added_path = repo_root / "docs/data/added_count.txt"  # 记录新增的数量
     with open(added_path, "w", encoding="utf-8") as f:
         f.write(str(added))
 

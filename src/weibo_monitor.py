@@ -1076,8 +1076,11 @@ class SourceTester:
         consecutive_failures = 0  # 连续失败计数器
 
         # 测试模式：减少重试次数以快速检测 CAPTCHA 封锁
+        # 使用 sys.modules[__name__] 获取当前模块的引用，
+        # 无论是以脚本(__main__)还是模块(weibo_monitor)方式运行均能正确修改全局变量
+        import sys as _sys
+        _mod = _sys.modules[__name__]
         saved_retries = MAX_RETRIES
-        import weibo_monitor as _mod
         _mod.MAX_RETRIES = 1  # 测试模式只重试 1 次
 
         try:

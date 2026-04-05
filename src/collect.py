@@ -107,7 +107,7 @@ def within_window(pub_date: Optional[str], now: datetime, window_days: int, hard
     if not (lower <= d <= upper):
         return False
 
-    return d >= (now - timedelta(days=window_days)).date() or True
+    return d >= (now - timedelta(days=window_days)).date()
 
 
 
@@ -823,10 +823,27 @@ def parse_weibo_monitor_sources(config: dict, now: datetime) -> List[Item]:
             website_sources=website_sources,
             max_pages=max_pages,
         )
-        return await monitor.fetch_all()
+        return await monitor.fetch_all(include_seen=True)
+
+    def _run_fetch() -> dict:
+        return asyncio.run(_fetch())
 
     try:
-        all_results: dict = asyncio.run(_fetch())
+        # If a running event loop already exists (e.g. Jupyter / async scheduler),
+        # asyncio.run() would raise RuntimeError.  Fall back to a thread so the
+        # coroutine always runs in its own fresh loop.
+        try:
+            asyncio.get_running_loop()
+            running = True
+        except RuntimeError:
+            running = False
+
+        if running:
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                all_results: dict = pool.submit(_run_fetch).result()
+        else:
+            all_results = asyncio.run(_fetch())
     except Exception as exc:
         print(f"[WARN] weibo_monitor 抓取失败，跳过该数据源: {exc}")
         return []

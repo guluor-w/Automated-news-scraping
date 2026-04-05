@@ -69,7 +69,7 @@ def run_parse_weibo_with_mock(config, mock_results: dict):
         def __init__(self, accounts=None, website_sources=None, max_pages=1, **kw):
             pass
 
-        async def fetch_all(self):
+        async def fetch_all(self, include_seen: bool = False):
             return mock_results
 
     fake_module.WeiboMonitor = MockWeiboMonitor

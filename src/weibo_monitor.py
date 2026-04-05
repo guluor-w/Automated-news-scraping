@@ -465,11 +465,12 @@ class PlaywrightWeiboClient:
         self._captcha_hit = False
         self._request_count = 0
 
-    async def get_user_timeline(self, uid: str, max_pages: int = 1) -> list[dict]:
+    async def get_user_timeline(self, uid: str, max_pages: int = 1) -> Optional[list[dict]]:
         """
         获取指定用户的微博时间线。
         通过拦截浏览器加载页面时的 API 响应来获取数据。
         支持 CAPTCHA 检测与自动重试。
+        返回 None 表示 CAPTCHA 导致重试耗尽（无法获取数据）。
         """
         for attempt in range(1, MAX_RETRIES + 1):
             result = await self._fetch_timeline_once(uid, max_pages)
@@ -481,7 +482,7 @@ class PlaywrightWeiboClient:
                 await self._handle_captcha()
             else:
                 logger.warning(f"    已达最大重试次数，跳过此账号")
-        return []
+        return None  # CAPTCHA 导致所有重试耗尽
 
     async def _fetch_timeline_once(self, uid: str, max_pages: int) -> Optional[list[dict]]:
         """单次尝试获取时间线，CAPTCHA 时返回 None"""
@@ -884,8 +885,14 @@ class WeiboMonitor:
         self.client = PlaywrightWeiboClient()
         self.data_mgr = DataManager(data_dir or DATA_DIR)
 
-    async def fetch_all(self) -> dict:
-        """抓取所有监控账号（微博 + 官网）的最新文章"""
+    async def fetch_all(self, include_seen: bool = False) -> dict:
+        """抓取所有监控账号（微博 + 官网）的最新文章。
+
+        Args:
+            include_seen: 当为 True 时，跳过 fetch_history.json 去重检查并返回所有
+                         抓取到的条目（适合让调用方自行去重，如 collect.py）。
+                         默认为 False，仅返回自上次抓取以来的新条目。
+        """
         all_results = {}
         total_new = 0
 
@@ -904,22 +911,36 @@ class WeiboMonitor:
                 logger.info(f"\n[{idx}/{total_sources}] [微博] {name} (UID: {uid})")
 
                 posts = await self.client.get_user_timeline(uid, self.max_pages)
+                if posts is None:
+                    # CAPTCHA 导致重试耗尽
+                    logger.warning(f"  触发 CAPTCHA 封锁，跳过此账号")
+                    all_results[name] = []
+                    continue
                 logger.info(f"  获取到 {len(posts)} 条微博")
 
-                new_posts = []
-                for post in posts:
-                    if not self.data_mgr.is_seen(post["mid"]):
-                        new_posts.append(post)
-                        self.data_mgr.mark_seen(post["mid"], name)
-
-                if new_posts:
-                    self.data_mgr.save_daily_csv(name, new_posts)
-                    all_results[name] = new_posts
-                    total_new += len(new_posts)
-                    logger.info(f"  新增 {len(new_posts)} 条")
+                if include_seen:
+                    # 调用方负责去重，直接返回全部抓取结果
+                    all_results[name] = posts
+                    total_new += len(posts)
+                    if posts:
+                        logger.info(f"  返回全部 {len(posts)} 条（include_seen=True）")
+                    else:
+                        logger.info(f"  无内容")
                 else:
-                    all_results[name] = []
-                    logger.info(f"  无新增内容")
+                    new_posts = []
+                    for post in posts:
+                        if not self.data_mgr.is_seen(post["mid"]):
+                            new_posts.append(post)
+                            self.data_mgr.mark_seen(post["mid"], name)
+
+                    if new_posts:
+                        self.data_mgr.save_daily_csv(name, new_posts)
+                        all_results[name] = new_posts
+                        total_new += len(new_posts)
+                        logger.info(f"  新增 {len(new_posts)} 条")
+                    else:
+                        all_results[name] = []
+                        logger.info(f"  无新增内容")
 
             # ---- 阶段二：官网新闻 ----
             if self.website_sources:
@@ -939,32 +960,42 @@ class WeiboMonitor:
                             name, url, timeout=extra_timeout)
                         logger.info(f"  解析到 {len(articles)} 条新闻")
 
-                        # 去重（使用 URL 的 hash 作为 ID）
-                        new_articles = []
-                        for art in articles:
-                            art_id = "web_" + hashlib.md5(art["url"].encode()).hexdigest()[:12]
-                            if not self.data_mgr.is_seen(art_id):
-                                new_articles.append(art)
-                                self.data_mgr.mark_seen(art_id, name)
-
-                        if new_articles:
-                            self.data_mgr.save_website_csv(name, new_articles)
-                            all_results[name] = new_articles
-                            total_new += len(new_articles)
-                            logger.info(f"  新增 {len(new_articles)} 条")
+                        if include_seen:
+                            # 调用方负责去重，直接返回全部抓取结果
+                            all_results[name] = articles
+                            total_new += len(articles)
+                            if articles:
+                                logger.info(f"  返回全部 {len(articles)} 条（include_seen=True）")
+                            else:
+                                logger.info(f"  无内容")
                         else:
-                            all_results[name] = []
-                            logger.info(f"  无新增内容")
+                            # 去重（使用 URL 的 hash 作为 ID）
+                            new_articles = []
+                            for art in articles:
+                                art_id = "web_" + hashlib.md5(art["url"].encode()).hexdigest()[:12]
+                                if not self.data_mgr.is_seen(art_id):
+                                    new_articles.append(art)
+                                    self.data_mgr.mark_seen(art_id, name)
+
+                            if new_articles:
+                                self.data_mgr.save_website_csv(name, new_articles)
+                                all_results[name] = new_articles
+                                total_new += len(new_articles)
+                                logger.info(f"  新增 {len(new_articles)} 条")
+                            else:
+                                all_results[name] = []
+                                logger.info(f"  无新增内容")
 
                         await asyncio.sleep(random.uniform(1, 3))
 
                 finally:
                     await website_client.close()
 
-            # 保存汇总
-            if total_new > 0:
-                self.data_mgr.save_combined_json(all_results)
-            self.data_mgr.commit()
+            # 保存汇总（仅当使用历史去重时才持久化）
+            if not include_seen:
+                if total_new > 0:
+                    self.data_mgr.save_combined_json(all_results)
+                self.data_mgr.commit()
             self._print_summary(all_results)
 
         finally:

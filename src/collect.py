@@ -813,6 +813,8 @@ def parse_weibo_monitor_sources(config: dict, now: datetime) -> List[Item]:
         accounts = {}
 
     keywords = config.get("keywords", [])
+    # 特殊处理：微博来源不使用"印发"关键词
+    weibo_keywords = [k for k in keywords if k != "印发"]
     window_days = int(config.get("window_days", 15))
     hard_cap_days = int(config.get("hard_cap_days", 15))
     fetched_at = now.astimezone(SG_TZ).isoformat(timespec="seconds")
@@ -871,8 +873,8 @@ def parse_weibo_monitor_sources(config: dict, now: datetime) -> List[Item]:
             if not title or not url:
                 continue
 
-            # 关键词过滤
-            if not keyword_hit(title, keywords):
+            # 关键词过滤（微博不使用"印发"）
+            if not keyword_hit(it.title, weibo_keywords):
                 continue
 
             # 时间窗口过滤（仅当有发布日期时才限定范围）

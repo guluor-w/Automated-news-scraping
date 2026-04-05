@@ -64,7 +64,7 @@ weibo_monitor:
   #   weibo_only   - 仅抓取微博账号，跳过官网
   #   website_only - 仅抓取官网新闻，跳过微博账号（速度更快，推荐优先启用）
   mode: weibo_only
-  max_pages: 2        # 每个微博账号最多抓取的页数（仅 mode=all/weibo_only 时有效）
+  max_pages: 1        # 每个微博账号最多抓取的页数（仅 mode=all/weibo_only 时有效）
 
 resolve_pub_date: True
 resolve_pub_date_cap: 30

@@ -16,6 +16,8 @@
     .btn { border: 1px solid #d0d7de; background: #f6f8fa; color: #24292f; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
     .btn:hover { background: #eef2f6; }
     .btn.active { border-color: #0969da; background: #ddf4ff; color: #0550ae; }
+    .btn-rss { border: 1px solid #d0d7de; background: #fff8f0; color: #e36209; padding: 6px 12px; border-radius: 8px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+    .btn-rss:hover { background: #fff1e0; border-color: #e36209; }
     .updated-at { color: #444; font-size: 13px; }
     .hint { color: #666; font-size: 12px; margin-top: 8px; }
     table { width: 100%; }
@@ -47,6 +49,8 @@
 
   <div class="toolbar">
     <button id="miitFilterBtn" class="btn" type="button">仅看工信新闻</button>
+    <a href="./data/rss_full.xml" class="btn-rss" title="订阅完整新闻清单 RSS">&#x2605; RSS 完整清单</a>
+    <a href="./data/rss_miit.xml" class="btn-rss" title="订阅工信新闻 RSS（来源含&quot;工信&quot;）">&#x2605; RSS 工信新闻</a>
     <span id="updatedAt" class="updated-at">数据更新时间：加载中…</span>
   </div>
 

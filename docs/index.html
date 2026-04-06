@@ -29,6 +29,13 @@
       white-space: nowrap;
       vertical-align: bottom;
     }
+    #tbl th.pubdate-col,
+    #tbl td.pubdate-col {
+      width: 132px;
+      min-width: 132px;
+      max-width: 132px;
+      text-align: left;
+    }
   </style>
 </head>
 <body>
@@ -125,7 +132,8 @@
 
         // 你的CSV列名（根据你当前流程）：标题, 发布单位, 新闻URL, 发布日期, 来源, 查询时间
         const rows = (parsed.data || []).map(r => {
-          const title = r["标题"] || "";
+          const fullTitle = String(r["标题"] ?? "");
+          const title = fullTitle.trim();
           const url = r["新闻URL"] || "";
           const publisher = r["发布单位"] || "";
           const pubDate = r["发布日期"] || "";
@@ -136,8 +144,8 @@
           const displayTitle = isWeibo ? truncateText(title, 34) : title;
 
           const titleCell = url
-            ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(title)}">${escapeHtml(displayTitle)}</a>`
-            : `<span title="${escapeHtml(title)}">${escapeHtml(displayTitle)}</span>`;
+            ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(fullTitle)}">${escapeHtml(displayTitle)}</a>`
+            : `<span title="${escapeHtml(fullTitle)}">${escapeHtml(displayTitle)}</span>`;
 
           return [titleCell, escapeHtml(publisher), escapeHtml(pubDate), escapeHtml(source), escapeHtml(fetchedAt)];
         });
@@ -151,7 +159,7 @@
           columns: [
             { title: "标题", width: "55%", className: "title-col" },
             { title: "发布单位", width: "17%", className: "nowrap" },
-            { title: "发布日期", width: "14%", className: "nowrap" },
+            { title: "发布日期", width: "132px", className: "nowrap pubdate-col" },
             { title: "来源", width: "14%", className: "nowrap" }
           ],
           pageLength: 50,

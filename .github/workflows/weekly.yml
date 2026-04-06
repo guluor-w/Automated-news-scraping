@@ -2,7 +2,7 @@
 
 on:
   schedule:
-    - cron: "0 5,23 * * *"
+    - cron: "0 4,17 * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -11,6 +11,8 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
     steps:
       - name: Checkout
         uses: actions/checkout@v4

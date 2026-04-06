@@ -269,7 +269,7 @@ WEBSITE_SOURCES = {
 MAX_PAGES = 3
 
 # 请求间随机延迟范围（秒），避免触发反爬
-REQUEST_DELAY = (3, 6)
+REQUEST_DELAY = (10, 20)
 
 # CAPTCHA 触发后的冷却等待时间（秒）
 CAPTCHA_COOLDOWN = 60

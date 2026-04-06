@@ -89,8 +89,18 @@ def extract_date(text: str) -> Optional[str]:
 def keyword_hit(title: str, keywords: List[str]) -> bool:
     t = (title or "").lower()
     for k in keywords:
-        if k.lower() in t:
-            return True
+        k_lower = k.lower()
+        # 对于纯英文关键词（如AI、token），使用词边界匹配以避免误匹配
+        # 例如："AI" 不应该匹配 "VAIANU"
+        if k.isalpha() and k.isascii():
+            # 英文关键词：使用词边界 \b 进行完整词匹配
+            pattern = r'\b' + re.escape(k_lower) + r'\b'
+            if re.search(pattern, t):
+                return True
+        else:
+            # 中文或混合关键词：使用子串匹配
+            if k_lower in t:
+                return True
     return False
 
 
@@ -1005,8 +1015,8 @@ def main():
     generate_rss(
         merged,
         rss_full_path,
-        title="政策新闻完整清单",
-        description="政策新闻完整清单 RSS 订阅",
+        title="新闻完整清单",
+        description="新闻完整清单 RSS 订阅",
     )
 
     miit_df = merged[merged["来源"].str.contains("工信", na=False)]

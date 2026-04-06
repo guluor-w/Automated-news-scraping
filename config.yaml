@@ -71,9 +71,3 @@ resolve_pub_date_cap: 30
 
 output:
   csv_path: docs/data/policy_news.csv 
-
-# 可选：写入 Google Sheets
-google_sheets:
-  enabled: false
-  spreadsheet_id: ""   # 建议用 GitHub Secrets 注入
-  worksheet_name: "政策新闻"

@@ -136,6 +136,11 @@ def canonicalize_url_for_dedup(url: str) -> str:
         return url  
 
 
+def format_fetched_at(now: datetime) -> str:
+    """统一查询时间存储格式，不包含时区尾巴。"""
+    return now.astimezone(SG_TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+
 #---------------------------------------------------miit.gov.cn 相关解析代码---------------------------------------------------#
 def parse_miit_home(config: dict, now: datetime) -> List[Item]:
     src = config["sources"]["miit_home"]
@@ -143,7 +148,7 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
     html = http_get(base_url)
     soup = BeautifulSoup(html, "lxml")
 
-    fetched_at = now.astimezone(SG_TZ).isoformat(timespec="seconds")
+    fetched_at = format_fetched_at(now)
     items: List[Item] = []
 
     keywords = config["keywords"]
@@ -326,7 +331,7 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
     html = http_get(base_url)
     soup = BeautifulSoup(html, "lxml")
 
-    fetched_at = now.astimezone(SG_TZ).isoformat(timespec="seconds")
+    fetched_at = format_fetched_at(now)
     items: List[Item] = []
 
     keywords = config["keywords"]
@@ -469,7 +474,7 @@ def parse_gov_rss(config: dict, now: datetime) -> List[Item]:
     # 使用 lxml 解析 XML
     soup = BeautifulSoup(xml_content, "xml")
     
-    fetched_at = now.astimezone(SG_TZ).isoformat(timespec="seconds")
+    fetched_at = format_fetched_at(now)
     items: List[Item] = []
 
     # 关键词过滤：排除“印发”
@@ -608,7 +613,7 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
     page_size = int(src.get("page_size") or 20)
 
     threshold = now - timedelta(days=window_days)
-    fetched_at = now.astimezone(SG_TZ).isoformat(timespec="seconds")
+    fetched_at = format_fetched_at(now)
 
     session = requests.Session()
     all_items: List[Item] = []
@@ -817,7 +822,7 @@ def parse_weibo_monitor_sources(config: dict, now: datetime) -> List[Item]:
     weibo_keywords = [k for k in keywords if k != "印发"]
     window_days = int(config.get("window_days", 15))
     hard_cap_days = int(config.get("hard_cap_days", 15))
-    fetched_at = now.astimezone(SG_TZ).isoformat(timespec="seconds")
+    fetched_at = format_fetched_at(now)
 
     async def _fetch() -> dict:
         monitor = WeiboMonitor(

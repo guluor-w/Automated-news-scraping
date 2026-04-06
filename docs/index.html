@@ -91,8 +91,28 @@
       return `${str.slice(0, maxLen)}...`;
     }
 
+    function normalizeFetchedAtText(s) {
+      const str = String(s ?? "").trim();
+      if (!str) return "";
+
+      // 兼容历史 ISO 格式（如 2026-04-06T10:20:30+08:00）
+      const dt = new Date(str);
+      if (!Number.isNaN(dt.getTime())) {
+        const y = dt.getFullYear();
+        const mo = String(dt.getMonth() + 1).padStart(2, "0");
+        const d = String(dt.getDate()).padStart(2, "0");
+        const h = String(dt.getHours()).padStart(2, "0");
+        const mi = String(dt.getMinutes()).padStart(2, "0");
+        const se = String(dt.getSeconds()).padStart(2, "0");
+        return `${y}-${mo}-${d} ${h}:${mi}:${se}`;
+      }
+
+      // 兜底：仅做轻量清洗（T -> 空格，去掉 +08:00）
+      return str.replace("T", " ").replace(/([+-]\d{2}:\d{2}|Z)$/i, "");
+    }
+
     function getLatestTime(times) {
-      const valid = (times || []).map(t => String(t || "").trim()).filter(Boolean);
+      const valid = (times || []).map(normalizeFetchedAtText).filter(Boolean);
       if (!valid.length) return "未知";
       return valid.reduce((latest, current) => (current.localeCompare(latest, "zh-CN") > 0 ? current : latest));
     }

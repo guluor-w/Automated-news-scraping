@@ -120,7 +120,7 @@ def debug_qqnews_search():
 
                     # 3. 模拟关键词匹配检查
                     # 只有 query="工信微报" 才包含 "印发"
-                    if "工信微报" in str(query) or "工信微报" in f"腾讯新闻搜索-{query}":
+                    if "工信微报" in str(query) or "工信微报" in f"腾讯新闻-{query}":
                          target_keywords = keywords
                     else:
                          target_keywords = [k for k in keywords if k != "印发"]

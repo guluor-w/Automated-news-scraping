@@ -399,13 +399,13 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
             if it:
                 items.append(it)
 
-    add_links("#index_tpxw .slider_carousel .item h4 a[href]", "GOV-首页-焦点图片")
-    add_links("#index_ywowen ul li a[href]", "GOV-首页-要闻")
-    add_links("#index_zxzc ul li a[href]", "GOV-首页-最新政策")
-    add_links("#index_zcjd ul li a[href]", "GOV-首页-政策解读")
-    add_links("#index_gwygzjxs ul.ul1 li a[href]", "GOV-首页-国新办")
-    add_links("#index_zwlb ul.ul2 li a[href]", "GOV-首页-政务联播")
-    add_links("#index_jyzj ul.ul01 li a[href]", "GOV-首页-建言征集/回应关切")
+    add_links("#index_tpxw .slider_carousel .item h4 a[href]", "中国政府网-焦点图片")
+    add_links("#index_ywowen ul li a[href]", "中国政府网-要闻")
+    add_links("#index_zxzc ul li a[href]", "中国政府网-最新政策")
+    add_links("#index_zcjd ul li a[href]", "中国政府网-政策解读")
+    add_links("#index_gwygzjxs ul.ul1 li a[href]", "中国政府网-国新办")
+    add_links("#index_zwlb ul.ul2 li a[href]", "中国政府网-政务联播")
+    add_links("#index_jyzj ul.ul01 li a[href]", "中国政府网-建言征集/回应关切")
 
     # 补齐真实发布时间：访问文章页提取日期
     if resolve_pub_date:
@@ -550,7 +550,7 @@ QQNEWS_HEADERS = {
 
 def _parse_qqnews_time_to_dt(s: str, now: datetime) -> Optional[datetime]:
     """
-    解析腾讯新闻搜索结果里的 time 字段，尽量转成带时区的 datetime。
+    解析腾讯新闻结果里的 time 字段，尽量转成带时区的 datetime。
     """
     s = (s or "").strip()
     if not s:
@@ -698,7 +698,7 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
                             publisher=publisher,
                             url=url,
                             pub_date=pub_date,
-                            source=f"腾讯新闻搜索-{query}",
+                            source=f"腾讯新闻-{query}",
                             fetched_at=fetched_at,
                         ))
                 except Exception:
@@ -724,7 +724,7 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
     
     for it in all_items:
         # 判断该条目属于哪个查询词
-        # 简单通过 source 字符串判断。目前 source 格式为 "腾讯新闻搜索-{query}"
+        # 简单通过 source 字符串判断。目前 source 格式为 "腾讯新闻-{query}"
         # 如果是“工信微报”来源，保留“印发”；否则不使用“印发”作为匹配词
         if "工信微报" in it.source:
             target_keywords = keywords_full

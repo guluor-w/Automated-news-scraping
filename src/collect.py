@@ -924,13 +924,16 @@ def generate_rss(df: "pd.DataFrame", out_path: Path, title: str, description: st
     """Generate an RSS 2.0 XML feed from a DataFrame and write it to out_path."""
     build_date = datetime.now(tz=SG_TZ).strftime("%a, %d %b %Y %H:%M:%S +0800")
 
+    # Normalise NaN cells to empty strings so they never serialise as "nan"
+    df = df.fillna("")
+
     items_xml: List[str] = []
     for _, row in df.iterrows():
-        item_title = _xml_escape(str(row.get("标题", "") or ""))
-        item_link = _xml_escape(str(row.get("新闻URL", "") or ""))
-        item_pub_date = _pub_date_to_rfc822(str(row.get("发布日期", "") or ""))
-        item_source = _xml_escape(str(row.get("来源", "") or ""))
-        item_publisher = _xml_escape(str(row.get("发布单位", "") or ""))
+        item_title = _xml_escape(str(row.get("标题", "")))
+        item_link = _xml_escape(str(row.get("新闻URL", "")))
+        item_pub_date = _pub_date_to_rfc822(str(row.get("发布日期", "")))
+        item_source = _xml_escape(str(row.get("来源", "")))
+        item_publisher = _xml_escape(str(row.get("发布单位", "")))
 
         item_parts = [
             "    <item>",

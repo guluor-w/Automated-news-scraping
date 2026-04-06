@@ -219,14 +219,14 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
         tab_names = ["时政要闻", "工信动态", "最新政策", "新闻发布"]
         tab = tab_names[idx] if idx < len(tab_names) else f"tab{idx}"
         for li in con.select("ul > li"):
-            add_primary_link(li, f"MIIT-首页-{tab}")
+            add_primary_link(li, f"工信部官网-{tab}")
 
     # 2) 中部四个 tab：部领导活动/司局动态/地方动态/部属动态（floornew）
     for idx, con in enumerate(soup.select("div.tabbox-bd.tabbox-bds4 div.tabbox-bd-con")):
         tab_names = ["部领导活动", "司局动态", "地方动态", "部属动态"]
         tab = tab_names[idx] if idx < len(tab_names) else f"tab{idx}"
         for li in con.select("ul > li"):
-            add_primary_link(li, f"MIIT-首页-{tab}")
+            add_primary_link(li, f"工信部官网-{tab}")
 
     # 3) 政策文件/政策解读（floor4 左侧 tabbox-bds2）
     policy_cons = soup.select("div.floor4 div.tabbox-bd.tabbox-bds2 div.tabbox-bd-con")
@@ -236,16 +236,16 @@ def parse_miit_home(config: dict, now: datetime) -> List[Item]:
             tab = names[i] if i < len(names) else f"tab{i}"
             # 这里的 li 可能包含 dl.tslb-list，需要抓主链接 + 相关解读/相关新闻
             for li in con.select("ul > li"):
-                add_related_links_from_policy_li(li, f"MIIT-首页-{tab}")
+                add_related_links_from_policy_li(li, f"工信部官网-{tab}")
 
     # 4) 文件公示/意见征集（floor4 中间 tabbox-bds3）
     for idx, con in enumerate(soup.select("div.floor4 div.tabbox-bd.tabbox-bds3 div.tabbox-bd-con")):
         tab_names = ["文件公示", "意见征集"]
         tab = tab_names[idx] if idx < len(tab_names) else f"tab{idx}"
         for li in con.select("ul > li"):
-            add_primary_link(li, f"MIIT-首页-{tab}")
+            add_primary_link(li, f"工信部官网-{tab}")
         for p in con.select("p"):
-            add_primary_link(p, f"MIIT-首页-{tab}")
+            add_primary_link(p, f"工信部官网-{tab}")
 
     # 过滤（关键词 + 时间窗口）
     filtered: List[Item] = []

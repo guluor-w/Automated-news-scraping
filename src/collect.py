@@ -898,6 +898,73 @@ def parse_weibo_monitor_sources(config: dict, now: datetime) -> List[Item]:
     return items
 
 
+def _xml_escape(s: str) -> str:
+    """Escape special characters for XML text content."""
+    return (
+        str(s)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
+
+
+def _pub_date_to_rfc822(pub_date: str) -> str:
+    """Convert a YYYY-MM-DD date string to RFC 822 format required by RSS."""
+    try:
+        dt = datetime.strptime(pub_date, "%Y-%m-%d").replace(tzinfo=SG_TZ)
+        # Format: Wed, 02 Oct 2002 15:00:00 +0800
+        return dt.strftime("%a, %d %b %Y 00:00:00 +0800")
+    except (ValueError, TypeError):
+        return ""
+
+
+def generate_rss(df: "pd.DataFrame", out_path: Path, title: str, description: str) -> None:
+    """Generate an RSS 2.0 XML feed from a DataFrame and write it to out_path."""
+    build_date = datetime.now(tz=SG_TZ).strftime("%a, %d %b %Y %H:%M:%S +0800")
+
+    items_xml: List[str] = []
+    for _, row in df.iterrows():
+        item_title = _xml_escape(str(row.get("标题", "") or ""))
+        item_link = _xml_escape(str(row.get("新闻URL", "") or ""))
+        item_pub_date = _pub_date_to_rfc822(str(row.get("发布日期", "") or ""))
+        item_source = _xml_escape(str(row.get("来源", "") or ""))
+        item_publisher = _xml_escape(str(row.get("发布单位", "") or ""))
+
+        item_parts = [
+            "    <item>",
+            f"      <title>{item_title}</title>",
+        ]
+        if item_link:
+            item_parts.append(f"      <link>{item_link}</link>")
+            item_parts.append(f"      <guid isPermaLink=\"true\">{item_link}</guid>")
+        if item_pub_date:
+            item_parts.append(f"      <pubDate>{item_pub_date}</pubDate>")
+        item_parts.append(
+            f"      <description>{item_publisher}｜{item_source}</description>"
+        )
+        item_parts.append("    </item>")
+        items_xml.append("\n".join(item_parts))
+
+    feed = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<rss version="2.0">\n'
+        '  <channel>\n'
+        f'    <title>{_xml_escape(title)}</title>\n'
+        '    <link>https://github.com</link>\n'
+        f'    <description>{_xml_escape(description)}</description>\n'
+        '    <language>zh-CN</language>\n'
+        f'    <lastBuildDate>{build_date}</lastBuildDate>\n'
+        + "\n".join(items_xml)
+        + "\n  </channel>\n</rss>\n"
+    )
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(feed)
+
+
 def main():
     repo_root = Path(__file__).resolve().parents[1]
     config_path = repo_root / "config.yaml"
@@ -918,6 +985,25 @@ def main():
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     merged.to_csv(str(out_csv), index=False, encoding="utf-8-sig")
+
+    # Generate RSS feeds
+    rss_full_path = repo_root / "docs/data/rss_full.xml"
+    rss_miit_path = repo_root / "docs/data/rss_miit.xml"
+
+    generate_rss(
+        merged,
+        rss_full_path,
+        title="政策新闻完整清单",
+        description="政策新闻完整清单 RSS 订阅",
+    )
+
+    miit_df = merged[merged["来源"].str.contains("工信", na=False)]
+    generate_rss(
+        miit_df,
+        rss_miit_path,
+        title="工信新闻清单",
+        description='来源包含"工信"的新闻 RSS 订阅',
+    )
 
     added_path = repo_root / "docs/data/added_count.txt"  # 记录新增的数量
     with open(added_path, "w", encoding="utf-8") as f:

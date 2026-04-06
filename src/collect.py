@@ -920,7 +920,16 @@ def _pub_date_to_rfc822(pub_date: str) -> str:
         return ""
 
 
-def generate_rss(df: "pd.DataFrame", out_path: Path, title: str, description: str) -> None:
+_PAGES_URL = "https://guluor-w.github.io/Automated-news-scraping/"
+
+
+def generate_rss(
+    df: "pd.DataFrame",
+    out_path: Path,
+    title: str,
+    description: str,
+    link: str = _PAGES_URL,
+) -> None:
     """Generate an RSS 2.0 XML feed from a DataFrame and write it to out_path."""
     build_date = datetime.now(tz=SG_TZ).strftime("%a, %d %b %Y %H:%M:%S +0800")
 
@@ -955,7 +964,7 @@ def generate_rss(df: "pd.DataFrame", out_path: Path, title: str, description: st
         '<rss version="2.0">\n'
         '  <channel>\n'
         f'    <title>{_xml_escape(title)}</title>\n'
-        '    <link>https://github.com</link>\n'
+        f'    <link>{_xml_escape(link)}</link>\n'
         f'    <description>{_xml_escape(description)}</description>\n'
         '    <language>zh-CN</language>\n'
         f'    <lastBuildDate>{build_date}</lastBuildDate>\n'

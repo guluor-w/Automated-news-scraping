@@ -874,7 +874,7 @@ def parse_weibo_monitor_sources(config: dict, now: datetime) -> List[Item]:
                 continue
 
             # 关键词过滤（微博不使用"印发"）
-            if not keyword_hit(it.title, weibo_keywords):
+            if not keyword_hit(title, weibo_keywords):
                 continue
 
             # 时间窗口过滤（仅当有发布日期时才限定范围）

@@ -7,6 +7,8 @@
 
   <!-- DataTables CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.1.8/css/dataTables.dataTables.min.css">
+  <!-- DataTables Responsive CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-responsive-dt@3.0.3/css/responsive.dataTables.min.css">
 
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 24px; }
@@ -37,6 +39,43 @@
       min-width: 132px;
       max-width: 132px;
       text-align: left;
+    }
+
+    /* ===== Mobile Styles ===== */
+    @media (max-width: 640px) {
+      body { margin: 12px; }
+      h1 { font-size: 17px; }
+      .meta { font-size: 12px; margin-bottom: 10px; }
+      .toolbar { gap: 8px; }
+      .btn, .btn-rss { font-size: 12px; padding: 7px 10px; min-height: 36px; }
+      .updated-at { font-size: 12px; width: 100%; }
+      .hint { font-size: 11px; }
+      /* DataTables control row: search box and info text stack vertically */
+      .dataTables_wrapper .dataTables_filter,
+      .dataTables_wrapper .dataTables_length,
+      .dataTables_wrapper .dataTables_info,
+      .dataTables_wrapper .dataTables_paginate {
+        text-align: left !important;
+        float: none !important;
+        margin-bottom: 6px;
+      }
+      .dataTables_wrapper .dataTables_filter input {
+        width: 100%;
+        box-sizing: border-box;
+        font-size: 14px;
+        padding: 6px 8px;
+        margin-left: 0 !important;
+      }
+      .dataTables_wrapper .dataTables_filter label {
+        display: block;
+      }
+      /* Make pagination buttons larger for touch */
+      .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+      /* Table font size */
+      #tbl td, #tbl th { font-size: 13px; }
     }
   </style>
 </head>
@@ -73,6 +112,7 @@
   <!-- Dependencies -->
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.1.8/js/dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/datatables.net-responsive@3.0.3/js/dataTables.responsive.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <script>
@@ -181,15 +221,16 @@
         table = $("#tbl").DataTable({
           data: rows.map(row => row.slice(0, 4)),
           columns: [
-            { title: "标题", width: "55%", className: "title-col" },
-            { title: "发布单位", width: "17%", className: "nowrap" },
-            { title: "发布日期", width: "132px", className: "nowrap pubdate-col" },
-            { title: "来源", width: "14%", className: "nowrap" }
+            { title: "标题", width: "55%", className: "title-col", responsivePriority: 1 },
+            { title: "发布单位", width: "17%", className: "nowrap", responsivePriority: 3 },
+            { title: "发布日期", width: "132px", className: "nowrap pubdate-col", responsivePriority: 2 },
+            { title: "来源", width: "14%", className: "nowrap", responsivePriority: 4 }
           ],
           pageLength: 50,
           order: [[2, "desc"]], // 默认按发布日期降序
           autoWidth: false,
-          deferRender: true
+          deferRender: true,
+          responsive: true
         });
 
         statusEl.textContent = `加载完成（${rows.length} 条）`;

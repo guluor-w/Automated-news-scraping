@@ -40,6 +40,11 @@
       max-width: 132px;
       text-align: left;
     }
+    /* Prevent the DataTables wrapper from scrolling horizontally */
+    .dataTables_wrapper {
+      overflow-x: hidden;
+      max-width: 100%;
+    }
 
     /* ===== Mobile Styles ===== */
     @media (max-width: 640px) {
@@ -76,6 +81,18 @@
       }
       /* Table font size */
       #tbl td, #tbl th { font-size: 13px; }
+      /* Force table to fit viewport; allow title text to wrap */
+      #tbl {
+        table-layout: fixed;
+        max-width: 100%;
+      }
+      #tbl td.title-col a,
+      #tbl td.title-col span {
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        overflow: visible;
+      }
     }
   </style>
 </head>

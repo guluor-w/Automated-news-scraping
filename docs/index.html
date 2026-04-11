@@ -76,6 +76,23 @@
       }
       /* Table font size */
       #tbl td, #tbl th { font-size: 13px; }
+      /* Contain the table wrapper so no horizontal overflow escapes */
+      .dataTables_wrapper {
+        overflow-x: hidden;
+        max-width: 100%;
+      }
+      /* Force table to fit viewport; allow title text to wrap */
+      #tbl {
+        table-layout: fixed;
+        max-width: 100%;
+      }
+      #tbl td.title-col a,
+      #tbl td.title-col span {
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        overflow: visible;
+      }
     }
   </style>
 </head>

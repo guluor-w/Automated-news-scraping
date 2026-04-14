@@ -45,7 +45,7 @@ from typing import List
 from urllib.parse import urlparse
 
 from models import Item
-from utils import format_fetched_at, keyword_hit, within_window
+from utils import format_fetched_at, keyword_hit
 
 logger = logging.getLogger(__name__)
 
@@ -273,8 +273,6 @@ def parse_website_monitor(config: dict, now: datetime) -> List[Item]:
 
     keywords = config.get("keywords", [])
     website_keywords = [k for k in keywords if k != "印发"]
-    window_days = int(config.get("window_days", 15))
-    hard_cap_days = int(config.get("hard_cap_days", 15))
     fetched_at = format_fetched_at(now)
 
     async def _fetch() -> dict:
@@ -307,13 +305,11 @@ def parse_website_monitor(config: dict, now: datetime) -> List[Item]:
 
             title = post.get("title", "").strip()
             url = post.get("url", "")
-            pub_date = None
+            pub_date = None  # TODO: extract pub_date from article page
 
             if not title or not url:
                 continue
             if not keyword_hit(title, website_keywords):
-                continue
-            if pub_date and not within_window(pub_date, now, window_days, hard_cap_days):
                 continue
 
             items.append(Item(

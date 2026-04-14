@@ -12,7 +12,8 @@
 | 中国政府网 https://www.gov.cn/ | 官网首页 | `src/parsers/gov.py` |
 | 中国政府网最新政策 RSS | RSS Feed | `src/parsers/gov.py` |
 | 腾讯新闻（政务公众号搜索，如：工信微报） | 搜索 API | `src/parsers/qqnews.py` |
-| 微博账号 / 官网监控（需 Playwright） | Weibo / 官网 | `src/parsers/weibo.py` |
+| 微博账号监控（需 Playwright） | Weibo | `src/parsers/weibo.py` |
+| 各部门官网监控（需 Playwright） | 官网 | `src/parsers/website_monitor.py` |
 
 ---
 
@@ -99,7 +100,8 @@ output:
         ├── miit.py              # 工信部官网
         ├── gov.py               # 中国政府网（首页 + RSS）
         ├── qqnews.py            # 腾讯新闻搜索
-        └── weibo.py             # 微博/官网监控（调用 weibo_monitor.py）
+        ├── weibo.py             # 微博账号监控（调用 weibo_monitor.py）
+        └── website_monitor.py   # 各部门官网监控（调用 weibo_monitor.py）
 ```
 
 ---

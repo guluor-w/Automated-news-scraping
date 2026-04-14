@@ -11,21 +11,44 @@ parsers — 各信息来源的解析器包。
 
 目前已实现的解析器
 ------------------
-miit      工业和信息化部官网   parse_miit_home
-gov       中国政府网           parse_gov_home, parse_gov_rss
-qqnews    腾讯新闻搜索         parse_qqnews_search
-weibo     微博 / 官网监控      parse_weibo_monitor_sources
+miit             工业和信息化部官网   parse_miit_home
+gov              中国政府网           parse_gov_home, parse_gov_rss
+qqnews           腾讯新闻搜索         parse_qqnews_search
+weibo            微博账号             parse_weibo
+website_monitor  各部门官网           parse_website_monitor
 """
+
+from datetime import datetime
+from typing import List
 
 from .gov import parse_gov_home, parse_gov_rss
 from .miit import parse_miit_home
 from .qqnews import parse_qqnews_search
-from .weibo import parse_weibo_monitor_sources
+from .weibo import parse_weibo
+from .website_monitor import parse_website_monitor
+
+from models import Item
+
+
+def parse_weibo_monitor_sources(config: dict, now: datetime) -> List[Item]:
+    """
+    向后兼容包装器：同时调用 parse_weibo 和 parse_website_monitor 并合并结果。
+
+    新代码应直接调用 parse_weibo / parse_website_monitor。
+    """
+    items: List[Item] = []
+    items.extend(parse_weibo(config, now))
+    items.extend(parse_website_monitor(config, now))
+    return items
+
 
 __all__ = [
     "parse_miit_home",
     "parse_gov_home",
     "parse_gov_rss",
     "parse_qqnews_search",
+    "parse_weibo",
+    "parse_website_monitor",
+    # 向后兼容
     "parse_weibo_monitor_sources",
 ]

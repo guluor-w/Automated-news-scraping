@@ -37,7 +37,9 @@ from parsers import (
     parse_gov_rss,
     parse_miit_home,
     parse_qqnews_search,
-    parse_weibo_monitor_sources,
+    parse_weibo,
+    parse_website_monitor,
+    parse_weibo_monitor_sources,  # 向后兼容
 )
 from storage import dedup_merge, generate_rss, load_existing
 
@@ -47,6 +49,8 @@ __all__ = [
     "parse_gov_home",
     "parse_gov_rss",
     "parse_qqnews_search",
+    "parse_weibo",
+    "parse_website_monitor",
     "parse_weibo_monitor_sources",
     "load_existing",
     "dedup_merge",
@@ -75,7 +79,8 @@ def main() -> None:
     all_items.extend(parse_gov_home(config, now))
     all_items.extend(parse_gov_rss(config, now))
     all_items.extend(parse_qqnews_search(config, now))
-    all_items.extend(parse_weibo_monitor_sources(config, now))
+    all_items.extend(parse_weibo(config, now))
+    all_items.extend(parse_website_monitor(config, now))
 
     # ── 去重合并并写 CSV ──────────────────────────────────────────────────────
     out_csv = repo_root / config["output"]["csv_path"]

@@ -86,7 +86,7 @@ def _parse_qqnews_time_to_dt(s: str, now: datetime) -> Optional[datetime]:
         return None
 
 
-def _qqnews_search_fetch_page(session: requests.Session, query: str, page: int, limit: int) -> dict:
+def _qqnews_search_fetch_page(session: requests.Session, api_url: str, query: str, page: int, limit: int) -> dict:
     """向腾讯新闻搜索 API 发起一次翻页请求并返回原始 JSON。"""
     payload = {
         "page": str(page),
@@ -97,7 +97,7 @@ def _qqnews_search_fetch_page(session: requests.Session, query: str, page: int, 
         "search_count_limit": str(limit),
         "appver": "15.5_qqnews_7.1.80",
     }
-    resp = session.post(QQNEWS_API_URL, data=payload, headers=QQNEWS_HEADERS, timeout=30)
+    resp = session.post(api_url, data=payload, headers=QQNEWS_HEADERS, timeout=30)
     resp.raise_for_status()
     return resp.json()
 
@@ -128,6 +128,7 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
     window_days = int(config.get("window_days", 15))
     max_pages = int(src.get("max_pages") or 5)
     page_size = int(src.get("page_size") or 20)
+    api_url = src.get("url") or QQNEWS_API_URL
 
     threshold = now - timedelta(days=window_days)
     fetched_at = format_fetched_at(now)
@@ -147,7 +148,7 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
 
         for page in range(max_pages):
             try:
-                raw = _qqnews_search_fetch_page(session, query=query, page=page, limit=page_size)
+                raw = _qqnews_search_fetch_page(session, api_url=api_url, query=query, page=page, limit=page_size)
             except Exception:
                 continue
 

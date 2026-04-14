@@ -15,6 +15,7 @@ from typing import List, Tuple
 import pandas as pd
 
 from models import Item, SG_TZ
+from utils import canonicalize_url_for_dedup
 
 # GitHub Pages 发布地址（用于 RSS <link> 字段）
 _PAGES_URL = "https://guluor-w.github.io/Automated-news-scraping/"
@@ -36,24 +37,28 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
         (merged_df, added_count) — 合并后的 DataFrame 以及本次新增条数。
     """
     if existing.empty:
-        existing_urls = set()
+        existing_urls: set = set()
     else:
-        existing_urls = set(existing["新闻URL"].astype(str).tolist())
+        existing_urls = {
+            canonicalize_url_for_dedup(u)
+            for u in existing["新闻URL"].astype(str).tolist()
+        }
 
     rows = []
     added = 0
     for it in new_items:
-        if it.url in existing_urls:
+        canonical = canonicalize_url_for_dedup(it.url)
+        if canonical in existing_urls:
             continue
         rows.append({
             "标题": it.title,
             "发布单位": it.publisher,
-            "新闻URL": it.url,
+            "新闻URL": it.url,  # 保留原始 URL，不写入规范化结果
             "发布日期": it.pub_date or "",
             "来源": it.source,
             "查询时间": it.fetched_at,
         })
-        existing_urls.add(it.url)
+        existing_urls.add(canonical)
         added += 1
 
     if rows:

@@ -36,10 +36,7 @@ from utils import (
     within_window,
 )
 
-try:
-    from dateutil import parser as dtparser
-except ImportError:
-    dtparser = None  # type: ignore[assignment]
+from dateutil import parser as dtparser
 
 
 def parse_miit_home(config: dict, now: datetime) -> List[Item]:

@@ -26,22 +26,34 @@ from typing import List
 
 import yaml
 
-# 将 src/ 目录加入模块搜索路径，确保子模块可直接 import
-_SRC_DIR = Path(__file__).resolve().parent
-if str(_SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(_SRC_DIR))
-
-from models import Item, SG_TZ
-from parsers import (
-    parse_gov_home,
-    parse_gov_rss,
-    parse_miit_home,
-    parse_qqnews_search,
-    parse_weibo,
-    parse_website_monitor,
-    parse_weibo_monitor_sources,  # 向后兼容
-)
-from storage import dedup_merge, generate_rss, load_existing
+try:
+    from models import Item, SG_TZ
+    from parsers import (
+        parse_gov_home,
+        parse_gov_rss,
+        parse_miit_home,
+        parse_qqnews_search,
+        parse_weibo,
+        parse_website_monitor,
+        parse_weibo_monitor_sources,  # 向后兼容
+    )
+    from storage import dedup_merge, generate_rss, load_existing
+except ImportError:
+    # 仅在 src/ 目录未在模块搜索路径中时补救一次（脚本直接运行场景）
+    _SRC_DIR = Path(__file__).resolve().parent
+    if str(_SRC_DIR) not in sys.path:
+        sys.path.insert(0, str(_SRC_DIR))
+    from models import Item, SG_TZ  # type: ignore[no-redef]
+    from parsers import (  # type: ignore[no-redef]
+        parse_gov_home,
+        parse_gov_rss,
+        parse_miit_home,
+        parse_qqnews_search,
+        parse_weibo,
+        parse_website_monitor,
+        parse_weibo_monitor_sources,
+    )
+    from storage import dedup_merge, generate_rss, load_existing  # type: ignore[no-redef]
 
 # ── 为向后兼容保留的再导出（test_collect.py 直接 import collect） ──────────────
 __all__ = [

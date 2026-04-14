@@ -56,7 +56,7 @@ sources:
     page_size: 20 # 每页条数
 
 
-# 微博监控数据源（调用 weibo_monitor.py，需要 Playwright）
+# 微博/官网监控数据源（需要 Playwright，配置项由 parsers/weibo.py 和 parsers/website_monitor.py 读取）
 weibo_monitor:
   enabled: true      # 设为 true 启用微博/官网数据源
   # mode 可选值：

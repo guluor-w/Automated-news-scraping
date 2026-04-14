@@ -23,7 +23,7 @@ weibo_monitor:
 新增来源提示
 ------------
 在本文件的 MONITOR_ACCOUNTS 中添加 {账号名: UID} 即可。
-UID 可在微博主页地址栏中获取，或通过 weibo_monitor 的 --search 功能查找。
+UID 可在微博主页地址栏中获取（URL 格式：https://weibo.com/u/<UID>）。
 """
 
 import asyncio

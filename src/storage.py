@@ -24,9 +24,10 @@ def load_existing(csv_path: str) -> pd.DataFrame:
     """读取已有 CSV 文件；若文件不存在则返回含标准列名的空 DataFrame。"""
     if not os.path.exists(csv_path):
         return pd.DataFrame(columns=["标题", "发布单位", "新闻URL", "发布日期", "来源", "查询时间"])
-    return pd.read_csv(csv_path)
 
-
+    df = pd.read_csv(csv_path, encoding="utf-8-sig")
+    df.columns = [str(col).lstrip("\ufeff") for col in df.columns]
+    return df
 def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataFrame, int]:
     """
     将 new_items 追加到 existing，按 URL 去重，并按发布日期降序排序。

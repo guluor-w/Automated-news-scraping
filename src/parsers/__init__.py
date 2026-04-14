@@ -17,10 +17,10 @@ qqnews    腾讯新闻搜索         parse_qqnews_search
 weibo     微博 / 官网监控      parse_weibo_monitor_sources
 """
 
-from parsers.gov import parse_gov_home, parse_gov_rss
-from parsers.miit import parse_miit_home
-from parsers.qqnews import parse_qqnews_search
-from parsers.weibo import parse_weibo_monitor_sources
+from .gov import parse_gov_home, parse_gov_rss
+from .miit import parse_miit_home
+from .qqnews import parse_qqnews_search
+from .weibo import parse_weibo_monitor_sources
 
 __all__ = [
     "parse_miit_home",

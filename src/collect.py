@@ -1,1006 +1,100 @@
-import asyncio
-import hashlib
-import os
-import re
+"""
+collect.py — 新闻抓取主入口。
+
+职责
+----
+1. 读取 config.yaml。
+2. 依次调用各信源解析器，汇总所有 Item。
+3. 与已有 CSV 合并去重后写回磁盘。
+4. 生成 RSS 2.0 feed 文件。
+5. 将本次新增条数写入 added_count.txt（供 CI/CD 判断是否提交）。
+
+运行方式
+--------
+    python src/collect.py
+
+各解析器位于 src/parsers/ 目录，
+数据读写逻辑位于 src/storage.py，
+共享工具函数位于 src/utils.py，
+数据模型位于 src/models.py。
+"""
+
 import sys
-import time
-import random
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List
 
-import pandas as pd
-import requests
 import yaml
-from bs4 import BeautifulSoup
-from dateutil import parser as dtparser
-from urllib.parse import urlsplit, urlunsplit
 
-SG_TZ = timezone(timedelta(hours=8))  # Asia/Singapore 固定 +08:00
+try:
+    from models import Item, SG_TZ
+    from parsers import (
+        parse_gov_home,
+        parse_gov_rss,
+        parse_miit_home,
+        parse_qqnews_search,
+        parse_weibo,
+        parse_website_monitor,
+        parse_weibo_monitor_sources,  # 向后兼容
+    )
+    from storage import dedup_merge, generate_rss, load_existing
+except ImportError:
+    # 仅在 src/ 目录未在模块搜索路径中时补救一次（脚本直接运行场景）
+    _SRC_DIR = Path(__file__).resolve().parent
+    if str(_SRC_DIR) not in sys.path:
+        sys.path.insert(0, str(_SRC_DIR))
+    from models import Item, SG_TZ  # type: ignore[no-redef]
+    from parsers import (  # type: ignore[no-redef]
+        parse_gov_home,
+        parse_gov_rss,
+        parse_miit_home,
+        parse_qqnews_search,
+        parse_weibo,
+        parse_website_monitor,
+        parse_weibo_monitor_sources,
+    )
+    from storage import dedup_merge, generate_rss, load_existing  # type: ignore[no-redef]
 
-USER_AGENT = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
-
-DATE_PATTERNS = [
-    # 2026-01-16 或 2026/01/16
-    re.compile(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})"),
-    # 2026年1月16日
-    re.compile(r"(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日"),
-    # 2026.01.16
-    re.compile(r"(\d{4})\.(\d{1,2})\.(\d{1,2})"),
+# ── 为向后兼容保留的再导出（test_collect.py 直接 import collect） ──────────────
+__all__ = [
+    "parse_miit_home",
+    "parse_gov_home",
+    "parse_gov_rss",
+    "parse_qqnews_search",
+    "parse_weibo",
+    "parse_website_monitor",
+    "parse_weibo_monitor_sources",
+    "load_existing",
+    "dedup_merge",
+    "generate_rss",
+    "load_config",
+    "main",
 ]
 
-SECTION_KEYWORDS = ["最新政策", "政策文件", "文件公示", "意见征集"]
 
-
-@dataclass
-class Item:
-    title: str
-    publisher: str
-    url: str
-    pub_date: Optional[str]  
-    source: str
-    fetched_at: str          
-
-    
 def load_config(path: Path) -> dict:
+    """读取并返回 config.yaml 配置字典。"""
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
-def sha1(s: str) -> str:
-    return hashlib.sha1(s.encode("utf-8")).hexdigest()
-
-
-def normalize_url(base: str, href: str) -> str:
-    href = href.strip()
-    if href.startswith("http://") or href.startswith("https://"):
-        return href
-    if href.startswith("//"):
-        return "https:" + href
-    if href.startswith("/"):
-        return base.rstrip("/") + href
-    return base.rstrip("/") + "/" + href
-
-
-def extract_date(text: str) -> Optional[str]:
-    if not text:
-        return None
-    for pat in DATE_PATTERNS:
-        m = pat.search(text)
-        if m:
-            y, mo, d = map(int, m.groups())
-            try:
-                return f"{y:04d}-{mo:02d}-{d:02d}"
-            except Exception:
-                return None
-    try:
-        dt = dtparser.parse(text, fuzzy=True)
-        if dt.year >= 2000:
-            return dt.date().isoformat()
-    except Exception:
-        pass
-    return None
-
-
-def keyword_hit(title: str, keywords: List[str]) -> bool:
-    t = (title or "").lower()
-    for k in keywords:
-        k_lower = k.lower()
-        # 对于纯英文关键词（如AI、token），使用词边界匹配以避免误匹配
-        # 例如："AI" 不应该匹配 "VAIANU"
-        if k.isalpha() and k.isascii():
-            # 英文关键词：使用词边界 \b 进行完整词匹配
-            pattern = r'\b' + re.escape(k_lower) + r'\b'
-            if re.search(pattern, t):
-                return True
-        else:
-            # 中文或混合关键词：使用子串匹配
-            if k_lower in t:
-                return True
-    return False
-
-
-def within_window(pub_date: Optional[str], now: datetime, window_days: int, hard_cap_days: int) -> bool:
-    if pub_date is None:
-        return True
-    try:
-        d = dtparser.parse(pub_date).date()
-    except Exception:
-        return True
-
-    lower = (now - timedelta(days=hard_cap_days)).date()
-    upper = now.date()
-    if not (lower <= d <= upper):
-        return False
-
-    return d >= (now - timedelta(days=window_days)).date()
-
-
-
-def http_get(url: str) -> str:
-    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=30)
-    resp.raise_for_status()
-    resp.encoding = resp.apparent_encoding or "utf-8"
-    return resp.text
-
-
-
-def canonicalize_url_for_dedup(url: str) -> str:
-    try:
-        u = url.strip()
-        if u.startswith("//"):
-            u = "https:" + u
-        parts = urlsplit(u)
-        netloc = parts.netloc.lower()
-        if netloc.startswith("www."):
-            netloc = netloc[4:]
-        path = parts.path or "/"
-        if path != "/" and path.endswith("/"):
-            path = path[:-1]
-        return urlunsplit(("", netloc, path, parts.query or "", ""))
-    except Exception:
-        return url  
-
-
-def format_fetched_at(now: datetime) -> str:
-    """统一查询时间存储格式，不包含时区尾巴。"""
-    return now.astimezone(SG_TZ).strftime("%Y-%m-%d %H:%M:%S")
-
-
-#---------------------------------------------------miit.gov.cn 相关解析代码---------------------------------------------------#
-def parse_miit_home(config: dict, now: datetime) -> List[Item]:
-    src = config["sources"]["miit_home"]
-    base_url = src["url"]
-    html = http_get(base_url)
-    soup = BeautifulSoup(html, "lxml")
-
-    fetched_at = format_fetched_at(now)
-    items: List[Item] = []
-
-    keywords = config["keywords"]
-    window_days = int(config["window_days"])
-    hard_cap_days = int(config["hard_cap_days"])
-
-    def build_item(title: str, href: str, pub_date: Optional[str], source_tag: str) -> Optional[Item]:
-        title = (title or "").strip()
-        href = (href or "").strip()
-        if not title or len(title) < 6 or not href:
-            return None
-        url = normalize_url(base_url, href)
-        return Item(
-            title=title,
-            publisher=src["name"],
-            url=url,
-            pub_date=pub_date,
-            source=source_tag,
-            fetched_at=fetched_at,
-        )
-
-    def get_pub_date_from_container(container) -> Optional[str]:
-        date_text = ""
-        span1 = container.find("span")
-        if span1:
-            date_text = span1.get_text(" ", strip=True)
-
-        p = container.find("p")
-        if p:
-            pspan = p.find("span")
-            if pspan:
-                date_text = pspan.get_text(" ", strip=True) or date_text
-
-        pub_date = extract_date(date_text)
-        if not pub_date:
-            pub_date = extract_date(container.get_text(" ", strip=True))
-        return pub_date
-
-    def add_primary_link(container, source_tag: str):
-        a = container.find("a", href=True)
-        if not a:
-            return
-        pub_date = get_pub_date_from_container(container)
-        it = build_item(a.get_text(" ", strip=True), a.get("href", ""), pub_date, source_tag)
-        if it:
-            items.append(it)
-
-    def add_related_links_from_policy_li(li, source_tag: str):
-        pub_date = get_pub_date_from_container(li)
-
-        p = li.find("p")
-        if p:
-            a_main = p.find("a", href=True)
-            if a_main:
-                it = build_item(a_main.get_text(" ", strip=True), a_main["href"], pub_date, source_tag)
-                if it:
-                    items.append(it)
-
-        for dl in li.select("dl.tslb-list"):
-            dt = dl.find("dt")
-            dt_text = dt.get_text(" ", strip=True) if dt else ""
-            sub_tag = source_tag
-            if dt_text:
-                sub_tag = f"{source_tag}-{dt_text}"
-
-            for a in dl.select("dd a[href]"):
-                it = build_item(a.get_text(" ", strip=True), a["href"], pub_date, sub_tag)
-                if it:
-                    items.append(it)
-
-    # 1) 顶部四个 tab：时政要闻/工信动态/最新政策/新闻发布
-    for idx, con in enumerate(soup.select("div.tabbox-bd.tabbox-bds1 div.tabbox-bd-con")):
-        tab_names = ["时政要闻", "工信动态", "最新政策", "新闻发布"]
-        tab = tab_names[idx] if idx < len(tab_names) else f"tab{idx}"
-        for li in con.select("ul > li"):
-            add_primary_link(li, f"工信部官网-{tab}")
-
-    # 2) 中部四个 tab：部领导活动/司局动态/地方动态/部属动态（floornew）
-    for idx, con in enumerate(soup.select("div.tabbox-bd.tabbox-bds4 div.tabbox-bd-con")):
-        tab_names = ["部领导活动", "司局动态", "地方动态", "部属动态"]
-        tab = tab_names[idx] if idx < len(tab_names) else f"tab{idx}"
-        for li in con.select("ul > li"):
-            add_primary_link(li, f"工信部官网-{tab}")
-
-    # 3) 政策文件/政策解读（floor4 左侧 tabbox-bds2）
-    policy_cons = soup.select("div.floor4 div.tabbox-bd.tabbox-bds2 div.tabbox-bd-con")
-    if policy_cons:
-        names = ["政策文件", "政策解读"]
-        for i, con in enumerate(policy_cons[:2]):
-            tab = names[i] if i < len(names) else f"tab{i}"
-            # 这里的 li 可能包含 dl.tslb-list，需要抓主链接 + 相关解读/相关新闻
-            for li in con.select("ul > li"):
-                add_related_links_from_policy_li(li, f"工信部官网-{tab}")
-
-    # 4) 文件公示/意见征集（floor4 中间 tabbox-bds3）
-    for idx, con in enumerate(soup.select("div.floor4 div.tabbox-bd.tabbox-bds3 div.tabbox-bd-con")):
-        tab_names = ["文件公示", "意见征集"]
-        tab = tab_names[idx] if idx < len(tab_names) else f"tab{idx}"
-        for li in con.select("ul > li"):
-            add_primary_link(li, f"工信部官网-{tab}")
-        for p in con.select("p"):
-            add_primary_link(p, f"工信部官网-{tab}")
-
-    # 过滤（关键词 + 时间窗口）
-    filtered: List[Item] = []
-    for it in items:
-        if not keyword_hit(it.title, keywords):
-            continue
-        if not within_window(it.pub_date, now, window_days, hard_cap_days):
-            continue
-        filtered.append(it)
-
-    # 去重（URL 归一化）
-    uniq: Dict[str, Item] = {}
-    for it in filtered:
-        key = canonicalize_url_for_dedup(it.url)
-        if key not in uniq:
-            uniq[key] = it
-        else:
-            old = uniq[key]
-            if (not old.pub_date) and it.pub_date:
-                uniq[key] = it
-            elif old.pub_date and it.pub_date:
-                try:
-                    if dtparser.parse(it.pub_date) > dtparser.parse(old.pub_date):
-                        uniq[key] = it
-                except Exception:
-                    pass
-
-    return list(uniq.values())
-
-#---------------------------------------------------gov.cn 相关解析代码---------------------------------------------------#
-# 从 gov.cn 的 URL 粗略提取日期（弱兜底）
-_RE_GOV_YYYYMM = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])/(?:content_|index\.htm|)$")
-_RE_GOV_ANY_YYYYMM = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])/")
-def extract_gov_date_from_url(url: str) -> Optional[str]:
-    m = _RE_GOV_YYYYMM.search(url)
-    if not m:
-        m = _RE_GOV_ANY_YYYYMM.search(url)
-    if not m:
-        return None
-    yyyy, mm = m.group(1), m.group(2)
-    return f"{yyyy}-{mm}-01"
-
-
-
-_RE_DATE_YMD = re.compile(r"(20\d{2})[.\-/年](0?[1-9]|1[0-2])[.\-/月](0?[1-9]|[12]\d|3[01])日?")
-def extract_gov_pub_date_from_article_html(article_html: str) -> Optional[str]:
-    # 1) 常见 meta（不同频道不一致，尽量多兜）
-    # 例如：<meta name="others" content="页面生成时间 2026-01-21 08:52:30" />
-    text = article_html
-
-    # 2) 优先：含“发布时间/日期/来源”等附近的日期
-    # 例：发布时间：2026-01-20 19:30
-    ctx_patterns = [
-        r"发布时间[:：\s]*" + _RE_DATE_YMD.pattern,
-        r"日期[:：\s]*" + _RE_DATE_YMD.pattern,
-        r"时间[:：\s]*" + _RE_DATE_YMD.pattern,
-        r"稿源[:：\s\S]{0,40}?" + _RE_DATE_YMD.pattern,
-    ]
-    for pat in ctx_patterns:
-        m = re.search(pat, text)
-        if m:
-            y, mo, d = m.group(1), m.group(2).zfill(2), m.group(3).zfill(2)
-            return f"{y}-{mo}-{d}"
-
-    # 3) 次优：全文第一个“合法日期”
-    m = _RE_DATE_YMD.search(text)
-    if m:
-        y, mo, d = m.group(1), m.group(2).zfill(2), m.group(3).zfill(2)
-        return f"{y}-{mo}-{d}"
-
-    return None
-
-
-def parse_gov_home(config: dict, now: datetime) -> List[Item]:
-    src = config["sources"]["gov_home"]
-    base_url = src["url"]
-
-    html = http_get(base_url)
-    soup = BeautifulSoup(html, "lxml")
-
-    fetched_at = format_fetched_at(now)
-    items: List[Item] = []
-
-    keywords = config["keywords"]
-    window_days = int(config["window_days"])
-    hard_cap_days = int(config["hard_cap_days"])
-
-    # 是否请求文章页补发布时间
-    resolve_pub_date = bool(config.get("resolve_pub_date", True))
-    # 避免首页链接太多导致查询过慢，可设置上限
-    resolve_cap = int(config.get("resolve_pub_date_cap", 60))
-
-    pub_cache: Dict[str, Optional[str]] = {}
-
-    def resolve_pub_date_for_url(url: str) -> Optional[str]:
-        if url in pub_cache:
-            return pub_cache[url]
-        try:
-            art_html = http_get(url)
-            d = extract_gov_pub_date_from_article_html(art_html)
-            pub_cache[url] = d
-            return d
-        except Exception:
-            pub_cache[url] = None
-            return None
-
-    def build_item(title: str, href: str, source_tag: str) -> Optional[Item]:
-        title = (title or "").strip()
-        href = (href or "").strip()
-        if not title or len(title) < 4 or not href:
-            return None
-
-        url = normalize_url(base_url, href)
-
-        pub_date = extract_date(title)  # 一般不含
-        if not pub_date:
-            pub_date = extract_gov_date_from_url(url)
-
-        it = Item(
-            title=title,
-            publisher=src["name"],
-            url=url,
-            pub_date=pub_date,
-            source=source_tag,
-            fetched_at=fetched_at,
-        )
-        return it
-
-    def add_links(selector: str, source_tag: str):
-        for a in soup.select(selector):
-            href = a.get("href")
-            if not href:
-                continue
-            title = a.get_text(" ", strip=True)
-            it = build_item(title, href, source_tag)
-            if it:
-                items.append(it)
-
-    add_links("#index_tpxw .slider_carousel .item h4 a[href]", "中国政府网-焦点图片")
-    add_links("#index_ywowen ul li a[href]", "中国政府网-要闻")
-    add_links("#index_zxzc ul li a[href]", "中国政府网-最新政策")
-    add_links("#index_zcjd ul li a[href]", "中国政府网-政策解读")
-    add_links("#index_gwygzjxs ul.ul1 li a[href]", "中国政府网-国新办")
-    add_links("#index_zwlb ul.ul2 li a[href]", "中国政府网-政务联播")
-    add_links("#index_jyzj ul.ul01 li a[href]", "中国政府网-建言征集/回应关切")
-
-    # 补齐真实发布时间：访问文章页提取日期
-    if resolve_pub_date:
-        # 按 URL 去个粗重
-        temp_uniq: Dict[str, Item] = {}
-        for it in items:
-            k = canonicalize_url_for_dedup(it.url)
-            if k not in temp_uniq:
-                temp_uniq[k] = it
-        uniq_items = list(temp_uniq.values())
-
-        # 只对前 N 条补日期（可调大）
-        for it in uniq_items[:resolve_cap]:
-            d = resolve_pub_date_for_url(it.url)
-            if d:
-                it.pub_date = d
-
-        # 回填
-        items = uniq_items
-
-    # 过滤：关键词 + 时间窗口
-    # 特殊处理：gov_home 不使用“印发”关键词
-    gov_keywords = [k for k in keywords if k != "印发"]
-
-    filtered: List[Item] = []
-    for it in items:
-        if not keyword_hit(it.title, gov_keywords):
-            continue
-        if it.pub_date:
-            if not within_window(it.pub_date, now, window_days, hard_cap_days):
-                continue
-        filtered.append(it)
-
-    # 去重
-    uniq: Dict[str, Item] = {}
-    for it in filtered:
-        key = canonicalize_url_for_dedup(it.url)
-        if key not in uniq:
-            uniq[key] = it
-        else:
-            old = uniq[key]
-            if (not old.pub_date) and it.pub_date:
-                uniq[key] = it
-            elif old.pub_date and it.pub_date:
-                try:
-                    if dtparser.parse(it.pub_date) > dtparser.parse(old.pub_date):
-                        uniq[key] = it
-                except Exception:
-                    pass
-
-    return list(uniq.values())
-
-
-def parse_gov_rss(config: dict, now: datetime) -> List[Item]:
-    """
-    解析 gov_latest_policy_rss
-    使用 RSSHub 提供的 RSS：https://rsshub.app/gov/zhengce/zuixin
-    注意：本渠道同样不使用“印发”关键词过滤
-    """
-    src = config["sources"].get("gov_latest_policy_rss")
-    if not src:
-        return []
-    
-    rss_url = src.get("rss")
-    if not rss_url:
-        return []
-
-    try:
-        # Fetch RSS content
-        # 注意：http_get 内部有超时设置
-        xml_content = http_get(rss_url)
-    except Exception:
-        # 如果 RSS 抓取失败，直接忽略
-        return []
-
-    # 使用 lxml 解析 XML
-    soup = BeautifulSoup(xml_content, "xml")
-    
-    fetched_at = format_fetched_at(now)
-    items: List[Item] = []
-
-    # 关键词过滤：排除“印发”
-    raw_keywords = config.get("keywords", [])
-    rss_keywords = [k for k in raw_keywords if k != "印发"]
-    
-    window_days = int(config.get("window_days", 15))
-    hard_cap_days = int(config.get("hard_cap_days", 15))
-
-    for entry in soup.find_all("item"):
-        title_tag = entry.find("title")
-        link_tag = entry.find("link")
-        pub_date_tag = entry.find("pubDate")
-
-        title = (title_tag.get_text() if title_tag else "").strip()
-        link = (link_tag.get_text() if link_tag else "").strip()
-        pub_date_str = (pub_date_tag.get_text() if pub_date_tag else "").strip()
-        
-        if not title or not link:
-            continue
-            
-        # 日期解析
-        pub_date = None
-        if pub_date_str:
-            try:
-                # RSS date: Wed, 02 Oct 2002 13:00:00 GMT
-                dt = dtparser.parse(pub_date_str)
-                pub_date = dt.date().isoformat()
-            except Exception:
-                pass
-        
-        # 关键词匹配
-        if not keyword_hit(title, rss_keywords):
-            continue
-            
-        # 时间窗口过滤
-        if not within_window(pub_date, now, window_days, hard_cap_days):
-            continue
-
-        items.append(Item(
-            title=title,
-            publisher=src.get("name", "中国政府网"),
-            url=link,
-            pub_date=pub_date,
-            source="GOV-最新政策-RSS",
-            fetched_at=fetched_at,
-        ))
-
-    return items
-
-
-#-------------------------------------- qqnews search (腾讯新闻) --------------------------------------#
-QQNEWS_API_URL = "https://i.news.qq.com/gw/pc_search/result"
-
-QQNEWS_HEADERS = {
-    "Accept": "application/json, text/plain, */*",
-    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-    "User-Agent": USER_AGENT,
-    "Origin": "https://news.qq.com",
-    "Referer": "https://news.qq.com/",
-}
-
-
-def _parse_qqnews_time_to_dt(s: str, now: datetime) -> Optional[datetime]:
-    """
-    解析腾讯新闻结果里的 time 字段，尽量转成带时区的 datetime。
-    """
-    s = (s or "").strip()
-    if not s:
-        return None
-    # 相对时间
-    try:
-        if s.endswith("分钟前"):
-            n = int(s.replace("分钟前", "").strip())
-            return now - timedelta(minutes=n)
-        if s.endswith("小时前"):
-            n = int(s.replace("小时前", "").strip())
-            return now - timedelta(hours=n)
-        if s.endswith("天前"):
-            n = int(s.replace("天前", "").strip())
-            return now - timedelta(days=n)
-    except Exception:
-        pass
-
-    # 绝对时间
-    try:
-        dt = dtparser.parse(s, fuzzy=True)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=SG_TZ)
-        else:
-            dt = dt.astimezone(SG_TZ)
-        return dt
-    except Exception:
-        return None
-
-
-def _qqnews_search_fetch_page(session: requests.Session, query: str, page: int, limit: int) -> dict:
-    payload = {
-        "page": str(page),                 
-        "query": query,
-        "is_pc": "1",
-        "hippy_custom_version": "24",
-        "search_type": "all",
-        "search_count_limit": str(limit),
-        "appver": "15.5_qqnews_7.1.80",
-    }
-    resp = session.post(QQNEWS_API_URL, data=payload, headers=QQNEWS_HEADERS, timeout=30)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
-    """
-    目标：调用腾讯新闻 PC 搜索 API，搜索指定关键词（支持多个，例如工信微报、微言教育），
-    收集近 N 天的结果写入统一 CSV。
-    说明：
-    - 仅保留 secList 中 component=pictext（图文）且含 newsList 的条目
-    - 时间字段优先使用 API 返回的 time；无法解析则跳过（满足“近N天”约束）
-    """
-    src = config["sources"].get("qqnews_search")
-    if not src:
-        return []
-
-    # 获取查询词列表（优先 queries，其次 query，最后默认）
-    queries = src.get("queries")
-    if not queries:
-        single_query = src.get("query")
-        queries = [single_query] if single_query else ["工信微报"]
-    
-    # 确保是列表
-    if isinstance(queries, str):
-        queries = [queries]
-
-    window_days = int(config.get("window_days", 15))
-    max_pages = int(src.get("max_pages") or 5)
-    page_size = int(src.get("page_size") or 20)
-
-    threshold = now - timedelta(days=window_days)
-    fetched_at = format_fetched_at(now)
-
-    session = requests.Session()
-    all_items: List[Item] = []
-
-    # -------------------------------------------------------------------------
-    # 遍历所有查询词进行搜索
-    # 说明：
-    # 1. 对 queries 列表逐个发起搜索请求。
-    # 2. 为了避免短时间内高频访问导致被封禁，增加随机休眠机制。
-    # -------------------------------------------------------------------------
-    for i, query in enumerate(queries):
-        query = str(query).strip()
-        if not query:
-            continue
-        
-        # 如果不是第一个查询词，则在两次查询之间进行随机休眠 (10~20秒)
-        if i > 0:
-            sleep_sec = random.uniform(10.0, 20.0)
-            # print(f"[INFO] 正在休眠 {sleep_sec:.2f} 秒，准备抓取下一个关键词...")
-            time.sleep(sleep_sec)
-            
-        # print(f"正在抓取腾讯新闻: {query}") # Optional: logging
-        
-        for page in range(max_pages):
-            try:
-                raw = _qqnews_search_fetch_page(session, query=query, page=page, limit=page_size)
-            except Exception as e:
-                # print(f"抓取腾讯新闻出错: query={query}, page={page}, err={e}")
-                continue
-
-            sec_list = raw.get("secList") or []
-
-            page_min_dt: Optional[datetime] = None
-            
-            for sec in sec_list:
-                try:
-                    # 图文：component=pictext；同时 secType 通常为 0
-                    component = (sec.get("component") or "").strip()
-                    if component and component != "pictext":
-                        continue
-
-                    for n in (sec.get("newsList") or []):
-                        title = (n.get("title") or "").strip()
-                        url = (n.get("surl") or n.get("url") or "").strip()
-                        if not title or not url:
-                            continue
-
-                        t_raw = (n.get("time") or "").strip()
-                        dt = _parse_qqnews_time_to_dt(t_raw, now=now)
-                        if dt is None:
-                            # 无法判断时间的条目直接跳过
-                            continue
-                        
-                        # 记录本页最早时间，用于判断是否还要翻页
-                        if page_min_dt is None or dt < page_min_dt:
-                            page_min_dt = dt
-
-                        if dt < threshold:
-                            continue
-
-                        pub_date = dt.date().isoformat()
-                        publisher = (n.get("source") or src.get("name") or "腾讯新闻").strip()
-                        
-                        # Add validation: Verify if the publisher name contains the query keyword
-                        # 校验流程：仅保留发布单位（publisher）包含当前查询词（query）的新闻
-                        if query not in publisher:
-                            continue
-
-                        # source 字段加上 query 区分来源
-                        all_items.append(Item(
-                            title=title,
-                            publisher=publisher,
-                            url=url,
-                            pub_date=pub_date,
-                            source=f"腾讯新闻-{query}",
-                            fetched_at=fetched_at,
-                        ))
-                except Exception:
-                    continue
-            
-            # 翻页终止条件
-            if raw.get("hasMore") in (0, "0", False):
-                break
-            
-            # 如果本页最早的时间都已经小于阈值，无需再往后翻
-            if page_min_dt and page_min_dt < threshold:
-                break
-
-    # 统一过滤（关键词）
-    base_keywords = config.get("keywords", [])
-
-    # 特殊处理：关键词“印发”
-    # 仅当 query 为 "工信微报" 时保留 "印发"，其他情况需移除
-    keywords_full = base_keywords
-    keywords_no_yinfa = [k for k in base_keywords if k != "印发"]
-
-    filtered: List[Item] = []
-    
-    for it in all_items:
-        # 判断该条目属于哪个查询词
-        # 简单通过 source 字符串判断。目前 source 格式为 "腾讯新闻-{query}"
-        # 如果是“工信微报”来源，保留“印发”；否则不使用“印发”作为匹配词
-        if "工信微报" in it.source:
-            target_keywords = keywords_full
-        else:
-            target_keywords = keywords_no_yinfa
-            
-        if not keyword_hit(it.title, target_keywords):
-            continue
-        filtered.append(it)
-
-    return filtered
-#--------------------------------------------------------------------------------------------------------------——#
-
-
-def load_existing(csv_path: str) -> pd.DataFrame:
-    if not os.path.exists(csv_path):
-        return pd.DataFrame(columns=["标题", "发布单位", "新闻URL", "发布日期", "来源", "查询时间"])
-    return pd.read_csv(csv_path)
-
-
-def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataFrame, int]:
-    if existing.empty:
-        existing_urls = set()
-    else:
-        existing_urls = set(existing["新闻URL"].astype(str).tolist())
-
-    rows = []
-    added = 0
-    for it in new_items:
-        if it.url in existing_urls:
-            continue
-        rows.append({
-            "标题": it.title,
-            "发布单位": it.publisher,
-            "新闻URL": it.url,
-            "发布日期": it.pub_date or "",
-            "来源": it.source,
-            "查询时间": it.fetched_at,
-        })
-        existing_urls.add(it.url)
-        added += 1
-
-    if rows:
-        new_df = pd.concat([existing, pd.DataFrame(rows)], ignore_index=True)
-    else:
-        new_df = existing.copy()
-
-    # 按发布日期（空值排后）和查询时间排序
-    def sort_key(row):
-        d = row.get("发布日期", "")
-        return d if d else "0000-00-00"
-
-    if not new_df.empty:
-        new_df["__sortdate"] = new_df.apply(sort_key, axis=1)
-        new_df = new_df.sort_values(by=["__sortdate", "查询时间"], ascending=[False, False]).drop(columns=["__sortdate"])
-
-    return new_df, added
-
-def parse_weibo_monitor_sources(config: dict, now: datetime) -> List[Item]:
-    """
-    从 weibo_monitor 的微博账号和官网信息源获取新闻，
-    按关键词和时间窗口过滤后转换为 Item 列表。
-
-    需要 Playwright 支持：
-        pip install playwright
-        python -m playwright install chromium
-
-    通过 config.yaml 中的 weibo_monitor 节控制：
-        weibo_monitor:
-          enabled: true          # 是否启用
-          mode: website_only     # all | weibo_only | website_only
-          max_pages: 2           # 每个微博账号抓取的最大页数
-    """
-    weibo_cfg = config.get("weibo_monitor", {})
-    if not weibo_cfg.get("enabled", False):
-        return []
-
-    # 确保 weibo_monitor 模块可被导入（与 collect.py 同目录）
-    src_dir = str(Path(__file__).parent)
-    if src_dir not in sys.path:
-        sys.path.insert(0, src_dir)
-
-    try:
-        from weibo_monitor import (  # type: ignore[import]
-            MONITOR_ACCOUNTS,
-            WEBSITE_SOURCES,
-            WeiboMonitor,
-        )
-    except ImportError as exc:
-        print(f"[WARN] weibo_monitor 导入失败，跳过该数据源: {exc}")
-        return []
-
-    mode = weibo_cfg.get("mode", "all")
-    max_pages = int(weibo_cfg.get("max_pages", 2))
-
-    accounts = MONITOR_ACCOUNTS
-    website_sources = WEBSITE_SOURCES
-    if mode == "weibo_only":
-        website_sources = {}
-    elif mode == "website_only":
-        accounts = {}
-
-    keywords = config.get("keywords", [])
-    # 特殊处理：微博来源不使用"印发"关键词
-    weibo_keywords = [k for k in keywords if k != "印发"]
-    window_days = int(config.get("window_days", 15))
-    hard_cap_days = int(config.get("hard_cap_days", 15))
-    fetched_at = format_fetched_at(now)
-
-    async def _fetch() -> dict:
-        monitor = WeiboMonitor(
-            accounts=accounts,
-            website_sources=website_sources,
-            max_pages=max_pages,
-        )
-        return await monitor.fetch_all(include_seen=True)
-
-    def _run_fetch() -> dict:
-        return asyncio.run(_fetch())
-
-    try:
-        # If a running event loop already exists (e.g. Jupyter / async scheduler),
-        # asyncio.run() would raise RuntimeError.  Fall back to a thread so the
-        # coroutine always runs in its own fresh loop.
-        try:
-            asyncio.get_running_loop()
-            running = True
-        except RuntimeError:
-            running = False
-
-        if running:
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                all_results: dict = pool.submit(_run_fetch).result()
-        else:
-            all_results = asyncio.run(_fetch())
-    except Exception as exc:
-        print(f"[WARN] weibo_monitor 抓取失败，跳过该数据源: {exc}")
-        return []
-
-    items: List[Item] = []
-    for source_name, posts in all_results.items():
-        for post in posts:
-            if "mid" in post:
-                # 微博帖子格式
-                title = post.get("title", "").strip()
-                # 优先使用头条文章链接，其次使用微博详情链接
-                url = post.get("article_url") or post.get("url", "")
-                pub_date_str = post.get("parsed_time", "")
-                pub_date = pub_date_str[:10] if pub_date_str and len(pub_date_str) >= 10 else None
-                publisher = source_name
-                source_tag = f"微博-{source_name}"
-            else:
-                # 官网文章格式
-                title = post.get("title", "").strip()
-                url = post.get("url", "")
-                pub_date = None
-                publisher = source_name
-                source_tag = f"官网-{source_name}"
-
-            if not title or not url:
-                continue
-
-            # 关键词过滤（微博不使用"印发"）
-            if not keyword_hit(title, weibo_keywords):
-                continue
-
-            # 时间窗口过滤（仅当有发布日期时才限定范围）
-            if pub_date and not within_window(pub_date, now, window_days, hard_cap_days):
-                continue
-
-            items.append(Item(
-                title=title,
-                publisher=publisher,
-                url=url,
-                pub_date=pub_date,
-                source=source_tag,
-                fetched_at=fetched_at,
-            ))
-
-    return items
-
-
-def _xml_escape(s: str) -> str:
-    """Escape special characters for XML text content."""
-    return (
-        str(s)
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&apos;")
-    )
-
-
-def _pub_date_to_rfc822(pub_date: str) -> str:
-    """Convert a YYYY-MM-DD date string to RFC 822 format required by RSS."""
-    try:
-        dt = datetime.strptime(pub_date, "%Y-%m-%d").replace(tzinfo=SG_TZ)
-        # Format: Wed, 02 Oct 2002 15:00:00 +0800
-        return dt.strftime("%a, %d %b %Y 00:00:00 +0800")
-    except (ValueError, TypeError):
-        return ""
-
-
-_PAGES_URL = "https://guluor-w.github.io/Automated-news-scraping/"
-
-
-def generate_rss(
-    df: "pd.DataFrame",
-    out_path: Path,
-    title: str,
-    description: str,
-    link: str = _PAGES_URL,
-) -> None:
-    """Generate an RSS 2.0 XML feed from a DataFrame and write it to out_path."""
-    build_date = datetime.now(tz=SG_TZ).strftime("%a, %d %b %Y %H:%M:%S +0800")
-
-    # Normalise NaN cells to empty strings so they never serialise as "nan"
-    df = df.fillna("")
-
-    items_xml: List[str] = []
-    for _, row in df.iterrows():
-        item_title = _xml_escape(str(row.get("标题", "")))
-        item_link = _xml_escape(str(row.get("新闻URL", "")))
-        item_pub_date = _pub_date_to_rfc822(str(row.get("发布日期", "")))
-        item_source = _xml_escape(str(row.get("来源", "")))
-        item_publisher = _xml_escape(str(row.get("发布单位", "")))
-
-        item_parts = [
-            "    <item>",
-            f"      <title>{item_title}</title>",
-        ]
-        if item_link:
-            item_parts.append(f"      <link>{item_link}</link>")
-            item_parts.append(f"      <guid isPermaLink=\"true\">{item_link}</guid>")
-        if item_pub_date:
-            item_parts.append(f"      <pubDate>{item_pub_date}</pubDate>")
-        item_parts.append(
-            f"      <description>{item_publisher}｜{item_source}</description>"
-        )
-        item_parts.append("    </item>")
-        items_xml.append("\n".join(item_parts))
-
-    feed = (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<rss version="2.0">\n'
-        '  <channel>\n'
-        f'    <title>{_xml_escape(title)}</title>\n'
-        f'    <link>{_xml_escape(link)}</link>\n'
-        f'    <description>{_xml_escape(description)}</description>\n'
-        '    <language>zh-CN</language>\n'
-        f'    <lastBuildDate>{build_date}</lastBuildDate>\n'
-        + "\n".join(items_xml)
-        + "\n  </channel>\n</rss>\n"
-    )
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(feed)
-
-
-def main():
+def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     config_path = repo_root / "config.yaml"
 
     config = load_config(config_path)
     now = datetime.now(tz=SG_TZ)
 
+    # ── 各信源抓取 ────────────────────────────────────────────────────────────
     all_items: List[Item] = []
     all_items.extend(parse_miit_home(config, now))
     all_items.extend(parse_gov_home(config, now))
     all_items.extend(parse_gov_rss(config, now))
     all_items.extend(parse_qqnews_search(config, now))
-    all_items.extend(parse_weibo_monitor_sources(config, now))
+    all_items.extend(parse_weibo(config, now))
+    all_items.extend(parse_website_monitor(config, now))
 
+    # ── 去重合并并写 CSV ──────────────────────────────────────────────────────
     out_csv = repo_root / config["output"]["csv_path"]
     existing = load_existing(str(out_csv))
     merged, added = dedup_merge(existing, all_items)
@@ -1008,7 +102,7 @@ def main():
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     merged.to_csv(str(out_csv), index=False, encoding="utf-8-sig")
 
-    # Generate RSS feeds
+    # ── 生成 RSS Feeds ────────────────────────────────────────────────────────
     rss_full_path = repo_root / "docs/data/rss_full.xml"
     rss_miit_path = repo_root / "docs/data/rss_miit.xml"
 
@@ -1027,9 +121,11 @@ def main():
         description='来源包含"工信"的新闻 RSS 订阅',
     )
 
-    added_path = repo_root / "docs/data/added_count.txt"  # 记录新增的数量
+    # ── 记录新增条数（供 CI/CD 判断是否需要提交） ─────────────────────────────
+    added_path = repo_root / "docs/data/added_count.txt"
     with open(added_path, "w", encoding="utf-8") as f:
         f.write(str(added))
+
 
 if __name__ == "__main__":
     main()

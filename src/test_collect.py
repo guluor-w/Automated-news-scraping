@@ -3,11 +3,10 @@
 运行方式：python src/test_collect.py
 """
 import sys
-import types
 import asyncio
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 
 # 将 src 目录加入模块搜索路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -59,26 +58,30 @@ def make_website_article(title, url="https://www.nda.gov.cn/news/1.html"):
 
 def run_parse_weibo_with_mock(config, mock_results: dict):
     """
-    用 mock_results 替换 WeiboMonitor.fetch_all 的返回值，
+    用 mock_results 替换微博和官网的实际抓取，
     运行 parse_weibo_monitor_sources 并返回 Item 列表。
+
+    mock_results 格式: {来源名称: [post_or_article, ...]}
+    含 "mid" 字段的条目被视为微博帖子，其余视为官网文章。
     """
-    # 构建一个伪造的 weibo_monitor 模块
-    fake_module = types.ModuleType("weibo_monitor")
-
-    class MockWeiboMonitor:
-        def __init__(self, accounts=None, website_sources=None, max_pages=1, **kw):
-            pass
-
-        async def fetch_all(self, include_seen: bool = False):
-            return mock_results
-
-    fake_module.WeiboMonitor = MockWeiboMonitor
-    fake_module.MONITOR_ACCOUNTS = {"工信微报": "5149608258"}
-    fake_module.WEBSITE_SOURCES = {
-        "国家数据局": {"url": "https://www.nda.gov.cn/sjj/swdt/list/index_pc_1.html", "org": "国家数据局"}
+    # 区分微博帖子（含 "mid"）与官网文章（不含 "mid"）
+    weibo_results = {
+        name: posts for name, posts in mock_results.items()
+        if posts and "mid" in posts[0]
+    }
+    website_results = {
+        name: posts for name, posts in mock_results.items()
+        if not (posts and "mid" in posts[0])
     }
 
-    with patch.dict(sys.modules, {"weibo_monitor": fake_module}):
+    async def mock_fetch_weibo(accounts, max_pages):
+        return weibo_results
+
+    async def mock_fetch_website(sources):
+        return website_results
+
+    with patch("parsers.weibo._fetch_weibo_raw", mock_fetch_weibo), \
+         patch("parsers.website_monitor._fetch_website_raw", mock_fetch_website):
         now = datetime.now(tz=SG_TZ)
         return collect.parse_weibo_monitor_sources(config, now)
 

@@ -1,54 +1,67 @@
 # Automated-news-scraping
 
-自动化轮询人工智能、制造业、工业化相关新闻。
+自动收集政策领域相关新闻，经关键词筛选和去重后，以 CSV 和 RSS 格式持久化存储。
 
-### 当前数据来源
+---
 
-1. 工业和信息化部官网 https://www.miit.gov.cn/
-2. 中国政府网 https://www.gov.cn/
-3. 腾讯网_政务账号（如：工信微报）
+## 功能概述
 
-ps：在config.yaml的sources里可以增加来源
+- **自动抓取**：定时从多类政策信息渠道（政府官网、社交媒体账号、新闻平台）采集新闻
+- **关键词过滤**：仅保留命中预设关键词的条目（可在 `config.yaml` 中配置）
+- **去重合并**：与历史记录比对，仅追加新增内容
+- **多格式输出**：同步生成 CSV 数据文件和 RSS 订阅源
 
-### 执行效果
+---
 
-在weekly.yml里面设置，每天两次从以上来源收集相关新闻。
-经过比对去重后追增到docs/data/policy_news.csv 里，并按照发布时间降序排序（若发布时间缺失，则按照查询时间排列），即新增的新闻会在csv文件的最上方；
-另外每次运行会在docs/data/added_count.txt 里面记录新增的条数（覆写记录，只会显示最新一次运行的增加条数）。
+## 配置（config.yaml）
 
-### 参数配置（config.yaml）
-
-在config.yaml里，可以增删关键词、修改时间窗口。
-
-```
-keywords:   #可以增加
+```yaml
+keywords:           # 关键词列表，命中任意一个即保留
   - 智能
-  - 智慧
   - AI
-  - 模型
-  - 制造业
-  - 新型工业化
-  - 工业互联网
-  - 产业互联网
-  - 数字化
-  - 数智化
-  - 算力
-  - 具身
-  - 机器人
-  - 芯片
-  - 装备
-  - 体系建设
-  - 新兴产业
-  - 未来产业
-  - 数据集
-  - 数据要素
-  - 工业数据
-  - 高质量数据
-  - 印发
+  - ...
 
+window_days: 15     # 时间窗口：近 N 天内的新闻
+hard_cap_days: 15   # 过滤时间上限
 
-# 时间窗口（要求不要超过半个月）
-window_days: 15  #如果每周连续运行一般以7天为窗口，这里先设置和hard_cap_days一致
-hard_cap_days: 15 #最早时间（用于筛掉过早的新闻）
+weibo_monitor:
+  enabled: true
+  mode: weibo_only  # all | weibo_only | website_only
+  max_pages: 1      # 每个账号最多抓取的页数
+
+output:
+  csv_path: docs/data/policy_news.csv
 ```
 
+---
+
+## 输出文件
+
+| 文件 | 说明 |
+|------|------|
+| `docs/data/policy_news.csv` | 新闻数据（持续追增，按发布时间降序） |
+| `docs/data/added_count.txt` | 最近一次运行新增条数 |
+| `docs/data/rss_full.xml` | 全量新闻 RSS 2.0 |
+| `docs/data/rss_miit.xml` | 专项新闻 RSS 2.0 |
+
+---
+
+## 运行
+
+```bash
+# 安装依赖
+pip install -r requirements.txt
+python -m playwright install chromium
+
+# 手动执行一次抓取
+python src/collect.py
+
+# 运行单元测试
+python src/test_collect.py
+```
+
+CI/CD 由 `.github/workflows/weekly.yml` 自动执行，每天运行两次。
+
+---
+
+技术实现细节及开发指南请参阅 [`src/DEVELOPERS.md`](src/DEVELOPERS.md)。

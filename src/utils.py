@@ -8,7 +8,7 @@
 import re
 from datetime import datetime, timedelta
 from typing import List, Optional
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit, urljoin, urlunsplit
 
 import requests
 from dateutil import parser as dtparser
@@ -30,7 +30,7 @@ def normalize_url(base: str, href: str) -> str:
     if href.startswith("//"):
         return "https:" + href
     if href.startswith("/"):
-        return base.rstrip("/") + href
+        return urljoin(base, href)
     return base.rstrip("/") + "/" + href
 
 

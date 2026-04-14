@@ -29,6 +29,8 @@ def load_existing(csv_path: str) -> pd.DataFrame:
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
     df.columns = [str(col).lstrip("\ufeff") for col in df.columns]
     return df
+
+
 def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataFrame, int]:
     """
     将 new_items 追加到 existing，按 URL 去重，并按发布日期降序排序。

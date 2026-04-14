@@ -240,25 +240,29 @@ def clean_html(html_text: str) -> str:
     return text
 
 
-def parse_weibo_time(time_str: str) -> str:
+def parse_weibo_time(time_str: str, now: Optional[datetime] = None) -> str:
     """将微博的各种时间格式统一转换为 YYYY-MM-DD HH:MM"""
     if not time_str:
         return ""
     try:
+        reference_now = now if now is not None else datetime.now().astimezone()
+        if reference_now.tzinfo is None:
+            reference_now = reference_now.astimezone()
+
         if "刚刚" in time_str:
-            return datetime.now().strftime("%Y-%m-%d %H:%M")
+            return reference_now.strftime("%Y-%m-%d %H:%M")
         m = re.search(r"(\d+)分钟前", time_str)
         if m:
-            return (datetime.now() - timedelta(minutes=int(m.group(1)))).strftime("%Y-%m-%d %H:%M")
+            return (reference_now - timedelta(minutes=int(m.group(1)))).strftime("%Y-%m-%d %H:%M")
         m = re.search(r"(\d+)小时前", time_str)
         if m:
-            return (datetime.now() - timedelta(hours=int(m.group(1)))).strftime("%Y-%m-%d %H:%M")
+            return (reference_now - timedelta(hours=int(m.group(1)))).strftime("%Y-%m-%d %H:%M")
         m = re.search(r"昨天\s*(\d{2}:\d{2})", time_str)
         if m:
-            return f"{(datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')} {m.group(1)}"
+            return f"{(reference_now - timedelta(days=1)).strftime('%Y-%m-%d')} {m.group(1)}"
         m = re.match(r"^(\d{2})-(\d{2})$", time_str.strip())
         if m:
-            return f"{datetime.now().year}-{m.group(1)}-{m.group(2)}"
+            return f"{reference_now.year}-{m.group(1)}-{m.group(2)}"
         # 标准格式 "Fri Apr 03 12:22:54 +0800 2026"
         try:
             dt = datetime.strptime(time_str, "%a %b %d %H:%M:%S %z %Y")

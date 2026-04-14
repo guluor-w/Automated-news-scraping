@@ -133,74 +133,73 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
     threshold = now - timedelta(days=window_days)
     fetched_at = format_fetched_at(now)
 
-    session = requests.Session()
     all_items: List[Item] = []
-
-    for i, query in enumerate(queries):
-        query = str(query).strip()
-        if not query:
-            continue
-
-        # 多关键词间随机休眠，防止高频访问被封禁
-        if i > 0:
-            sleep_sec = random.uniform(10.0, 20.0)
-            time.sleep(sleep_sec)
-
-        for page in range(max_pages):
-            try:
-                raw = _qqnews_search_fetch_page(session, api_url=api_url, query=query, page=page, limit=page_size)
-            except Exception:
+    with requests.Session() as session:
+        for i, query in enumerate(queries):
+            query = str(query).strip()
+            if not query:
                 continue
 
-            sec_list = raw.get("secList") or []
-            page_min_dt: Optional[datetime] = None
+            # 多关键词间随机休眠，防止高频访问被封禁
+            if i > 0:
+                sleep_sec = random.uniform(10.0, 20.0)
+                time.sleep(sleep_sec)
 
-            for sec in sec_list:
+            for page in range(max_pages):
                 try:
-                    component = (sec.get("component") or "").strip()
-                    if component and component != "pictext":
-                        continue
-
-                    for n in (sec.get("newsList") or []):
-                        title = (n.get("title") or "").strip()
-                        url = (n.get("surl") or n.get("url") or "").strip()
-                        if not title or not url:
-                            continue
-
-                        t_raw = (n.get("time") or "").strip()
-                        dt = _parse_qqnews_time_to_dt(t_raw, now=now)
-                        if dt is None:
-                            continue
-
-                        if page_min_dt is None or dt < page_min_dt:
-                            page_min_dt = dt
-
-                        if dt < threshold:
-                            continue
-
-                        pub_date = dt.date().isoformat()
-                        publisher = (n.get("source") or src.get("name") or "腾讯新闻").strip()
-
-                        # 仅保留发布单位名称中包含查询词的结果
-                        if query not in publisher:
-                            continue
-
-                        all_items.append(Item(
-                            title=title,
-                            publisher=publisher,
-                            url=url,
-                            pub_date=pub_date,
-                            source=f"腾讯新闻-{query}",
-                            fetched_at=fetched_at,
-                        ))
+                    raw = _qqnews_search_fetch_page(session, api_url=api_url, query=query, page=page, limit=page_size)
                 except Exception:
                     continue
 
-            if raw.get("hasMore") in (0, "0", False):
-                break
+                sec_list = raw.get("secList") or []
+                page_min_dt: Optional[datetime] = None
 
-            if page_min_dt and page_min_dt < threshold:
-                break
+                for sec in sec_list:
+                    try:
+                        component = (sec.get("component") or "").strip()
+                        if component and component != "pictext":
+                            continue
+
+                        for n in (sec.get("newsList") or []):
+                            title = (n.get("title") or "").strip()
+                            url = (n.get("surl") or n.get("url") or "").strip()
+                            if not title or not url:
+                                continue
+
+                            t_raw = (n.get("time") or "").strip()
+                            dt = _parse_qqnews_time_to_dt(t_raw, now=now)
+                            if dt is None:
+                                continue
+
+                            if page_min_dt is None or dt < page_min_dt:
+                                page_min_dt = dt
+
+                            if dt < threshold:
+                                continue
+
+                            pub_date = dt.date().isoformat()
+                            publisher = (n.get("source") or src.get("name") or "腾讯新闻").strip()
+
+                            # 仅保留发布单位名称中包含查询词的结果
+                            if query not in publisher:
+                                continue
+
+                            all_items.append(Item(
+                                title=title,
+                                publisher=publisher,
+                                url=url,
+                                pub_date=pub_date,
+                                source=f"腾讯新闻-{query}",
+                                fetched_at=fetched_at,
+                            ))
+                    except Exception:
+                        continue
+
+                if raw.get("hasMore") in (0, "0", False):
+                    break
+
+                if page_min_dt and page_min_dt < threshold:
+                    break
 
     # ── 关键词过滤 ────────────────────────────────────────────────────────────
     base_keywords = config.get("keywords", [])

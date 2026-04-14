@@ -140,6 +140,7 @@ class WebsiteNewsClient:
         """
         await self._ensure_browser()
         articles = []
+        context = None
 
         try:
             context = await self._browser.new_context(
@@ -211,10 +212,11 @@ class WebsiteNewsClient:
                 if len(articles) >= max_items:
                     break
 
-            await context.close()
-
         except Exception as e:
             logger.error(f"    官网抓取异常 ({name}): {e}")
+        finally:
+            if context is not None:
+                await context.close()
 
         return articles
 

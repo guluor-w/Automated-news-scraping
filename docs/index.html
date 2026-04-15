@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>新闻清单</title>
+  <title>AI 产业政策动态</title>
 
   <!-- DataTables CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.1.8/css/dataTables.dataTables.min.css">
@@ -11,27 +11,139 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-responsive-dt@3.0.3/css/responsive.dataTables.min.css">
 
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 24px; }
-    h1 { font-size: 20px; margin: 0 0 12px; }
-    .meta { color: #555; margin-bottom: 16px; }
-    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-    .btn { border: 1px solid #d0d7de; background: #f6f8fa; color: #24292f; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+                   "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding-top: 56px;
+      background: #f6f8fa;
+    }
+    .main-content { padding: 16px 24px; max-width: 1400px; margin: 0 auto; }
+
+    /* ===== Fixed Navbar ===== */
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      background: #fff;
+      border-bottom: 1px solid #d0d7de;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 10px;
+      z-index: 1000;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .navbar-brand {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0550ae;
+      white-space: nowrap;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+    .navbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      overflow: hidden;
+    }
+    .navbar-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      white-space: nowrap;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    #status { color: #555; font-size: 13px; }
+    #updatedAt { color: #444; font-size: 13px; }
+
+    /* ===== Buttons ===== */
+    .btn {
+      border: 1px solid #d0d7de;
+      background: #f6f8fa;
+      color: #24292f;
+      padding: 5px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      line-height: 1.4;
+    }
     .btn:hover { background: #eef2f6; }
     .btn.active { border-color: #0969da; background: #ddf4ff; color: #0550ae; }
-    .btn-rss { border: 1px solid #d0d7de; background: #fff8f0; color: #e36209; padding: 6px 12px; border-radius: 8px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+    .btn-rss {
+      border: 1px solid #d0d7de;
+      background: #fff8f0;
+      color: #e36209;
+      padding: 5px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
     .btn-rss:hover { background: #fff1e0; border-color: #e36209; }
-    .updated-at { color: #444; font-size: 13px; }
-    .hint { color: #666; font-size: 12px; margin-top: 8px; }
+
+    /* ===== Section Cards ===== */
+    .section-card {
+      background: #fff;
+      border: 1px solid #d0d7de;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #24292f;
+    }
+
+    /* ===== Trend Chart ===== */
+    .chart-container { position: relative; height: 180px; }
+
+    /* ===== Tag Cloud ===== */
+    .tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid #d0d7de;
+      background: #f6f8fa;
+      color: #24292f;
+      transition: background 0.12s, border-color 0.12s;
+      user-select: none;
+    }
+    .tag:hover { background: #eef2f6; }
+    .tag.active { background: #ddf4ff; border-color: #0969da; color: #0550ae; font-weight: 600; }
+    .tag.tag-zero { opacity: 0.45; }
+    .tag-count { margin-left: 4px; color: #57606a; font-size: 11px; }
+    .tag.active .tag-count { color: #0969da; }
+
+    /* ===== Table ===== */
     table { width: 100%; }
     .nowrap { white-space: nowrap; }
-    #tbl td.title-col a,
-    #tbl td.title-col span {
-      display: inline-block;
-      max-width: 100%;
+    /* Desktop: show up to 2 lines of title */
+    #tbl td.title-col .title-text {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      vertical-align: bottom;
+      word-break: break-word;
     }
     #tbl th.pubdate-col,
     #tbl td.pubdate-col {
@@ -40,17 +152,45 @@
       max-width: 132px;
       text-align: left;
     }
+    .dataTables_wrapper { background: #fff; }
+
+    /* ===== Row tags ===== */
+    .row-tags { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 3px; }
+    .row-tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 11px;
+      background: #f0f6ff;
+      color: #0550ae;
+      border: 1px solid #b6d4fe;
+    }
+
+    /* ===== Multi-source badge ===== */
+    .badge-multisrc {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 11px;
+      background: #fff8c5;
+      color: #9a6700;
+      border: 1px solid #e3b341;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+
+    .hint { color: #666; font-size: 12px; margin-top: 8px; }
 
     /* ===== Mobile Styles ===== */
     @media (max-width: 640px) {
-      body { margin: 12px; }
-      h1 { font-size: 17px; }
-      .meta { font-size: 12px; margin-bottom: 10px; }
-      .toolbar { gap: 8px; }
-      .btn, .btn-rss { font-size: 12px; padding: 7px 10px; min-height: 36px; }
-      .updated-at { font-size: 12px; width: 100%; }
+      body { padding-top: 48px; }
+      .main-content { padding: 10px 12px; }
+      .navbar { height: 48px; padding: 0 12px; gap: 6px; }
+      .navbar-brand { font-size: 14px; }
+      .navbar-meta { display: none; }
+      .btn, .btn-rss { font-size: 12px; padding: 5px 8px; min-height: 34px; }
+      .section-card { padding: 10px 12px; }
       .hint { font-size: 11px; }
-      /* DataTables control row: search box and info text stack vertically */
       .dataTables_wrapper .dataTables_filter,
       .dataTables_wrapper .dataTables_length,
       .dataTables_wrapper .dataTables_info,
@@ -66,64 +206,77 @@
         padding: 6px 8px;
         margin-left: 0 !important;
       }
-      .dataTables_wrapper .dataTables_filter label {
-        display: block;
-      }
-      /* Make pagination buttons larger for touch */
-      .dataTables_wrapper .dataTables_paginate .paginate_button {
-        padding: 6px 10px;
-        font-size: 13px;
-      }
-      /* Table font size */
+      .dataTables_wrapper .dataTables_filter label { display: block; }
+      .dataTables_wrapper .dataTables_paginate .paginate_button { padding: 6px 10px; font-size: 13px; }
       #tbl td, #tbl th { font-size: 13px; }
-      /* Contain the table wrapper so no horizontal overflow escapes */
-      .dataTables_wrapper {
-        overflow-x: hidden;
-        max-width: 100%;
-      }
-      /* Force table to fit viewport; allow title text to wrap */
-      #tbl {
-        table-layout: fixed;
-        max-width: 100%;
-      }
-      #tbl td.title-col a,
-      #tbl td.title-col span {
-        white-space: normal;
+      .dataTables_wrapper { overflow-x: hidden; max-width: 100%; }
+      #tbl { table-layout: fixed; max-width: 100%; }
+      /* Mobile: show full title (card layout via responsive) */
+      #tbl td.title-col .title-text {
+        display: block;
+        -webkit-line-clamp: unset;
+        overflow: visible;
         word-break: break-word;
         overflow-wrap: break-word;
-        overflow: visible;
       }
     }
   </style>
 </head>
 <body>
-  <h1>新闻列表</h1>
-  <div class="meta">
-    数据源：<code>docs/data/policy_news.csv</code>
-    <span id="status" style="margin-left:12px;">加载中…</span>
-  </div>
 
-  <div class="toolbar">
-    <button id="miitFilterBtn" class="btn" type="button">仅看工信新闻</button>
-    <a href="./data/rss_full.xml" class="btn-rss" title="订阅完整新闻清单 RSS">&#x2605; RSS 完整清单</a>
-    <a href="./data/rss_miit.xml" class="btn-rss" title="订阅工信新闻 RSS（来源含&quot;工信&quot;）">&#x2605; RSS 工信新闻</a>
-    <span id="updatedAt" class="updated-at">数据更新时间：加载中…</span>
-  </div>
+  <!-- Fixed Navbar -->
+  <nav class="navbar">
+    <span class="navbar-brand">AI 产业政策动态</span>
+    <div class="navbar-actions">
+      <button id="miitFilterBtn" class="btn" type="button">仅看工信新闻</button>
+      <a href="./data/rss_full.xml" class="btn-rss" title="订阅完整新闻清单 RSS">&#x2605; RSS 完整清单</a>
+      <a href="./data/rss_miit.xml" class="btn-rss" title="订阅工信新闻 RSS（来源含&quot;工信&quot;）">&#x2605; RSS 工信新闻</a>
+    </div>
+    <div class="navbar-meta">
+      <span id="status">加载中…</span>
+      <span id="updatedAt">数据更新时间：加载中…</span>
+    </div>
+  </nav>
 
-  <table id="tbl" class="display">
-    <thead>
-      <tr>
-        <th>标题</th>
-        <th class="nowrap">发布单位</th>
-        <th class="nowrap">发布日期</th>
-        <th class="nowrap">来源</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="main-content">
 
-  <div class="hint">
-    支持：搜索、排序、分页。标题点击可打开原文链接。
+    <!-- Trend Chart -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-title">新闻趋势</span>
+        <button id="chartModeBtn" class="btn" type="button">切换为按周</button>
+      </div>
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Keyword Tag Cloud -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-title">关键词筛选</span>
+        <span style="font-size:12px;color:#888;">点击标签过滤，再次点击取消</span>
+      </div>
+      <div class="tag-cloud" id="tagCloud"></div>
+    </div>
+
+    <!-- Table -->
+    <table id="tbl" class="display">
+      <thead>
+        <tr>
+          <th>标题</th>
+          <th class="nowrap">发布单位</th>
+          <th class="nowrap">发布日期</th>
+          <th class="nowrap">来源</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="hint">
+      支持：搜索、排序、分页。标题点击可打开原文链接。
+    </div>
+
   </div>
 
   <!-- Dependencies -->
@@ -131,11 +284,24 @@
   <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.1.8/js/dataTables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/datatables.net-responsive@3.0.3/js/dataTables.responsive.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
   <script>
     const CSV_PATH = "./data/policy_news.csv";
+    // Keywords from config.yaml
+    const KEYWORDS = [
+      "智能", "智慧", "AI", "模型", "制造业", "新型工业化", "工业互联网",
+      "产业互联网", "数字化", "数智化", "算力", "具身", "机器人", "芯片",
+      "装备", "体系建设", "新兴产业", "未来产业", "数据集", "数据要素",
+      "工业数据", "高质量数据", "词元", "token"
+    ];
+
     let onlyMiitNews = false;
+    let activeKeyword = null;
     let table = null;
+    let trendChart = null;
+    let chartMode = "day"; // "day" | "week"
+    let allRowsData = [];
 
     function escapeHtml(s) {
       return String(s ?? "")
@@ -155,7 +321,6 @@
     function normalizeFetchedAtText(s) {
       const str = String(s ?? "").trim();
       if (!str) return "";
-
       // 兼容历史 ISO 格式（如 2026-04-06T10:20:30+08:00）
       const dt = new Date(str);
       if (!Number.isNaN(dt.getTime())) {
@@ -167,7 +332,6 @@
         const se = String(dt.getSeconds()).padStart(2, "0");
         return `${y}-${mo}-${d} ${h}:${mi}:${se}`;
       }
-
       // 兜底：仅做轻量清洗（T -> 空格，去掉 +08:00）
       return str.replace("T", " ").replace(/([+-]\d{2}:\d{2}|Z)$/i, "");
     }
@@ -178,16 +342,171 @@
       return valid.reduce((latest, current) => (current.localeCompare(latest, "zh-CN") > 0 ? current : latest));
     }
 
+    // ── Keyword matching ──────────────────────────────────────────────────────
+    function matchKeywords(title) {
+      const t = String(title).toLowerCase();
+      return KEYWORDS.filter(k => t.includes(k.toLowerCase()));
+    }
+
+    // ── Title similarity: character-set overlap ratio ─────────────────────────
+    function charOverlapRatio(a, b) {
+      const normalize = s => s.replace(/\s/g, "").toLowerCase();
+      const sa = normalize(a);
+      const sb = normalize(b);
+      if (!sa || !sb) return 0;
+      const setA = new Set(sa);
+      const setB = new Set(sb);
+      const intersectSize = [...setA].filter(x => setB.has(x)).length;
+      return intersectSize / Math.min(setA.size, setB.size);
+    }
+
+    // Only compare articles published within ±5 days of each other to limit computation
+    const MULTI_SRC_WINDOW_MS = 5 * 24 * 60 * 60 * 1000;
+
+    // Parse a YYYY-MM-DD string as a local date to avoid UTC timezone shifts
+    function parseLocalDateOnly(dateStr) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || "").slice(0, 10));
+      if (!match) return null;
+      const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    function detectMultiSource(rows) {
+      const multiSrc = new Set();
+      const dates = rows.map(r => {
+        const d = parseLocalDateOnly(r.pubDate);
+        return d === null ? null : d.getTime();
+      });
+      for (let i = 0; i < rows.length; i++) {
+        for (let j = i + 1; j < rows.length; j++) {
+          // Skip if either date is unknown or they are more than 5 days apart
+          if (dates[i] === null || dates[j] === null) continue;
+          if (Math.abs(dates[i] - dates[j]) > MULTI_SRC_WINDOW_MS) continue;
+          if (charOverlapRatio(rows[i].fullTitle, rows[j].fullTitle) >= 0.7) {
+            multiSrc.add(i);
+            multiSrc.add(j);
+          }
+        }
+      }
+      return multiSrc;
+    }
+
+    // ── Trend Chart ───────────────────────────────────────────────────────────
+    function getWeekLabel(dateStr) {
+      const d = parseLocalDateOnly(dateStr);
+      if (d === null) return null;
+      const jan1 = new Date(d.getFullYear(), 0, 1);
+      const week = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+      return `${d.getFullYear()}-W${String(week).padStart(2, "0")}`;
+    }
+
+    function buildTrendData(rows, mode) {
+      const counts = {};
+      for (const row of rows) {
+        const dateStr = row.pubDate ? String(row.pubDate).slice(0, 10) : null;
+        if (!dateStr || dateStr.length < 10) continue;
+        const key = mode === "week" ? getWeekLabel(dateStr) : dateStr;
+        if (!key) continue;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+      const labels = Object.keys(counts).sort();
+      return { labels, data: labels.map(l => counts[l]) };
+    }
+
+    function renderTrendChart(rows, mode) {
+      const { labels, data } = buildTrendData(rows, mode);
+      const ctx = document.getElementById("trendChart").getContext("2d");
+      if (trendChart) trendChart.destroy();
+      trendChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "新闻数量",
+            data,
+            borderColor: "#0969da",
+            backgroundColor: "rgba(9,105,218,0.08)",
+            tension: 0.3,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { mode: "index", intersect: false }
+          },
+          scales: {
+            x: { ticks: { maxRotation: 45, font: { size: 11 } } },
+            y: { beginAtZero: true, ticks: { precision: 0, font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    // ── Tag Cloud ─────────────────────────────────────────────────────────────
+    function renderTagCloud(rows) {
+      // Initialize all keywords with count 0 so the full taxonomy is always visible
+      const counts = Object.fromEntries(KEYWORDS.map(k => [k, 0]));
+      for (const row of rows) {
+        for (const kw of row.keywords) {
+          counts[kw] = (counts[kw] || 0) + 1;
+        }
+      }
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      const container = document.getElementById("tagCloud");
+      container.innerHTML = "";
+      for (const [kw, cnt] of sorted) {
+        const el = document.createElement("span");
+        el.className = "tag" + (cnt === 0 ? " tag-zero" : "");
+        el.dataset.kw = kw;
+        el.setAttribute("role", "button");
+        el.setAttribute("tabindex", "0");
+        el.setAttribute("aria-pressed", "false");
+        el.innerHTML = `${escapeHtml(kw)}<span class="tag-count">${cnt}</span>`;
+        const toggle = () => {
+          if (activeKeyword === kw) {
+            activeKeyword = null;
+            el.classList.remove("active");
+            el.setAttribute("aria-pressed", "false");
+          } else {
+            activeKeyword = kw;
+            document.querySelectorAll(".tag").forEach(t => {
+              t.classList.remove("active");
+              t.setAttribute("aria-pressed", "false");
+            });
+            el.classList.add("active");
+            el.setAttribute("aria-pressed", "true");
+          }
+          if (table) table.draw();
+        };
+        el.addEventListener("click", toggle);
+        el.addEventListener("keydown", e => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+        });
+        container.appendChild(el);
+      }
+    }
+
     async function loadCsv() {
       const statusEl = document.getElementById("status");
       const updatedAtEl = document.getElementById("updatedAt");
       const miitFilterBtn = document.getElementById("miitFilterBtn");
+      const chartModeBtn = document.getElementById("chartModeBtn");
 
+      // ── DataTables custom filters ─────────────────────────────────────────
       $.fn.dataTable.ext.search.push(function(settings, data) {
         if (settings.nTable.id !== "tbl") return true;
-        if (!onlyMiitNews) return true;
-        const sourceText = data[3] || "";
-        return sourceText.includes("工信");
+        if (onlyMiitNews && !(data[3] || "").includes("工信")) return false;
+        // data[4] is the hidden keywords column (comma-separated)
+        if (activeKeyword) {
+          const kws = (data[4] || "").split(",");
+          if (!kws.includes(activeKeyword)) return false;
+        }
+        return true;
       });
 
       miitFilterBtn.addEventListener("click", function() {
@@ -195,6 +514,12 @@
         miitFilterBtn.classList.toggle("active", onlyMiitNews);
         miitFilterBtn.textContent = onlyMiitNews ? "仅看工信新闻（已开启）" : "仅看工信新闻";
         if (table) table.draw();
+      });
+
+      chartModeBtn.addEventListener("click", function() {
+        chartMode = chartMode === "day" ? "week" : "day";
+        chartModeBtn.textContent = chartMode === "day" ? "切换为按周" : "切换为按天";
+        renderTrendChart(allRowsData, chartMode);
       });
 
       try {
@@ -211,37 +536,68 @@
           console.warn("CSV parse warnings:", parsed.errors);
         }
 
-        // 你的CSV列名（根据你当前流程）：标题, 发布单位, 新闻URL, 发布日期, 来源, 查询时间
-        const rows = (parsed.data || []).map(r => {
-          const fullTitle = String(r["标题"] ?? "");
-          const title = fullTitle.trim();
-          const url = r["新闻URL"] || "";
-          const publisher = r["发布单位"] || "";
-          const pubDate = r["发布日期"] || "";
-          const source = r["来源"] || "";
-          const fetchedAt = r["查询时间"] || "";
+        // Parse rows and compute keywords
+        const rawRows = (parsed.data || []).map(r => ({
+          fullTitle: String(r["标题"] ?? "").trim(),
+          url: r["新闻URL"] || "",
+          publisher: r["发布单位"] || "",
+          pubDate: r["发布日期"] || "",
+          source: r["来源"] || "",
+          fetchedAt: r["查询时间"] || "",
+          keywords: matchKeywords(String(r["标题"] ?? "")),
+        }));
 
+        allRowsData = rawRows;
+
+        // Detect multi-source articles (70%+ character overlap)
+        const multiSrcSet = detectMultiSource(rawRows);
+
+        // Build DataTable rows (5 columns; col 4 is hidden keywords for filtering)
+        const rows = rawRows.map((r, idx) => {
+          const { fullTitle, url, publisher, pubDate, source, fetchedAt, keywords } = r;
           const isWeibo = String(source).includes("微博");
-          const displayTitle = isWeibo ? truncateText(title, 34) : title;
+          const displayTitle = isWeibo ? truncateText(fullTitle, 34) : fullTitle;
 
-          const titleCell = url
-            ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(fullTitle)}">${escapeHtml(displayTitle)}</a>`
-            : `<span title="${escapeHtml(fullTitle)}">${escapeHtml(displayTitle)}</span>`;
+          const multiSrcBadge = multiSrcSet.has(idx)
+            ? `<span class="badge-multisrc" title="与其他来源报道内容相似">多源报道</span>`
+            : "";
 
-          return [titleCell, escapeHtml(publisher), escapeHtml(pubDate), escapeHtml(source), escapeHtml(fetchedAt)];
+          const rowTagsHtml = keywords.length
+            ? `<div class="row-tags">${keywords.map(k => `<span class="row-tag">${escapeHtml(k)}</span>`).join("")}</div>`
+            : "";
+
+          const titleInner = url
+            ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(fullTitle)}" class="title-text">${escapeHtml(displayTitle)}</a>`
+            : `<span title="${escapeHtml(fullTitle)}" class="title-text">${escapeHtml(displayTitle)}</span>`;
+
+          const titleCell = `<div>${titleInner}${multiSrcBadge}${rowTagsHtml}</div>`;
+
+          return [
+            titleCell,
+            escapeHtml(publisher),
+            escapeHtml(pubDate),
+            escapeHtml(source),
+            keywords.join(","),   // hidden col for keyword filter
+            escapeHtml(fetchedAt) // col 5: fetchedAt (not shown in table)
+          ];
         });
 
-        const latestFetchedAt = getLatestTime(rows.map(row => row[4]));
+        const latestFetchedAt = getLatestTime(rows.map(row => row[5]));
         updatedAtEl.textContent = `数据更新时间：${latestFetchedAt}`;
+
+        // Render tag cloud and trend chart
+        renderTagCloud(rawRows);
+        renderTrendChart(rawRows, chartMode);
 
         // 初始化 DataTable
         table = $("#tbl").DataTable({
-          data: rows.map(row => row.slice(0, 4)),
+          data: rows.map(row => row.slice(0, 5)),
           columns: [
             { title: "标题", width: "55%", className: "title-col", responsivePriority: 1 },
             { title: "发布单位", width: "17%", className: "nowrap", responsivePriority: 3 },
             { title: "发布日期", width: "132px", className: "nowrap pubdate-col", responsivePriority: 2 },
-            { title: "来源", width: "14%", className: "nowrap", responsivePriority: 4 }
+            { title: "来源", width: "14%", className: "nowrap", responsivePriority: 4 },
+            { title: "关键词", visible: false, searchable: false, className: "never" }
           ],
           pageLength: 50,
           order: [[2, "desc"]], // 默认按发布日期降序

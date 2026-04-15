@@ -304,9 +304,8 @@
   <script>
     const CSV_PATH = "./data/policy_news.csv";
     // Column indices for hidden DataTable columns
-    const COL_KEYWORDS   = 3; // comma-separated keyword list
-    const COL_MULTISRC   = 4; // "1" if multi-source, else "0"
-    const COL_SOURCE_RAW = 5; // raw source string for filtering
+    const COL_KEYWORDS = 3; // comma-separated keyword list
+    const COL_MULTISRC = 4; // "1" if multi-source, else "0"
     // Keywords from config.yaml
     const KEYWORDS = [
       "智能", "智慧", "AI", "模型", "制造业", "新型工业化", "工业互联网",
@@ -336,16 +335,16 @@
     function formatSource(source) {
       const s = String(source || "").trim();
       if (s.startsWith("微博-")) {
-        return "💬 " + escapeHtml(s.slice(3));
+        return "🔴 " + escapeHtml(s.slice(3));
       }
       if (s.startsWith("腾讯新闻-")) {
-        return "📰 " + escapeHtml(s.slice(5));
+        return "🐧 " + escapeHtml(s.slice(5));
       }
       if (s.startsWith("工信部官网-")) {
-        return "🏛 工业和信息化部-" + escapeHtml(s.slice(6));
+        return "🌐 工业和信息化部-" + escapeHtml(s.slice(6));
       }
       // 中国政府网 and other official websites
-      return "🏛 " + escapeHtml(s);
+      return "🌐 " + escapeHtml(s);
     }
 
     function truncateText(s, maxLen) {
@@ -560,7 +559,10 @@
       // ── DataTables custom filters ─────────────────────────────────────────
       $.fn.dataTable.ext.search.push(function(settings, data, rowIdx, rowData) {
         if (settings.nTable.id !== "tbl") return true;
-        if (onlyMiitNews && !(rowData[COL_SOURCE_RAW] || "").includes("工信")) return false;
+        if (onlyMiitNews) {
+          const src = data[1] || "";
+          if (!src.includes("工信") && !src.includes("工业和信息化") && !src.includes("经济和信息化")) return false;
+        }
         // rowData[COL_KEYWORDS] is the hidden keywords column (comma-separated)
         if (activeKeyword) {
           const kws = (rowData[COL_KEYWORDS] || "").split(",");
@@ -614,7 +616,7 @@
         // Detect multi-source articles (70%+ character overlap)
         const multiSrcSet = detectMultiSource(rawRows);
 
-        // Build DataTable rows (6 columns: cols 0-2 displayed, COL_KEYWORDS, COL_MULTISRC and COL_SOURCE_RAW hidden)
+        // Build DataTable rows (5 columns: cols 0-2 displayed, COL_KEYWORDS and COL_MULTISRC hidden)
         const rows = rawRows.map((r, idx) => {
           const { fullTitle, url, publisher, pubDate, source, keywords } = r;
           const isWeibo = String(source).startsWith("微博-");
@@ -642,7 +644,6 @@
             escapeHtml(pubDate),
             keywords.join(","),               // COL_KEYWORDS: hidden keywords for filtering
             multiSrcSet.has(idx) ? "1" : "0", // COL_MULTISRC: hidden multi-source flag
-            escapeHtml(source),               // COL_SOURCE_RAW: hidden raw source for filtering
           ];
         });
 
@@ -661,8 +662,7 @@
             { title: "来源", width: "20%", className: "nowrap source-col", responsivePriority: 3 },
             { title: "发布日期", width: "132px", className: "nowrap pubdate-col", responsivePriority: 2 },
             { title: "关键词", visible: false, searchable: false, className: "never" },
-            { title: "多源", visible: false, searchable: false, className: "never" },
-            { title: "来源原始", visible: false, searchable: false, className: "never" }
+            { title: "多源", visible: false, searchable: false, className: "never" }
           ],
           pageLength: 50,
           order: [[2, "desc"]], // 默认按发布日期降序

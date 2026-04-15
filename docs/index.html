@@ -598,9 +598,9 @@
         // Detect multi-source articles (70%+ character overlap)
         const multiSrcSet = detectMultiSource(rawRows);
 
-        // Build DataTable rows (6 columns; col 4 is hidden keywords, col 5 is hidden multi-source flag)
+        // Build DataTable rows (6 columns: cols 0-3 displayed, COL_KEYWORDS and COL_MULTISRC hidden)
         const rows = rawRows.map((r, idx) => {
-          const { fullTitle, url, publisher, pubDate, source, fetchedAt, keywords } = r;
+          const { fullTitle, url, publisher, pubDate, source, keywords } = r;
           const isWeibo = String(source).includes("微博");
           const displayTitle = isWeibo ? truncateText(fullTitle, 34) : fullTitle;
 
@@ -627,11 +627,10 @@
             escapeHtml(source),
             keywords.join(","),               // COL_KEYWORDS: hidden keywords for filtering
             multiSrcSet.has(idx) ? "1" : "0", // COL_MULTISRC: hidden multi-source flag
-            escapeHtml(fetchedAt)              // col 6: fetchedAt (not displayed)
           ];
         });
 
-        const latestFetchedAt = getLatestTime(rows.map(row => row[6]));
+        const latestFetchedAt = getLatestTime(rawRows.map(r => r.fetchedAt));
         updatedAtEl.textContent = `数据更新时间：${latestFetchedAt}`;
 
         // Render tag cloud and trend chart
@@ -640,7 +639,7 @@
 
         // 初始化 DataTable
         table = $("#tbl").DataTable({
-          data: rows.map(row => row.slice(0, 6)),
+          data: rows,
           columns: [
             { title: "标题", width: "55%", className: "title-col", responsivePriority: 1 },
             { title: "发布单位", width: "17%", className: "nowrap", responsivePriority: 3 },

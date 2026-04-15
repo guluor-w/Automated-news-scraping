@@ -292,7 +292,7 @@
       "智能", "智慧", "AI", "模型", "制造业", "新型工业化", "工业互联网",
       "产业互联网", "数字化", "数智化", "算力", "具身", "机器人", "芯片",
       "装备", "体系建设", "新兴产业", "未来产业", "数据集", "数据要素",
-      "工业数据", "高质量数据", "词元", "token", "印发"
+      "工业数据", "高质量数据", "词元", "token"
     ];
 
     let onlyMiitNews = false;
@@ -359,11 +359,21 @@
       return intersectSize / Math.min(setA.size, setB.size);
     }
 
-    function detectMultiSource(titles) {
+    // Only compare articles published within ±5 days of each other to limit computation
+    const MULTI_SRC_WINDOW_MS = 5 * 24 * 60 * 60 * 1000;
+
+    function detectMultiSource(rows) {
       const multiSrc = new Set();
-      for (let i = 0; i < titles.length; i++) {
-        for (let j = i + 1; j < titles.length; j++) {
-          if (charOverlapRatio(titles[i], titles[j]) >= 0.7) {
+      const dates = rows.map(r => {
+        const d = new Date(String(r.pubDate || "").slice(0, 10));
+        return Number.isNaN(d.getTime()) ? null : d.getTime();
+      });
+      for (let i = 0; i < rows.length; i++) {
+        for (let j = i + 1; j < rows.length; j++) {
+          // Skip if either date is unknown or they are more than 5 days apart
+          if (dates[i] === null || dates[j] === null) continue;
+          if (Math.abs(dates[i] - dates[j]) > MULTI_SRC_WINDOW_MS) continue;
+          if (charOverlapRatio(rows[i].fullTitle, rows[j].fullTitle) >= 0.7) {
             multiSrc.add(i);
             multiSrc.add(j);
           }
@@ -522,7 +532,7 @@
         allRowsData = rawRows;
 
         // Detect multi-source articles (70%+ character overlap)
-        const multiSrcSet = detectMultiSource(rawRows.map(r => r.fullTitle));
+        const multiSrcSet = detectMultiSource(rawRows);
 
         // Build DataTable rows (5 columns; col 4 is hidden keywords for filtering)
         const rows = rawRows.map((r, idx) => {

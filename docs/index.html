@@ -175,9 +175,25 @@
       background: #fff8c5;
       color: #9a6700;
       border: 1px solid #e3b341;
-      margin-left: 5px;
       vertical-align: middle;
+      cursor: pointer;
     }
+    .badge-multisrc:hover { background: #ffeea2; }
+
+    /* ===== Multi-source tag (tag cloud) ===== */
+    .tag.tag-multisrc {
+      background: #fff8c5;
+      color: #9a6700;
+      border-color: #e3b341;
+    }
+    .tag.tag-multisrc:hover { background: #ffeea2; }
+    .tag.tag-multisrc.active {
+      background: #ffd966;
+      border-color: #b08000;
+      color: #5a3e00;
+      font-weight: 600;
+    }
+    .tag.tag-multisrc.active .tag-count { color: #5a3e00; }
 
     .hint { color: #666; font-size: 12px; margin-top: 8px; }
 
@@ -288,6 +304,9 @@
 
   <script>
     const CSV_PATH = "./data/policy_news.csv";
+    // Column indices for hidden DataTable columns
+    const COL_KEYWORDS  = 4; // comma-separated keyword list
+    const COL_MULTISRC  = 5; // "1" if multi-source, else "0"
     // Keywords from config.yaml
     const KEYWORDS = [
       "智能", "智慧", "AI", "模型", "制造业", "新型工业化", "工业互联网",
@@ -298,6 +317,7 @@
 
     let onlyMiitNews = false;
     let activeKeyword = null;
+    let activeMultiSrc = false;
     let table = null;
     let trendChart = null;
     let chartMode = "day"; // "day" | "week"
@@ -448,7 +468,7 @@
     }
 
     // ── Tag Cloud ─────────────────────────────────────────────────────────────
-    function renderTagCloud(rows) {
+    function renderTagCloud(rows, multiSrcSet) {
       // Initialize all keywords with count 0 so the full taxonomy is always visible
       const counts = Object.fromEntries(KEYWORDS.map(k => [k, 0]));
       for (const row of rows) {
@@ -459,6 +479,30 @@
       const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
       const container = document.getElementById("tagCloud");
       container.innerHTML = "";
+
+      // ── Multi-source special tag (always first, to the left of keyword tags) ─
+      {
+        const multiSrcCount = multiSrcSet ? multiSrcSet.size : 0;
+        const el = document.createElement("span");
+        el.className = "tag tag-multisrc" + (multiSrcCount === 0 ? " tag-zero" : "");
+        el.setAttribute("role", "button");
+        el.setAttribute("tabindex", "0");
+        el.setAttribute("aria-pressed", "false");
+        el.innerHTML = `多源报道<span class="tag-count">${multiSrcCount}</span>`;
+        const toggle = () => {
+          activeMultiSrc = !activeMultiSrc;
+          el.classList.toggle("active", activeMultiSrc);
+          el.setAttribute("aria-pressed", String(activeMultiSrc));
+          if (table) table.draw();
+        };
+        el.addEventListener("click", toggle);
+        el.addEventListener("keydown", e => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+        });
+        container.appendChild(el);
+      }
+
+      // ── Keyword tags ─────────────────────────────────────────────────────────
       for (const [kw, cnt] of sorted) {
         const el = document.createElement("span");
         el.className = "tag" + (cnt === 0 ? " tag-zero" : "");
@@ -474,7 +518,7 @@
             el.setAttribute("aria-pressed", "false");
           } else {
             activeKeyword = kw;
-            document.querySelectorAll(".tag").forEach(t => {
+            document.querySelectorAll(".tag:not(.tag-multisrc)").forEach(t => {
               t.classList.remove("active");
               t.setAttribute("aria-pressed", "false");
             });
@@ -498,14 +542,16 @@
       const chartModeBtn = document.getElementById("chartModeBtn");
 
       // ── DataTables custom filters ─────────────────────────────────────────
-      $.fn.dataTable.ext.search.push(function(settings, data) {
+      $.fn.dataTable.ext.search.push(function(settings, data, rowIdx, rowData) {
         if (settings.nTable.id !== "tbl") return true;
         if (onlyMiitNews && !(data[3] || "").includes("工信")) return false;
-        // data[4] is the hidden keywords column (comma-separated)
+        // rowData[COL_KEYWORDS] is the hidden keywords column (comma-separated)
         if (activeKeyword) {
-          const kws = (data[4] || "").split(",");
+          const kws = (rowData[COL_KEYWORDS] || "").split(",");
           if (!kws.includes(activeKeyword)) return false;
         }
+        // rowData[COL_MULTISRC] is the hidden multi-source flag ("1" or "0")
+        if (activeMultiSrc && (rowData[COL_MULTISRC] || "0") !== "1") return false;
         return true;
       });
 
@@ -552,58 +598,72 @@
         // Detect multi-source articles (70%+ character overlap)
         const multiSrcSet = detectMultiSource(rawRows);
 
-        // Build DataTable rows (5 columns; col 4 is hidden keywords for filtering)
+        // Build DataTable rows (6 columns: cols 0-3 displayed, COL_KEYWORDS and COL_MULTISRC hidden)
         const rows = rawRows.map((r, idx) => {
-          const { fullTitle, url, publisher, pubDate, source, fetchedAt, keywords } = r;
+          const { fullTitle, url, publisher, pubDate, source, keywords } = r;
           const isWeibo = String(source).includes("微博");
           const displayTitle = isWeibo ? truncateText(fullTitle, 34) : fullTitle;
 
-          const multiSrcBadge = multiSrcSet.has(idx)
-            ? `<span class="badge-multisrc" title="与其他来源报道内容相似">多源报道</span>`
-            : "";
+          const allTags = [];
+          if (multiSrcSet.has(idx)) {
+            allTags.push(`<span class="badge-multisrc" title="与其他来源报道内容相似">多源报道</span>`);
+          }
+          allTags.push(...keywords.map(k => `<span class="row-tag">${escapeHtml(k)}</span>`));
 
-          const rowTagsHtml = keywords.length
-            ? `<div class="row-tags">${keywords.map(k => `<span class="row-tag">${escapeHtml(k)}</span>`).join("")}</div>`
+          const tagsDiv = allTags.length > 0
+            ? `<div class="row-tags">${allTags.join("")}</div>`
             : "";
 
           const titleInner = url
             ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(fullTitle)}" class="title-text">${escapeHtml(displayTitle)}</a>`
             : `<span title="${escapeHtml(fullTitle)}" class="title-text">${escapeHtml(displayTitle)}</span>`;
 
-          const titleCell = `<div>${titleInner}${multiSrcBadge}${rowTagsHtml}</div>`;
+          const titleCell = `<div>${titleInner}${tagsDiv}</div>`;
 
           return [
             titleCell,
             escapeHtml(publisher),
             escapeHtml(pubDate),
             escapeHtml(source),
-            keywords.join(","),   // hidden col for keyword filter
-            escapeHtml(fetchedAt) // col 5: fetchedAt (not shown in table)
+            keywords.join(","),               // COL_KEYWORDS: hidden keywords for filtering
+            multiSrcSet.has(idx) ? "1" : "0", // COL_MULTISRC: hidden multi-source flag
           ];
         });
 
-        const latestFetchedAt = getLatestTime(rows.map(row => row[5]));
+        const latestFetchedAt = getLatestTime(rawRows.map(r => r.fetchedAt));
         updatedAtEl.textContent = `数据更新时间：${latestFetchedAt}`;
 
         // Render tag cloud and trend chart
-        renderTagCloud(rawRows);
+        renderTagCloud(rawRows, multiSrcSet);
         renderTrendChart(rawRows, chartMode);
 
         // 初始化 DataTable
         table = $("#tbl").DataTable({
-          data: rows.map(row => row.slice(0, 5)),
+          data: rows,
           columns: [
             { title: "标题", width: "55%", className: "title-col", responsivePriority: 1 },
             { title: "发布单位", width: "17%", className: "nowrap", responsivePriority: 3 },
             { title: "发布日期", width: "132px", className: "nowrap pubdate-col", responsivePriority: 2 },
             { title: "来源", width: "14%", className: "nowrap", responsivePriority: 4 },
-            { title: "关键词", visible: false, searchable: false, className: "never" }
+            { title: "关键词", visible: false, searchable: false, className: "never" },
+            { title: "多源", visible: false, searchable: false, className: "never" }
           ],
           pageLength: 50,
           order: [[2, "desc"]], // 默认按发布日期降序
           autoWidth: false,
           deferRender: true,
           responsive: true
+        });
+
+        // Click on an in-row multi-source badge to toggle the multi-source filter
+        $("#tbl tbody").on("click", ".badge-multisrc", function() {
+          activeMultiSrc = !activeMultiSrc;
+          const msTag = document.querySelector(".tag.tag-multisrc");
+          if (msTag) {
+            msTag.classList.toggle("active", activeMultiSrc);
+            msTag.setAttribute("aria-pressed", String(activeMultiSrc));
+          }
+          if (table) table.draw();
         });
 
         statusEl.textContent = `加载完成（${rows.length} 条）`;

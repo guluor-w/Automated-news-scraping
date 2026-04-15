@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AI产业政策新闻</title>
+  <title>AI 产业政策动态</title>
 
   <!-- DataTables CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.1.8/css/dataTables.dataTables.min.css">
@@ -130,6 +130,7 @@
     }
     .tag:hover { background: #eef2f6; }
     .tag.active { background: #ddf4ff; border-color: #0969da; color: #0550ae; font-weight: 600; }
+    .tag.tag-zero { opacity: 0.45; }
     .tag-count { margin-left: 4px; color: #57606a; font-size: 11px; }
     .tag.active .tag-count { color: #0969da; }
 
@@ -362,11 +363,19 @@
     // Only compare articles published within ±5 days of each other to limit computation
     const MULTI_SRC_WINDOW_MS = 5 * 24 * 60 * 60 * 1000;
 
+    // Parse a YYYY-MM-DD string as a local date to avoid UTC timezone shifts
+    function parseLocalDateOnly(dateStr) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || "").slice(0, 10));
+      if (!match) return null;
+      const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
     function detectMultiSource(rows) {
       const multiSrc = new Set();
       const dates = rows.map(r => {
-        const d = new Date(String(r.pubDate || "").slice(0, 10));
-        return Number.isNaN(d.getTime()) ? null : d.getTime();
+        const d = parseLocalDateOnly(r.pubDate);
+        return d === null ? null : d.getTime();
       });
       for (let i = 0; i < rows.length; i++) {
         for (let j = i + 1; j < rows.length; j++) {
@@ -384,8 +393,8 @@
 
     // ── Trend Chart ───────────────────────────────────────────────────────────
     function getWeekLabel(dateStr) {
-      const d = new Date(dateStr);
-      if (Number.isNaN(d.getTime())) return null;
+      const d = parseLocalDateOnly(dateStr);
+      if (d === null) return null;
       const jan1 = new Date(d.getFullYear(), 0, 1);
       const week = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
       return `${d.getFullYear()}-W${String(week).padStart(2, "0")}`;
@@ -440,7 +449,8 @@
 
     // ── Tag Cloud ─────────────────────────────────────────────────────────────
     function renderTagCloud(rows) {
-      const counts = {};
+      // Initialize all keywords with count 0 so the full taxonomy is always visible
+      const counts = Object.fromEntries(KEYWORDS.map(k => [k, 0]));
       for (const row of rows) {
         for (const kw of row.keywords) {
           counts[kw] = (counts[kw] || 0) + 1;
@@ -449,25 +459,33 @@
       const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
       const container = document.getElementById("tagCloud");
       container.innerHTML = "";
-      if (sorted.length === 0) {
-        container.textContent = "（无关键词匹配）";
-        return;
-      }
       for (const [kw, cnt] of sorted) {
         const el = document.createElement("span");
-        el.className = "tag";
+        el.className = "tag" + (cnt === 0 ? " tag-zero" : "");
         el.dataset.kw = kw;
+        el.setAttribute("role", "button");
+        el.setAttribute("tabindex", "0");
+        el.setAttribute("aria-pressed", "false");
         el.innerHTML = `${escapeHtml(kw)}<span class="tag-count">${cnt}</span>`;
-        el.addEventListener("click", () => {
+        const toggle = () => {
           if (activeKeyword === kw) {
             activeKeyword = null;
             el.classList.remove("active");
+            el.setAttribute("aria-pressed", "false");
           } else {
             activeKeyword = kw;
-            document.querySelectorAll(".tag").forEach(t => t.classList.remove("active"));
+            document.querySelectorAll(".tag").forEach(t => {
+              t.classList.remove("active");
+              t.setAttribute("aria-pressed", "false");
+            });
             el.classList.add("active");
+            el.setAttribute("aria-pressed", "true");
           }
           if (table) table.draw();
+        };
+        el.addEventListener("click", toggle);
+        el.addEventListener("keydown", e => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
         });
         container.appendChild(el);
       }

@@ -335,7 +335,7 @@
     function formatSource(source) {
       const s = String(source || "").trim();
       if (s.startsWith("微博-")) {
-        return "🔴 " + escapeHtml(s.slice(3));
+        return "🌊 " + escapeHtml(s.slice(3));
       }
       if (s.startsWith("腾讯新闻-")) {
         return "🐧 " + escapeHtml(s.slice(5));
@@ -604,7 +604,6 @@
         const rawRows = (parsed.data || []).map(r => ({
           fullTitle: String(r["标题"] ?? "").trim(),
           url: r["新闻URL"] || "",
-          publisher: r["发布单位"] || "",
           pubDate: r["发布日期"] || "",
           source: r["来源"] || "",
           fetchedAt: r["查询时间"] || "",
@@ -618,7 +617,7 @@
 
         // Build DataTable rows (5 columns: cols 0-2 displayed, COL_KEYWORDS and COL_MULTISRC hidden)
         const rows = rawRows.map((r, idx) => {
-          const { fullTitle, url, publisher, pubDate, source, keywords } = r;
+          const { fullTitle, url, pubDate, source, keywords } = r;
           const isWeibo = String(source).startsWith("微博-");
           const displayTitle = isWeibo ? truncateText(fullTitle, 34) : fullTitle;
 

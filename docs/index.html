@@ -138,15 +138,18 @@
     table { width: 100%; }
     .nowrap { white-space: nowrap; }
     /* Desktop: show up to 2 lines of title */
-    #tbl td.title-col .title-text {
+    #tbl-official td.title-col .title-text,
+    #tbl-media td.title-col .title-text {
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
       word-break: break-word;
     }
-    #tbl th.pubdate-col,
-    #tbl td.pubdate-col {
+    #tbl-official th.pubdate-col,
+    #tbl-official td.pubdate-col,
+    #tbl-media th.pubdate-col,
+    #tbl-media td.pubdate-col {
       width: 132px;
       min-width: 132px;
       max-width: 132px;
@@ -165,35 +168,6 @@
       color: #0550ae;
       border: 1px solid #b6d4fe;
     }
-
-    /* ===== Multi-source badge ===== */
-    .badge-multisrc {
-      display: inline-block;
-      padding: 1px 6px;
-      border-radius: 10px;
-      font-size: 11px;
-      background: #fff8c5;
-      color: #9a6700;
-      border: 1px solid #e3b341;
-      vertical-align: middle;
-      cursor: pointer;
-    }
-    .badge-multisrc:hover { background: #ffeea2; }
-
-    /* ===== Multi-source tag (tag cloud) ===== */
-    .tag.tag-multisrc {
-      background: #fff8c5;
-      color: #9a6700;
-      border-color: #e3b341;
-    }
-    .tag.tag-multisrc:hover { background: #ffeea2; }
-    .tag.tag-multisrc.active {
-      background: #ffd966;
-      border-color: #b08000;
-      color: #5a3e00;
-      font-weight: 600;
-    }
-    .tag.tag-multisrc.active .tag-count { color: #5a3e00; }
 
     .hint { color: #666; font-size: 12px; margin-top: 8px; }
 
@@ -224,11 +198,13 @@
       }
       .dataTables_wrapper .dataTables_filter label { display: block; }
       .dataTables_wrapper .dataTables_paginate .paginate_button { padding: 6px 10px; font-size: 13px; }
-      #tbl td, #tbl th { font-size: 13px; }
+      #tbl-official td, #tbl-official th,
+      #tbl-media td, #tbl-media th { font-size: 13px; }
       .dataTables_wrapper { overflow-x: hidden; max-width: 100%; }
-      #tbl { table-layout: fixed; max-width: 100%; }
+      #tbl-official, #tbl-media { table-layout: fixed; max-width: 100%; }
       /* Mobile: show full title (card layout via responsive) */
-      #tbl td.title-col .title-text {
+      #tbl-official td.title-col .title-text,
+      #tbl-media td.title-col .title-text {
         display: block;
         -webkit-line-clamp: unset;
         overflow: visible;
@@ -244,7 +220,6 @@
   <nav class="navbar">
     <span class="navbar-brand">AI 产业政策动态</span>
     <div class="navbar-actions">
-      <button id="miitFilterBtn" class="btn" type="button">仅看工信新闻</button>
       <a href="./data/rss_full.xml" class="btn-rss" title="订阅完整新闻清单 RSS">&#x2605; RSS 完整清单</a>
       <a href="./data/rss_miit.xml" class="btn-rss" title="订阅工信新闻 RSS（来源含&quot;工信&quot;）">&#x2605; RSS 工信新闻</a>
     </div>
@@ -276,17 +251,40 @@
       <div class="tag-cloud" id="tagCloud"></div>
     </div>
 
-    <!-- Table -->
-    <table id="tbl" class="display">
-      <thead>
-        <tr>
-          <th>标题</th>
-          <th class="nowrap">来源</th>
-          <th class="nowrap">发布日期</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <!-- Official News Section -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-title">🌐 重要新闻（官方来源）</span>
+        <button id="miitFilterBtn" class="btn" type="button">仅看工信新闻</button>
+      </div>
+      <table id="tbl-official" class="display">
+        <thead>
+          <tr>
+            <th>标题</th>
+            <th class="nowrap">来源</th>
+            <th class="nowrap">发布日期</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- New Media News Section -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-title">📱 新媒体渠道</span>
+      </div>
+      <table id="tbl-media" class="display">
+        <thead>
+          <tr>
+            <th>标题</th>
+            <th class="nowrap">来源</th>
+            <th class="nowrap">发布日期</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
     <div class="hint">
       支持：搜索、排序、分页。标题点击可打开原文链接。
@@ -303,9 +301,8 @@
 
   <script>
     const CSV_PATH = "./data/policy_news.csv";
-    // Column indices for hidden DataTable columns
+    // Column index for hidden DataTable column
     const COL_KEYWORDS = 3; // comma-separated keyword list
-    const COL_MULTISRC = 4; // "1" if multi-source, else "0"
     // Keywords from config.yaml
     const KEYWORDS = [
       "智能", "智慧", "AI", "模型", "制造业", "新型工业化", "工业互联网",
@@ -316,8 +313,8 @@
 
     let onlyMiitNews = false;
     let activeKeyword = null;
-    let activeMultiSrc = false;
-    let table = null;
+    let tableOfficial = null;
+    let tableMedia = null;
     let trendChart = null;
     let chartMode = "day"; // "day" | "week"
     let allRowsData = [];
@@ -383,20 +380,11 @@
       return KEYWORDS.filter(k => t.includes(k.toLowerCase()));
     }
 
-    // ── Title similarity: character-set overlap ratio ─────────────────────────
-    function charOverlapRatio(a, b) {
-      const normalize = s => s.replace(/\s/g, "").toLowerCase();
-      const sa = normalize(a);
-      const sb = normalize(b);
-      if (!sa || !sb) return 0;
-      const setA = new Set(sa);
-      const setB = new Set(sb);
-      const intersectSize = [...setA].filter(x => setB.has(x)).length;
-      return intersectSize / Math.min(setA.size, setB.size);
+    // ── Source classification ─────────────────────────────────────────────────
+    function isOfficialSource(source) {
+      const s = String(source || "").trim();
+      return !s.startsWith("微博-") && !s.startsWith("腾讯新闻-");
     }
-
-    // Only compare articles published within ±5 days of each other to limit computation
-    const MULTI_SRC_WINDOW_MS = 5 * 24 * 60 * 60 * 1000;
 
     // Parse a YYYY-MM-DD string as a local date to avoid UTC timezone shifts
     function parseLocalDateOnly(dateStr) {
@@ -404,26 +392,6 @@
       if (!match) return null;
       const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
       return Number.isNaN(d.getTime()) ? null : d;
-    }
-
-    function detectMultiSource(rows) {
-      const multiSrc = new Set();
-      const dates = rows.map(r => {
-        const d = parseLocalDateOnly(r.pubDate);
-        return d === null ? null : d.getTime();
-      });
-      for (let i = 0; i < rows.length; i++) {
-        for (let j = i + 1; j < rows.length; j++) {
-          // Skip if either date is unknown or they are more than 5 days apart
-          if (dates[i] === null || dates[j] === null) continue;
-          if (Math.abs(dates[i] - dates[j]) > MULTI_SRC_WINDOW_MS) continue;
-          if (charOverlapRatio(rows[i].fullTitle, rows[j].fullTitle) >= 0.7) {
-            multiSrc.add(i);
-            multiSrc.add(j);
-          }
-        }
-      }
-      return multiSrc;
     }
 
     // ── Trend Chart ───────────────────────────────────────────────────────────
@@ -483,7 +451,7 @@
     }
 
     // ── Tag Cloud ─────────────────────────────────────────────────────────────
-    function renderTagCloud(rows, multiSrcSet) {
+    function renderTagCloud(rows) {
       // Initialize all keywords with count 0 so the full taxonomy is always visible
       const counts = Object.fromEntries(KEYWORDS.map(k => [k, 0]));
       for (const row of rows) {
@@ -494,28 +462,6 @@
       const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
       const container = document.getElementById("tagCloud");
       container.innerHTML = "";
-
-      // ── Multi-source special tag (always first, to the left of keyword tags) ─
-      {
-        const multiSrcCount = multiSrcSet ? multiSrcSet.size : 0;
-        const el = document.createElement("span");
-        el.className = "tag tag-multisrc" + (multiSrcCount === 0 ? " tag-zero" : "");
-        el.setAttribute("role", "button");
-        el.setAttribute("tabindex", "0");
-        el.setAttribute("aria-pressed", "false");
-        el.innerHTML = `多源报道<span class="tag-count">${multiSrcCount}</span>`;
-        const toggle = () => {
-          activeMultiSrc = !activeMultiSrc;
-          el.classList.toggle("active", activeMultiSrc);
-          el.setAttribute("aria-pressed", String(activeMultiSrc));
-          if (table) table.draw();
-        };
-        el.addEventListener("click", toggle);
-        el.addEventListener("keydown", e => {
-          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
-        });
-        container.appendChild(el);
-      }
 
       // ── Keyword tags ─────────────────────────────────────────────────────────
       for (const [kw, cnt] of sorted) {
@@ -533,14 +479,15 @@
             el.setAttribute("aria-pressed", "false");
           } else {
             activeKeyword = kw;
-            document.querySelectorAll(".tag:not(.tag-multisrc)").forEach(t => {
+            document.querySelectorAll(".tag").forEach(t => {
               t.classList.remove("active");
               t.setAttribute("aria-pressed", "false");
             });
             el.classList.add("active");
             el.setAttribute("aria-pressed", "true");
           }
-          if (table) table.draw();
+          if (tableOfficial) tableOfficial.draw();
+          if (tableMedia) tableMedia.draw();
         };
         el.addEventListener("click", toggle);
         el.addEventListener("keydown", e => {
@@ -558,18 +505,18 @@
 
       // ── DataTables custom filters ─────────────────────────────────────────
       $.fn.dataTable.ext.search.push(function(settings, data, rowIdx, rowData) {
-        if (settings.nTable.id !== "tbl") return true;
-        if (onlyMiitNews) {
-          const src = data[1] || "";
-          if (!src.includes("工信") && !src.includes("工业和信息化") && !src.includes("经济和信息化")) return false;
-        }
-        // rowData[COL_KEYWORDS] is the hidden keywords column (comma-separated)
+        const tblId = settings.nTable.id;
+        if (tblId !== "tbl-official" && tblId !== "tbl-media") return true;
+        // Keyword filter applies to both tables
         if (activeKeyword) {
           const kws = (rowData[COL_KEYWORDS] || "").split(",");
           if (!kws.includes(activeKeyword)) return false;
         }
-        // rowData[COL_MULTISRC] is the hidden multi-source flag ("1" or "0")
-        if (activeMultiSrc && (rowData[COL_MULTISRC] || "0") !== "1") return false;
+        // MIIT filter applies only to the official news table
+        if (tblId === "tbl-official" && onlyMiitNews) {
+          const src = data[1] || "";
+          if (!src.includes("工信") && !src.includes("工业和信息化") && !src.includes("经济和信息化")) return false;
+        }
         return true;
       });
 
@@ -577,7 +524,7 @@
         onlyMiitNews = !onlyMiitNews;
         miitFilterBtn.classList.toggle("active", onlyMiitNews);
         miitFilterBtn.textContent = onlyMiitNews ? "仅看工信新闻（已开启）" : "仅看工信新闻";
-        if (table) table.draw();
+        if (tableOfficial) tableOfficial.draw();
       });
 
       chartModeBtn.addEventListener("click", function() {
@@ -612,23 +559,16 @@
 
         allRowsData = rawRows;
 
-        // Detect multi-source articles (70%+ character overlap)
-        const multiSrcSet = detectMultiSource(rawRows);
-
-        // Build DataTable rows (5 columns: cols 0-2 displayed, COL_KEYWORDS and COL_MULTISRC hidden)
-        const rows = rawRows.map((r, idx) => {
+        // Build DataTable rows (4 columns: cols 0-2 displayed, COL_KEYWORDS hidden)
+        const officialRows = [];
+        const mediaRows = [];
+        for (const r of rawRows) {
           const { fullTitle, url, pubDate, source, keywords } = r;
           const isWeibo = String(source).startsWith("微博-");
           const displayTitle = isWeibo ? truncateText(fullTitle, 34) : fullTitle;
 
-          const allTags = [];
-          if (multiSrcSet.has(idx)) {
-            allTags.push(`<span class="badge-multisrc" title="与其他来源报道内容相似">多源报道</span>`);
-          }
-          allTags.push(...keywords.map(k => `<span class="row-tag">${escapeHtml(k)}</span>`));
-
-          const tagsDiv = allTags.length > 0
-            ? `<div class="row-tags">${allTags.join("")}</div>`
+          const tagsDiv = keywords.length > 0
+            ? `<div class="row-tags">${keywords.map(k => `<span class="row-tag">${escapeHtml(k)}</span>`).join("")}</div>`
             : "";
 
           const titleInner = url
@@ -637,51 +577,57 @@
 
           const titleCell = `<div>${titleInner}${tagsDiv}</div>`;
 
-          return [
+          const row = [
             titleCell,
-            formatSource(source),             // COL 1: formatted source with emoji
+            formatSource(source),  // COL 1: formatted source with emoji
             escapeHtml(pubDate),
-            keywords.join(","),               // COL_KEYWORDS: hidden keywords for filtering
-            multiSrcSet.has(idx) ? "1" : "0", // COL_MULTISRC: hidden multi-source flag
+            keywords.join(","),    // COL_KEYWORDS: hidden keywords for filtering
           ];
-        });
+
+          if (isOfficialSource(source)) {
+            officialRows.push(row);
+          } else {
+            mediaRows.push(row);
+          }
+        }
 
         const latestFetchedAt = getLatestTime(rawRows.map(r => r.fetchedAt));
         updatedAtEl.textContent = `数据更新时间：${latestFetchedAt}`;
 
         // Render tag cloud and trend chart
-        renderTagCloud(rawRows, multiSrcSet);
+        renderTagCloud(rawRows);
         renderTrendChart(rawRows, chartMode);
 
-        // 初始化 DataTable
-        table = $("#tbl").DataTable({
-          data: rows,
-          columns: [
-            { title: "标题", width: "65%", className: "title-col", responsivePriority: 1 },
-            { title: "来源", width: "20%", className: "nowrap source-col", responsivePriority: 3 },
-            { title: "发布日期", width: "132px", className: "nowrap pubdate-col", responsivePriority: 2 },
-            { title: "关键词", visible: false, searchable: false, className: "never" },
-            { title: "多源", visible: false, searchable: false, className: "never" }
-          ],
-          pageLength: 50,
+        const tableColumns = [
+          { title: "标题", width: "65%", className: "title-col", responsivePriority: 1 },
+          { title: "来源", width: "20%", className: "nowrap source-col", responsivePriority: 3 },
+          { title: "发布日期", width: "132px", className: "nowrap pubdate-col", responsivePriority: 2 },
+          { title: "关键词", visible: false, searchable: false, className: "never" },
+        ];
+
+        // 初始化官方新闻 DataTable（默认每页 20 条）
+        tableOfficial = $("#tbl-official").DataTable({
+          data: officialRows,
+          columns: tableColumns,
+          pageLength: 20,
           order: [[2, "desc"]], // 默认按发布日期降序
           autoWidth: false,
           deferRender: true,
           responsive: true
         });
 
-        // Click on an in-row multi-source badge to toggle the multi-source filter
-        $("#tbl tbody").on("click", ".badge-multisrc", function() {
-          activeMultiSrc = !activeMultiSrc;
-          const msTag = document.querySelector(".tag.tag-multisrc");
-          if (msTag) {
-            msTag.classList.toggle("active", activeMultiSrc);
-            msTag.setAttribute("aria-pressed", String(activeMultiSrc));
-          }
-          if (table) table.draw();
+        // 初始化新媒体 DataTable（默认每页 30 条）
+        tableMedia = $("#tbl-media").DataTable({
+          data: mediaRows,
+          columns: tableColumns,
+          pageLength: 30,
+          order: [[2, "desc"]], // 默认按发布日期降序
+          autoWidth: false,
+          deferRender: true,
+          responsive: true
         });
 
-        statusEl.textContent = `加载完成（${rows.length} 条）`;
+        statusEl.textContent = `加载完成（共 ${officialRows.length + mediaRows.length} 条：官方 ${officialRows.length} 条 / 新媒体 ${mediaRows.length} 条）`;
       } catch (e) {
         console.error(e);
         statusEl.textContent = "加载失败，请检查 CSV 路径与 Pages 设置。";

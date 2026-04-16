@@ -627,7 +627,7 @@
           responsive: true
         });
 
-        statusEl.textContent = `加载完成（官方 ${officialRows.length} 条 / 新媒体 ${mediaRows.length} 条）`;
+        statusEl.textContent = `加载完成（共 ${officialRows.length + mediaRows.length} 条：官方 ${officialRows.length} 条 / 新媒体 ${mediaRows.length} 条）`;
       } catch (e) {
         console.error(e);
         statusEl.textContent = "加载失败，请检查 CSV 路径与 Pages 设置。";

@@ -13,6 +13,11 @@ parsers — 各信息来源的解析器包。
 ------------------
 miit             工业和信息化部官网   parse_miit_home
 gov              中国政府网           parse_gov_home, parse_gov_rss
+ndrc             国家发展和改革委员会 parse_ndrc_home
+most             科学技术部           parse_most_home
+moe              教育部               parse_moe_news
+miit_local       工信部地方主管部门   parse_miit_local
+gov_local        各省级政府门户       parse_gov_local
 qqnews           腾讯新闻搜索         parse_qqnews_search
 weibo            微博账号             parse_weibo
 website_monitor  各部门官网           parse_website_monitor
@@ -23,6 +28,11 @@ from typing import List
 
 from .gov import parse_gov_home, parse_gov_rss
 from .miit import parse_miit_home
+from .ndrc import parse_ndrc_home
+from .most import parse_most_home
+from .moe import parse_moe_news
+from .miit_local import parse_miit_local
+from .gov_local import parse_gov_local
 from .qqnews import parse_qqnews_search
 from .weibo import parse_weibo
 from .website_monitor import parse_website_monitor
@@ -46,6 +56,11 @@ __all__ = [
     "parse_miit_home",
     "parse_gov_home",
     "parse_gov_rss",
+    "parse_ndrc_home",
+    "parse_most_home",
+    "parse_moe_news",
+    "parse_miit_local",
+    "parse_gov_local",
     "parse_qqnews_search",
     "parse_weibo",
     "parse_website_monitor",

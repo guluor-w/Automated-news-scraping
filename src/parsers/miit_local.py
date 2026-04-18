@@ -1,0 +1,486 @@
+"""
+工信部地方主管部门网站（省级工业和信息化厅/局/委）解析器。
+
+入口函数
+--------
+parse_miit_local(config, now) -> List[Item]
+    遍历全国 32 个省级工信主管部门官网，提取新闻链接，
+    按关键词和时间窗口过滤后返回新闻列表。
+
+数据来源
+--------
+各省份 URL 取自 https://www.miit.gov.cn/zzjg/index.html#dfzgbm
+
+配置（config.yaml）
+-------------------
+sources:
+  miit_local:
+    name: 地方工信部门
+    enabled: true
+
+实现策略
+--------
+由于 32 个网站结构各异，采用通用抓取方式：
+  1. HTTP GET 获取首页 HTML
+  2. BeautifulSoup 提取所有 <a> 标签
+  3. 通过 URL 路径中的日期模式识别新闻链接
+  4. 从 URL 路径或相邻文本中提取发布日期
+  5. 过滤导航链接、过短标题，按关键词和时间窗口筛选
+"""
+
+import logging
+import re
+from datetime import datetime
+from typing import Dict, List, Optional
+
+from bs4 import BeautifulSoup
+from dateutil import parser as dtparser
+
+from models import Item
+from utils import (
+    canonicalize_url_for_dedup,
+    extract_date,
+    format_fetched_at,
+    http_get,
+    keyword_hit,
+    normalize_url,
+    within_window,
+)
+
+logger = logging.getLogger(__name__)
+
+# ── 地方工信部门源列表 ──────────────────────────────────────────────────────────
+
+MIIT_LOCAL_SOURCES = [
+    {"province": "北京", "name": "北京市经济和信息化局", "url": "https://jxj.beijing.gov.cn/jxdt/tzgg/"},
+    {"province": "天津", "name": "天津市工业和信息化局", "url": "https://gyxxh.tj.gov.cn/"},
+    {"province": "河北", "name": "河北省工业和信息化厅", "url": "http://gxt.hebei.gov.cn/"},
+    {"province": "山西", "name": "山西省工业和信息化厅", "url": "http://gxt.shanxi.gov.cn/"},
+    {"province": "内蒙古", "name": "内蒙古自治区工业和信息化厅", "url": "http://gxt.nmg.gov.cn/"},
+    {"province": "辽宁", "name": "辽宁省工业和信息化厅", "url": "http://gxt.ln.gov.cn/"},
+    {"province": "吉林", "name": "吉林省工业和信息化厅", "url": "http://gxt.jl.gov.cn/"},
+    {"province": "黑龙江", "name": "黑龙江省工业和信息化厅", "url": "http://gxt.hlj.gov.cn/"},
+    {"province": "上海", "name": "上海市经济和信息化委员会", "url": "http://www.sheitc.sh.gov.cn/"},
+    {"province": "江苏", "name": "江苏省工业和信息化厅", "url": "http://gxt.jiangsu.gov.cn/"},
+    {"province": "浙江", "name": "浙江省经济和信息化厅", "url": "http://jxt.zj.gov.cn/"},
+    {"province": "安徽", "name": "安徽省工业和信息化厅", "url": "http://jx.ah.gov.cn/"},
+    {"province": "福建", "name": "福建省工业和信息化厅", "url": "http://gxt.fujian.gov.cn/"},
+    {"province": "江西", "name": "江西省工业和信息化厅", "url": "http://gxt.jiangxi.gov.cn/"},
+    {"province": "山东", "name": "山东省工业和信息化厅", "url": "http://gxt.shandong.gov.cn/"},
+    {"province": "河南", "name": "河南省工业和信息化厅", "url": "http://gxt.henan.gov.cn/"},
+    {"province": "湖北", "name": "湖北省经济和信息化厅", "url": "http://jxt.hubei.gov.cn/"},
+    {"province": "湖南", "name": "湖南省工业和信息化厅", "url": "http://gxt.hunan.gov.cn/"},
+    {"province": "广东", "name": "广东省工业和信息化厅", "url": "http://gdii.gd.gov.cn/"},
+    {"province": "广西", "name": "广西壮族自治区工业和信息化厅", "url": "http://gxt.gxzf.gov.cn/"},
+    {"province": "海南", "name": "海南省工业和信息化厅", "url": "http://iitb.hainan.gov.cn/"},
+    {"province": "重庆", "name": "重庆市经济和信息化委员会", "url": "http://jjxxw.cq.gov.cn/"},
+    {"province": "四川", "name": "四川省经济和信息化厅", "url": "http://jxt.sc.gov.cn/"},
+    {"province": "贵州", "name": "贵州省工业和信息化厅", "url": "http://gxt.guizhou.gov.cn/"},
+    {"province": "云南", "name": "云南省工业和信息化厅", "url": "http://gxt.yn.gov.cn/"},
+    {"province": "西藏", "name": "西藏自治区经济和信息化厅", "url": "http://jxt.xizang.gov.cn/"},
+    {"province": "陕西", "name": "陕西省工业和信息化厅", "url": "http://gxt.shaanxi.gov.cn/"},
+    {"province": "甘肃", "name": "甘肃省工业和信息化厅", "url": "http://gxt.gansu.gov.cn/"},
+    {"province": "青海", "name": "青海省工业和信息化厅", "url": "https://gxt.qinghai.gov.cn/"},
+    {"province": "宁夏", "name": "宁夏回族自治区工业和信息化厅", "url": "http://gxt.nx.gov.cn/"},
+    {"province": "新疆", "name": "新疆维吾尔自治区工业和信息化厅", "url": "http://gxt.xinjiang.gov.cn/"},
+    {"province": "新疆兵团", "name": "新疆生产建设兵团工业和信息化局", "url": "http://btgxj.xjbt.gov.cn/"},
+]
+
+# ── 常量 ────────────────────────────────────────────────────────────────────────
+
+# 导航类链接常见文字，匹配到的 <a> 标签直接跳过
+NAV_WORDS = frozenset([
+    "首页", "关于", "联系", "网站地图", "English", "搜索",
+    "更多", "下一页", "上一页", "登录", "注册",
+])
+
+# ── 新闻链接识别模式 ──────────────────────────────────────────────────────────
+#
+# 32 个省级网站使用多种 CMS，URL 格式各异（基于全量实测）：
+#   A) TRS CMS:     /YYYYMM/tYYYYMMDD_ID.html      （北京、吉林、福建、湖北、湖南、重庆、贵州、宁夏等）
+#   B) E-Gov CMS:   /art/YYYY/M/D/art_COL_ART.html  （江苏、山东，月/日不补零）
+#   C) 自建 CMS:    /SECTION/content/post_ID.html    （广东，URL 无日期）
+#   D) 日期目录:    /zxxx/YYYYMMDD/uuid.html         （上海，8位日期目录）
+#   E) 带连字符:    /c/YYYY-MM-DD/ID.shtml           （新疆兵团）
+#   F) 长时间戳:    /YYYYMMDDHHMMSS.../index.shtml   （辽宁，19位时间戳ID）
+#   G) 序列 ID:     /section/tNNNNNNNN.shtml          （广西，无日期）
+#   H) SPA 查询:    /xzweb/detail?id=N               （西藏）
+#   I) Channel:     /cCHANNEL/YYYYMM/ID.shtml        （黑龙江、甘肃，路径含YYYYMM → 匹配 A）
+#   J) UUID目录:    /section/YYYYMM/uuid.shtml        （新疆，UUID文件名 → 匹配 A）
+
+# 模式 A/I/J：URL 路径中含 /YYYYMM/ 日期目录（零填充月份）
+_RE_NEWS_DATE_SLASH = re.compile(
+    r"/(20\d{2})(0[1-9]|1[0-2])/"           # /YYYYMM/
+    r"|/(20\d{2})-(0[1-9]|1[0-2])/"          # /YYYY-MM/
+    r"|/(20\d{2})/(0?[1-9]|1[0-2])/"         # /YYYY/MM/ （允许非零填充）
+)
+
+# 模式 D：/YYYYMMDD/ 完整8位日期目录（上海 /zxxx/20260417/uuid.html）
+_RE_NEWS_DATE_FULL = re.compile(
+    r"/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/"
+)
+
+# 模式 E：/YYYY-MM-DD/ 带连字符完整日期目录（新疆兵团 /c/2026-04-17/ID.shtml）
+_RE_NEWS_DATE_HYPHEN = re.compile(
+    r"/(20\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])/"
+)
+
+# 模式 F：19位长时间戳（辽宁），路径段以 YYYYMMDD 开头后跟更多数字
+_RE_NEWS_LONG_TS = re.compile(
+    r"/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{5,}/"
+)
+
+# 模式 B：E-Gov CMS 风格 /art/YYYY/M/D/（江苏、山东）
+# 也包含 /art/YYYY/art_UUID.html 变体（miit.gov.cn 等）
+_RE_ART_URL = re.compile(r"/art/20\d{2}/(?:\d{1,2}/\d{1,2}/|art_[0-9a-f]+\.html)")
+
+# 模式 C/H：自建 CMS 内容页（URL 无日期，依赖 ID 标识或查询参数）
+_RE_CONTENT_URL = re.compile(
+    r"/content/post_\d+\.html"              # C: 广东 /content/post_ID.html
+    r"|/detail\?id=\d+"                     # H: 西藏 /xzweb/detail?id=N
+    r"|\.shtml\?id=[0-9a-f-]+"             # 黑龙江 /path.shtml?id=uuid
+)
+
+# 模式 G：广西序列 ID /section/tNNNNNNNN.shtml（t 后跟纯数字，无下划线）
+_RE_GUANGXI_TRS = re.compile(r"/t\d{7,}\.shtml")
+
+# ── 日期提取正则 ──────────────────────────────────────────────────────────────
+
+# TRS CMS 文件名精确日期 tYYYYMMDD_ID.html/.htm/.shtml
+_RE_TRS_FILENAME = re.compile(
+    r"/t(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])_\d+\.(?:html?|shtml)"
+)
+
+# 从 URL 路径中提取完整日期 (YYYYMMDD)
+_RE_URL_YYYYMMDD = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])")
+# 从 URL 路径中提取年月 (YYYYMM)
+_RE_URL_YYYYMM = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])/")
+_RE_URL_YYYY_MM = re.compile(r"/(20\d{2})[-/](0[1-9]|1[0-2])/")
+
+# E-Gov /art/YYYY/M/D/ 日期提取（月/日不补零）
+_RE_ART_DATE = re.compile(r"/art/(20\d{2})/(\d{1,2})/(\d{1,2})/")
+
+# 斜杠分隔完整日期：/YYYY/MM/DD/（青海 /system/2026/04/16/ID.shtml）
+_RE_URL_SLASH_DATE = re.compile(
+    r"/(20\d{2})/(0?[1-9]|1[0-2])/(0?[1-9]|[12]\d|3[01])/"
+)
+
+# 模式 E 日期提取：/YYYY-MM-DD/（新疆兵团）
+_RE_URL_HYPHEN_DATE = re.compile(
+    r"/(20\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])/"
+)
+
+# 模式 F 日期提取：长时间戳中的前8位 YYYYMMDD（辽宁）
+_RE_URL_LONG_TS_DATE = re.compile(
+    r"/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{5,}/"
+)
+
+# 默认请求超时（秒）
+DEFAULT_TIMEOUT = 20
+
+
+# ── 辅助函数 ────────────────────────────────────────────────────────────────────
+
+def _is_news_like_url(url: str) -> bool:
+    """
+    判断 URL 是否像新闻文章链接。
+
+    覆盖 32 个省级网站实测发现的全部 URL 模式（A-J）。
+    """
+    if _RE_NEWS_DATE_SLASH.search(url):       # A/I/J: /YYYYMM/ 日期目录
+        return True
+    if _RE_NEWS_DATE_FULL.search(url):        # D: /YYYYMMDD/ 8位日期（上海）
+        return True
+    if _RE_NEWS_DATE_HYPHEN.search(url):      # E: /YYYY-MM-DD/（新疆兵团）
+        return True
+    if _RE_NEWS_LONG_TS.search(url):          # F: 长时间戳（辽宁）
+        return True
+    if _RE_ART_URL.search(url):               # B: /art/YYYY/M/D/（江苏/山东）
+        return True
+    if _RE_CONTENT_URL.search(url):           # C/H: content/post, detail?id=
+        return True
+    if _RE_GUANGXI_TRS.search(url):           # G: /tNNNNNNNN.shtml（广西）
+        return True
+    return False
+
+
+def _is_nav_text(text: str) -> bool:
+    """判断链接文字是否为导航性文字（应跳过）。"""
+    stripped = text.strip()
+    if not stripped:
+        return True
+    if stripped in NAV_WORDS:
+        return True
+    # 纯数字（分页）、纯符号
+    if re.fullmatch(r"[\d\s.…>»<«\[\]【】]+", stripped):
+        return True
+    return False
+
+
+def _extract_date_from_url(url: str) -> Optional[str]:
+    """
+    从 URL 路径中提取日期。
+
+    支持七种格式（按优先级排列）：
+      1. TRS 文件名 tYYYYMMDD_ID.html/.shtml → 精确日期
+      2. E-Gov /art/YYYY/M/D/               → 精确日期（月/日不补零）
+      3. /YYYY/MM/DD/ 斜杠分隔目录           → 精确日期（青海）
+      4. /YYYY-MM-DD/ 连字符目录             → 精确日期（新疆兵团）
+      5. /YYYYMMDD.../ 长时间戳              → 精确日期（辽宁，取前8位）
+      6. /YYYYMMDD/ 或 URL 路径中的连续8位   → 精确日期
+      7. /YYYYMM/ 路径目录                   → 粗略日期（日默认 01）
+    """
+    # 1) TRS CMS 文件名精确日期
+    m = _RE_TRS_FILENAME.search(url)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+
+    # 2) E-Gov /art/YYYY/M/D/ 风格（江苏、山东，月/日不补零）
+    m = _RE_ART_DATE.search(url)
+    if m:
+        yyyy = m.group(1)
+        mm = m.group(2).zfill(2)
+        dd = m.group(3).zfill(2)
+        return f"{yyyy}-{mm}-{dd}"
+
+    # 3) /YYYY/MM/DD/ 斜杠分隔完整日期（青海 /system/2026/04/16/）
+    m = _RE_URL_SLASH_DATE.search(url)
+    if m:
+        yyyy = m.group(1)
+        mm = m.group(2).zfill(2)
+        dd = m.group(3).zfill(2)
+        return f"{yyyy}-{mm}-{dd}"
+
+    # 4) /YYYY-MM-DD/ 连字符目录（新疆兵团 /c/2026-04-17/）
+    m = _RE_URL_HYPHEN_DATE.search(url)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+
+    # 5) 长时间戳：前8位为 YYYYMMDD（辽宁 /2026031009183942113/）
+    m = _RE_URL_LONG_TS_DATE.search(url)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+
+    # 6) 路径中的 YYYYMMDD（8位连续数字，如上海 /20260417/）
+    m = _RE_URL_YYYYMMDD.search(url)
+    if m:
+        yyyy, mm, dd = m.group(1), m.group(2), m.group(3)
+        return f"{yyyy}-{mm}-{dd}"
+
+    # 7) 路径中的 YYYYMM 目录（日默认 01）
+    m = _RE_URL_YYYYMM.search(url)
+    if not m:
+        m = _RE_URL_YYYY_MM.search(url)
+    if m:
+        yyyy, mm = m.group(1), m.group(2)
+        return f"{yyyy}-{mm}-01"
+
+    return None
+
+
+def _extract_date_from_context(a_tag) -> Optional[str]:
+    """
+    从 <a> 标签的相邻兄弟节点或父容器中提取日期文本。
+
+    实际页面结构因省份而异：
+      - 北京：<li><a>标题</a><span class="date">[2026-04-17]</span></li>
+      - 广东：<li><a>标题</a><span class="date">2026-04-15</span></li>
+      - 江苏：<li>04-13 <a>标题</a></li>  （MM-DD，无年份）
+      - 新疆：<span class="year">2026-04</span><span class="date">14</span>
+      - 西藏：<span>2026-04-16</span><a>标题</a>
+    """
+    # 1) 下一个兄弟 <span>（北京、广东等）
+    sibling = a_tag.find_next_sibling("span")
+    if sibling:
+        text = sibling.get_text(" ", strip=True).strip("[]【】")
+        d = extract_date(text)
+        if d:
+            return d
+
+    # 2) 前一个兄弟 <span>（西藏等站点 date 在 a 之前）
+    prev_sibling = a_tag.find_previous_sibling("span")
+    if prev_sibling:
+        text = prev_sibling.get_text(" ", strip=True).strip("[]【】")
+        d = extract_date(text)
+        if d:
+            return d
+
+    # 3) 父元素内所有 <span>（覆盖更复杂的嵌套结构）
+    parent = a_tag.parent
+    if parent:
+        for span in parent.find_all("span"):
+            text = span.get_text(" ", strip=True).strip("[]【】")
+            d = extract_date(text)
+            if d:
+                return d
+
+        # 4) 新疆分段日期：<span class="year">2026-04</span><span class="date">14</span>
+        #    合并 year + date span 的文本
+        year_span = parent.find("span", class_="year")
+        date_span = parent.find("span", class_="date")
+        if year_span and date_span:
+            combined = year_span.get_text(strip=True) + "-" + date_span.get_text(strip=True)
+            d = extract_date(combined)
+            if d:
+                return d
+
+        # 5) 父元素全文（兜底）
+        d = extract_date(parent.get_text(" ", strip=True))
+        if d:
+            return d
+
+    return None
+
+
+def _scrape_one_site(
+    source: dict,
+    fetched_at: str,
+    keywords: List[str],
+    now: datetime,
+    window_days: int,
+    hard_cap_days: int,
+    timeout: int,
+) -> List[Item]:
+    """
+    抓取单个地方工信部门网站并返回符合条件的 Item 列表。
+
+    Args:
+        source:        包含 province / name / url 的字典。
+        fetched_at:    格式化后的查询时间字符串。
+        keywords:      关键词列表。
+        now:           当前时间（带时区）。
+        window_days:   时间窗口天数。
+        hard_cap_days: 硬性截止天数。
+        timeout:       HTTP 请求超时秒数。
+
+    Returns:
+        过滤后的 Item 列表。
+    """
+    province = source["province"]
+    dept_name = source["name"]
+    base_url = source["url"]
+    source_tag = f"地方工信-{province}"
+
+    html = http_get(base_url, timeout=timeout)
+    soup = BeautifulSoup(html, "lxml")
+
+    items: List[Item] = []
+
+    for a_tag in soup.find_all("a", href=True):
+        href = (a_tag.get("href") or "").strip()
+        title = a_tag.get_text(" ", strip=True)
+
+        # 跳过空链接和锚点
+        if not href or href.startswith("#") or href.startswith("javascript"):
+            continue
+
+        # 跳过导航性文字
+        if _is_nav_text(title):
+            continue
+
+        # 跳过标题过短的链接（至少 6 个字符）
+        if len(title) < 6:
+            continue
+
+        url = normalize_url(base_url, href)
+
+        # 仅保留看起来像新闻文章的链接
+        if not _is_news_like_url(url):
+            continue
+
+        # 提取发布日期：优先从 URL，其次从上下文文本
+        pub_date = _extract_date_from_url(url)
+        if not pub_date:
+            pub_date = _extract_date_from_context(a_tag)
+        if not pub_date:
+            pub_date = extract_date(title)
+
+        # 关键词过滤
+        if not keyword_hit(title, keywords):
+            continue
+
+        # 时间窗口过滤
+        if not within_window(pub_date, now, window_days, hard_cap_days):
+            continue
+
+        items.append(Item(
+            title=title,
+            publisher=dept_name,
+            url=url,
+            pub_date=pub_date,
+            source=source_tag,
+            fetched_at=fetched_at,
+        ))
+
+    return items
+
+
+# ── 入口函数 ────────────────────────────────────────────────────────────────────
+
+def parse_miit_local(config: dict, now: datetime) -> List[Item]:
+    """
+    遍历全国地方工信主管部门网站，抓取并返回符合条件的新闻列表。
+
+    Args:
+        config: 来自 config.yaml 的全量配置字典，需包含：
+                - sources.miit_local.name / enabled
+                - keywords
+                - window_days
+                - hard_cap_days
+        now:    当前时间（带时区）。
+
+    Returns:
+        过滤并去重后的 Item 列表。
+    """
+    src = config["sources"]["miit_local"]
+    if not src.get("enabled", True):
+        logger.info("miit_local 源已禁用，跳过")
+        return []
+
+    fetched_at = format_fetched_at(now)
+    keywords = config["keywords"]
+    window_days = int(config["window_days"])
+    hard_cap_days = int(config["hard_cap_days"])
+    timeout = int(config.get("miit_local_timeout", DEFAULT_TIMEOUT))
+
+    all_items: List[Item] = []
+
+    for source in MIIT_LOCAL_SOURCES:
+        province = source["province"]
+        try:
+            site_items = _scrape_one_site(
+                source=source,
+                fetched_at=fetched_at,
+                keywords=keywords,
+                now=now,
+                window_days=window_days,
+                hard_cap_days=hard_cap_days,
+                timeout=timeout,
+            )
+            if site_items:
+                logger.info("地方工信-%s: 获取 %d 条", province, len(site_items))
+            all_items.extend(site_items)
+        except Exception:
+            logger.warning("地方工信-%s: 抓取失败", province, exc_info=True)
+            continue
+
+    # ── 去重（URL 规范化） ──────────────────────────────────────────────────────
+    uniq: Dict[str, Item] = {}
+    for it in all_items:
+        key = canonicalize_url_for_dedup(it.url)
+        if key not in uniq:
+            uniq[key] = it
+        else:
+            old = uniq[key]
+            if (not old.pub_date) and it.pub_date:
+                uniq[key] = it
+            elif old.pub_date and it.pub_date:
+                try:
+                    if dtparser.parse(it.pub_date) > dtparser.parse(old.pub_date):
+                        uniq[key] = it
+                except Exception:
+                    pass
+
+    result = list(uniq.values())
+    logger.info("地方工信汇总: %d 条（去重后）", len(result))
+    return result

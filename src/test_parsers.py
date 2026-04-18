@@ -1,0 +1,605 @@
+"""
+各信源解析器的单元测试。
+
+使用本地保存的 HTML 文件进行离线测试，通过 mock http_get 避免实际网络请求。
+
+运行方式：
+    若使用 pytest 运行，请先安装：pip install pytest
+    python -m pytest src/test_parsers.py -v
+
+    也可直接运行：
+    python src/test_parsers.py
+
+    直接运行时，若未安装 pytest，会启用兼容降级逻辑；
+    遇到依赖 pytest.skip 的场景时会给出清晰提示并退出。
+"""
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from unittest.mock import patch
+
+try:
+    import pytest
+except ImportError:
+    class _PytestCompat:
+        """未安装 pytest 时提供最小兼容接口。"""
+
+        @staticmethod
+        def skip(reason=""):
+            message = "Skipping test"
+            if reason:
+                message = f"{message}: {reason}"
+            print(message)
+            raise SystemExit(0)
+
+    pytest = _PytestCompat()
+# 将 src 目录加入模块搜索路径
+sys.path.insert(0, str(Path(__file__).parent))
+
+SG_TZ = timezone(timedelta(hours=8))
+NOW = datetime(2026, 4, 18, 12, 0, 0, tzinfo=SG_TZ)
+
+# 宽松关键词：空字符串可匹配所有标题（keyword_hit 中 "" in title 恒为 True）
+MATCH_ALL_KEYWORDS = [""]
+
+# 测试 HTML 文件目录
+TEST_HTML_ROOT = Path(__file__).resolve().parents[1] / "test_html"
+
+# 共用配置
+BASE_CONFIG = {
+    "keywords": [
+        "印发", "智能", "智慧", "AI", "模型", "制造业", "新型工业化",
+        "工业互联网", "产业互联网", "数字化", "数智化", "算力", "具身",
+        "机器人", "芯片", "装备", "体系建设", "新兴产业", "未来产业",
+        "数据集", "数据要素", "工业数据", "高质量数据", "词元", "token",
+    ],
+    "window_days": 15,
+    "hard_cap_days": 15,
+    "sources": {
+        "miit_home": {"name": "工业和信息化部", "url": "https://www.miit.gov.cn/"},
+        "gov_latest_policy_rss": {"name": "中国政府网", "rss": "https://rsshub.app/gov/zhengce/zuixin"},
+        "gov_home": {"name": "中国政府网", "url": "https://www.gov.cn/"},
+        "ndrc_home": {"name": "国家发展和改革委员会", "url": "https://www.ndrc.gov.cn/"},
+        "most_home": {"name": "科学技术部", "url": "https://www.most.gov.cn/"},
+        "moe_news": {"name": "教育部", "url": "http://www.moe.gov.cn/jyb_xwfb/"},
+        "miit_local": {"name": "地方工信部门", "enabled": True},
+        "gov_local": {"name": "地方政府门户", "enabled": True},
+    },
+}
+
+
+def _load_html(relpath: str) -> str:
+    """从测试 HTML 目录加载文件。"""
+    fpath = TEST_HTML_ROOT / relpath
+    if not fpath.exists():
+        return ""
+    return fpath.read_text(encoding="utf-8", errors="replace")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 1. miit_local 辅助函数测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from parsers.miit_local import (
+    _is_news_like_url,
+    _is_nav_text,
+    _extract_date_from_url,
+    _extract_date_from_context,
+)
+
+
+class TestUrlPatternRecognition:
+    """测试 _is_news_like_url 对 10 种 CMS URL 模式的识别能力。"""
+
+    def test_pattern_a_trs_yyyymm(self):
+        """模式 A: TRS CMS /YYYYMM/tYYYYMMDD_ID.html"""
+        url = "https://jxj.beijing.gov.cn/jxdt/tzgg/202604/t20260418_4591280.html"
+        assert _is_news_like_url(url)
+
+    def test_pattern_b_egov_art(self):
+        """模式 B: E-Gov /art/YYYY/M/D/art_COL_ART.html"""
+        url = "http://gxt.jiangsu.gov.cn/art/2026/4/13/art_73259_11524668.html"
+        assert _is_news_like_url(url)
+
+    def test_pattern_b_miit_art_uuid(self):
+        """模式 B 变体: miit.gov.cn /art/YYYY/art_UUID.html"""
+        url = "https://www.miit.gov.cn/zwgk/zcwj/wjfb/tz/art/2026/art_561068ed19ea491a9c6bd0a0909c1466.html"
+        assert _is_news_like_url(url)
+
+    def test_pattern_c_content_post(self):
+        """模式 C: 广东 /content/post_ID.html"""
+        url = "http://gdii.gd.gov.cn/gdywdt/ttxw/content/post_4886189.html"
+        assert _is_news_like_url(url)
+
+    def test_pattern_d_yyyymmdd_dir(self):
+        """模式 D: 上海 /zxxx/YYYYMMDD/uuid.html"""
+        url = "http://www.sheitc.sh.gov.cn/zxxx/20260417/abc123.html"
+        assert _is_news_like_url(url)
+
+    def test_pattern_e_hyphenated(self):
+        """模式 E: 新疆兵团 /c/YYYY-MM-DD/ID.shtml"""
+        url = "http://btgxj.xjbt.gov.cn/c/2026-04-17/8480381.shtml"
+        assert _is_news_like_url(url)
+
+    def test_pattern_f_long_timestamp(self):
+        """模式 F: 辽宁 /YYYYMMDDHHMMSS.../index.shtml"""
+        url = "http://gxt.ln.gov.cn/2026031009183942113/index.shtml"
+        assert _is_news_like_url(url)
+
+    def test_pattern_g_guangxi_trs(self):
+        """模式 G: 广西 /tNNNNNNN.shtml"""
+        url = "http://gxt.gxzf.gov.cn/ydpt/t1232694.shtml"
+        assert _is_news_like_url(url)
+
+    def test_pattern_h_spa_query(self):
+        """模式 H: 西藏 /detail?id=N"""
+        url = "http://jxt.xizang.gov.cn/xzweb/detail?id=12345"
+        assert _is_news_like_url(url)
+
+    def test_pattern_qinghai_system(self):
+        """青海 /system/YYYY/MM/DD/ID.shtml"""
+        url = "http://www.qinghai.gov.cn/zwgk/system/2026/04/16/030097355.shtml"
+        assert _is_news_like_url(url)
+
+    def test_non_news_rejected(self):
+        """非新闻链接（导航、索引页等）应被拒绝。"""
+        urls = [
+            "https://www.miit.gov.cn/",
+            "https://www.miit.gov.cn/zwgk/",
+            "https://example.com/about.html",
+            "https://www.miit.gov.cn/col/col1234/index.html",
+        ]
+        for url in urls:
+            assert not _is_news_like_url(url), f"应被拒绝: {url}"
+
+
+class TestDateExtractionFromUrl:
+    """测试 _extract_date_from_url 对各种 URL 格式的日期提取。"""
+
+    def test_trs_filename(self):
+        """TRS 文件名 tYYYYMMDD_ID.html → 精确日期"""
+        url = "https://jxj.beijing.gov.cn/jxdt/tzgg/202604/t20260418_4591280.html"
+        assert _extract_date_from_url(url) == "2026-04-18"
+
+    def test_trs_shtml(self):
+        """TRS 文件名 .shtml 扩展名"""
+        url = "http://gxt.hunan.gov.cn/xxgk/202604/t20260415_12345678.shtml"
+        assert _extract_date_from_url(url) == "2026-04-15"
+
+    def test_egov_art_date(self):
+        """E-Gov /art/YYYY/M/D/ 非零填充日期"""
+        url = "http://gxt.jiangsu.gov.cn/art/2026/4/3/art_73259_11524668.html"
+        assert _extract_date_from_url(url) == "2026-04-03"
+
+    def test_slash_separated_date(self):
+        """斜杠分隔 /YYYY/MM/DD/ 日期（青海）"""
+        url = "http://www.qinghai.gov.cn/zwgk/system/2026/04/16/030097355.shtml"
+        assert _extract_date_from_url(url) == "2026-04-16"
+
+    def test_hyphen_date(self):
+        """连字符 /YYYY-MM-DD/ 日期（新疆兵团）"""
+        url = "http://btgxj.xjbt.gov.cn/c/2026-04-17/8480381.shtml"
+        assert _extract_date_from_url(url) == "2026-04-17"
+
+    def test_long_timestamp(self):
+        """长时间戳前 8 位（辽宁）"""
+        url = "http://gxt.ln.gov.cn/2026031009183942113/index.shtml"
+        assert _extract_date_from_url(url) == "2026-03-10"
+
+    def test_yyyymmdd_dir(self):
+        """8 位日期目录（上海）"""
+        url = "http://www.sheitc.sh.gov.cn/zxxx/20260417/abc.html"
+        assert _extract_date_from_url(url) == "2026-04-17"
+
+    def test_yyyymm_fallback(self):
+        """仅 YYYYMM 目录时日默认 01"""
+        url = "http://gxt.example.gov.cn/news/202604/content.html"
+        assert _extract_date_from_url(url) == "2026-04-01"
+
+    def test_no_date(self):
+        """无日期的 URL 返回 None"""
+        url = "http://gdii.gd.gov.cn/content/post_4886189.html"
+        assert _extract_date_from_url(url) is None
+
+
+class TestNavTextFilter:
+    """测试导航文字过滤。"""
+
+    def test_nav_words_rejected(self):
+        for text in ["首页", "更多", "English", "搜索", "下一页"]:
+            assert _is_nav_text(text), f"应为导航文字: {text}"
+
+    def test_pagination_rejected(self):
+        for text in ["1", "2 3 4", ">>", "..."]:
+            assert _is_nav_text(text), f"应为分页: {text}"
+
+    def test_real_title_accepted(self):
+        assert not _is_nav_text("关于印发数字化转型实施方案的通知")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 2. NDRC 解析器测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestNdrcParser:
+    """测试 NDRC（发改委）解析器，使用保存的 HTML。"""
+
+    def _run(self):
+        from parsers.ndrc import parse_ndrc_home
+        html = _load_html("ndrc_home.html")
+        if not html:
+            pytest.skip("缺少测试 HTML 文件: ndrc_home.html")
+        with patch("parsers.ndrc.http_get", return_value=html):
+            return parse_ndrc_home(BASE_CONFIG, NOW)
+
+    def test_returns_items(self):
+        """应返回非空 Item 列表"""
+        items = self._run()
+        assert len(items) > 0, "NDRC 应返回至少 1 条新闻"
+
+    def test_items_have_dates(self):
+        """绝大多数 Item 应有发布日期"""
+        items = self._run()
+        with_date = sum(1 for it in items if it.pub_date)
+        ratio = with_date / len(items) if items else 0
+        assert ratio >= 0.8, f"日期覆盖率 {ratio:.0%} 低于 80%"
+
+    def test_item_fields_valid(self):
+        """每个 Item 的必填字段应非空"""
+        items = self._run()
+        for it in items:
+            assert it.title and len(it.title) >= 6
+            assert it.url.startswith("http")
+            assert it.publisher == "国家发展和改革委员会"
+            assert it.source.startswith("发改委官网-")
+            assert it.fetched_at
+
+    def test_covers_multiple_sections(self):
+        """应覆盖多个板块"""
+        items = self._run()
+        sections = {it.source for it in items}
+        assert len(sections) >= 3, f"仅覆盖 {len(sections)} 个板块: {sections}"
+
+    def test_new_sections_covered(self):
+        """验证新增的板块（视频发改、委属单位、发改数据、互动交流）"""
+        from parsers.ndrc import parse_ndrc_home
+        html = _load_html("ndrc_home.html")
+        if not html:
+            pytest.skip("缺少测试 HTML 文件: ndrc_home.html")
+        # 使用超宽松配置（不过滤关键词）来检查板块覆盖
+        wide_config = {**BASE_CONFIG, "keywords": MATCH_ALL_KEYWORDS, "window_days": 365, "hard_cap_days": 365}
+        with patch("parsers.ndrc.http_get", return_value=html):
+            items = parse_ndrc_home(wide_config, NOW)
+        sources = {it.source for it in items}
+        expected_sections = {"视频发改", "委属单位", "发改数据", "互动交流"}
+        missing_sections = {name for name in expected_sections if not any(name in source for source in sources)}
+        assert not missing_sections, (
+            f"解析结果未覆盖新增板块: {sorted(missing_sections)}；"
+            f"当前 source: {sorted(sources)}"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 3. MOST 解析器测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestMostParser:
+    """测试 MOST（科技部）解析器。"""
+
+    def _run(self):
+        from parsers.most import parse_most_home
+        html = _load_html("most_home.html")
+        if not html:
+            pytest.skip("缺少测试 HTML 文件: most_home.html")
+        with patch("parsers.most.http_get", return_value=html):
+            return parse_most_home(BASE_CONFIG, NOW)
+
+    def test_returns_items(self):
+        items = self._run()
+        assert len(items) > 0, "MOST 应返回至少 1 条新闻"
+
+    def test_items_have_dates(self):
+        items = self._run()
+        with_date = sum(1 for it in items if it.pub_date)
+        ratio = with_date / len(items) if items else 0
+        assert ratio >= 0.7, f"日期覆盖率 {ratio:.0%} 低于 70%"
+
+    def test_external_media_classified(self):
+        """外部媒体链接（人民日报、新华社等）应被正确分类"""
+        from parsers.most import _classify_link
+        test_hrefs = [
+            ("https://paper.people.com.cn/rmrb/html/2026/0414/test.htm", "科技部官网-媒体聚焦"),
+            ("https://www.news.cn/fortune/20260416/test.htm", "科技部官网-媒体聚焦"),
+            ("https://news.cctv.com/2026/04/14/test.shtml", "科技部官网-媒体聚焦"),
+            ("https://www.gov.cn/yaowen/liebiao/202604/content_7066001.htm", "科技部官网-要闻"),
+        ]
+        for href, expected_tag in test_hrefs:
+            tag = _classify_link(href)
+            assert tag == expected_tag, f"{href} → {tag}，期望 {expected_tag}"
+
+    def test_item_fields_valid(self):
+        items = self._run()
+        for it in items:
+            assert it.title and len(it.title) >= 6
+            assert it.url.startswith("http")
+            assert it.publisher == "科学技术部"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 4. MOE 解析器测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestMoeParser:
+    """测试 MOE（教育部）解析器。"""
+
+    def _run(self):
+        from parsers.moe import parse_moe_news
+        html = _load_html("moe_news.html")
+        if not html:
+            pytest.skip("缺少测试 HTML 文件: moe_news.html")
+        with patch("parsers.moe.http_get", return_value=html):
+            return parse_moe_news(BASE_CONFIG, NOW)
+
+    def test_returns_items(self):
+        items = self._run()
+        assert len(items) > 0, "MOE 应返回至少 1 条新闻"
+
+    def test_new_sections_classified(self):
+        """新增板块（发布会、图解教育、图说新闻）应被正确分类"""
+        from parsers.moe import _classify_section
+        test_hrefs = [
+            ("http://www.moe.gov.cn/jyb_xwfb/xw_fbh/moe_2069/test.html", "发布会/通气会"),
+            ("http://www.moe.gov.cn/jyb_xwfb/s7600/202604/test.html", "图解教育"),
+            ("http://www.moe.gov.cn/jyb_xwfb/s5984/xw_tsxwft/202604/test.html", "图说新闻"),
+        ]
+        for href, expected_label in test_hrefs:
+            label = _classify_section(href)
+            assert label == expected_label, f"{href} → {label}，期望 {expected_label}"
+
+    def test_date_extraction_precise_url(self):
+        """URL 含 tYYYYMMDD_ 时应提取精确日期"""
+        from parsers.moe import _extract_precise_date_from_url
+        url = "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/202604/t20260418_1234567.html"
+        assert _extract_precise_date_from_url(url) == "2026-04-18"
+
+    def test_date_extraction_yyyymm_only_url(self):
+        """URL 仅含 /YYYYMM/ 时，精确提取返回 None，回退返回 YYYY-MM-01"""
+        from parsers.moe import _extract_precise_date_from_url, _extract_yyyymm_from_url
+        url = "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/202604/content_abc.html"
+        assert _extract_precise_date_from_url(url) is None
+        assert _extract_yyyymm_from_url(url) == "2026-04-01"
+
+    def test_date_extraction_prefers_text_over_yyyymm(self):
+        """对于仅有 YYYYMM 的 URL，附近文本的 MM-DD 应优先于 YYYY-MM-01 回退"""
+        from parsers.moe import parse_moe_news
+        # 构造一段包含 /YYYYMM/ URL 但页面文本含精确 MM-DD 的 HTML
+        html = """<html><body>
+            <ul>
+              <li><a href="/jyb_xwfb/gzdt_gzdt/202604/content_abc.html">关于推进人工智能教育工作的通知</a>
+                  <span>04-15</span></li>
+            </ul>
+        </body></html>"""
+        with patch("parsers.moe.http_get", return_value=html):
+            items = parse_moe_news(
+                {**BASE_CONFIG, "keywords": MATCH_ALL_KEYWORDS, "window_days": 365, "hard_cap_days": 365},
+                NOW,
+            )
+        assert items, "应解析出至少 1 条"
+        # 日期应来自附近文本 04-15，而非 URL 回退的 04-01
+        assert items[0].pub_date == "2026-04-15", (
+            f"日期应为 2026-04-15（来自附近文本），实际为 {items[0].pub_date}"
+        )
+
+    def test_item_fields_valid(self):
+        items = self._run()
+        for it in items:
+            assert it.title and len(it.title) >= 6
+            assert it.url.startswith("http")
+            assert it.publisher == "教育部"
+            assert it.source.startswith("教育部官网-")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 5. miit_local 端到端测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestMiitLocal:
+    """测试 miit_local 解析器（使用单个省份的保存 HTML）。"""
+
+    def _run_single(self, province_file, source_dict, keywords=None):
+        """对单个省份文件运行抓取逻辑。"""
+        from parsers.miit_local import _scrape_one_site
+        from utils import format_fetched_at
+        html = _load_html(f"miit_local/{province_file}")
+        if not html or len(html) < 1000:
+            pytest.skip(f"缺少测试 HTML 文件: miit_local/{province_file}")
+        fetched_at = format_fetched_at(NOW)
+        kw = keywords if keywords is not None else BASE_CONFIG["keywords"]
+        with patch("parsers.miit_local.http_get", return_value=html):
+            return _scrape_one_site(
+                source=source_dict,
+                fetched_at=fetched_at,
+                keywords=kw,
+                now=NOW,
+                window_days=BASE_CONFIG["window_days"],
+                hard_cap_days=BASE_CONFIG["hard_cap_days"],
+                timeout=20,
+            )
+
+    def test_beijing_has_items(self):
+        items = self._run_single(
+            "beijing.html",
+            {
+                "province": "北京", "name": "北京市经济和信息化局",
+                "url": "https://jxj.beijing.gov.cn/jxdt/tzgg/",
+            },
+            keywords=MATCH_ALL_KEYWORDS,  # 宽松关键词：匹配所有标题
+        )
+        assert isinstance(items, list), "应返回列表"
+        assert len(items) > 0, "使用宽松关键词时北京工信应返回至少 1 条链接"
+
+    def test_jiangsu_art_pattern(self):
+        """江苏使用 /art/YYYY/M/D/ 模式，应正确识别。"""
+        from parsers.miit_local import _is_news_like_url, _extract_date_from_url
+        url = "http://gxt.jiangsu.gov.cn/art/2026/4/13/art_73259_11524668.html"
+        assert _is_news_like_url(url)
+        assert _extract_date_from_url(url) == "2026-04-13"
+
+    def test_shanghai_yyyymmdd(self):
+        """上海使用 /YYYYMMDD/ 目录，应正确提取日期。"""
+        from parsers.miit_local import _extract_date_from_url
+        url = "http://www.sheitc.sh.gov.cn/zxxx/20260417/uuid.html"
+        assert _extract_date_from_url(url) == "2026-04-17"
+
+    def test_xizang_spa(self):
+        """西藏使用 /detail?id=N SPA 链接，应正确识别。"""
+        url = "http://jxt.xizang.gov.cn/xzweb/detail?id=12345"
+        assert _is_news_like_url(url)
+
+    def test_miit_art_uuid_variant(self):
+        """miit.gov.cn 的 /art/YYYY/art_UUID.html 变体应被识别。"""
+        url = "https://www.miit.gov.cn/jgsj/zfs/gzdt/art/2023/art_c1247f6f0eca440883ed83b3f97fd716.html"
+        assert _is_news_like_url(url)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 6. gov_local 端到端测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestGovLocal:
+    """测试 gov_local 解析器（使用单个省份的保存 HTML）。"""
+
+    def _run_single(self, province_file, source_dict):
+        from parsers.gov_local import _scrape_one_gov_site
+        from utils import format_fetched_at
+        html = _load_html(f"gov_local/{province_file}")
+        if not html or len(html) < 1000:
+            pytest.skip(f"缺少测试 HTML 文件: gov_local/{province_file}")
+        fetched_at = format_fetched_at(NOW)
+        with patch("parsers.gov_local.http_get", return_value=html):
+            return _scrape_one_gov_site(
+                source=source_dict,
+                fetched_at=fetched_at,
+                keywords=BASE_CONFIG["keywords"],
+                now=NOW,
+                window_days=BASE_CONFIG["window_days"],
+                hard_cap_days=BASE_CONFIG["hard_cap_days"],
+                timeout=20,
+            )
+
+    def test_beijing_gov(self):
+        items = self._run_single("beijing.html", {
+            "province": "北京", "name": "北京市人民政府",
+            "url": "https://www.beijing.gov.cn/",
+        })
+        assert isinstance(items, list)
+        for it in items:
+            assert it.source == "地方政府-北京"
+            assert it.publisher == "北京市人民政府"
+
+    def test_qinghai_slash_date(self):
+        """青海 /system/YYYY/MM/DD/ 日期应精确到日。"""
+        items = self._run_single("qinghai.html", {
+            "province": "青海", "name": "青海省人民政府",
+            "url": "https://www.qinghai.gov.cn/",
+        })
+        # 检查日期是否精确到日（不是 XX-XX-01）
+        for it in items:
+            if it.pub_date and it.pub_date.endswith("-01"):
+                # 对于 YYYYMM 回退的情况，可以接受
+                pass
+            elif it.pub_date:
+                parts = it.pub_date.split("-")
+                assert len(parts) == 3 and parts[2] != "00"
+
+    def test_shandong_egov(self):
+        """山东使用 E-Gov /art/ 模式。"""
+        items = self._run_single("shandong.html", {
+            "province": "山东", "name": "山东省人民政府",
+            "url": "https://www.shandong.gov.cn/",
+        })
+        assert isinstance(items, list)
+
+    def test_xinjiang_bt_hyphen(self):
+        """新疆兵团使用 /c/YYYY-MM-DD/ 模式。"""
+        items = self._run_single("xinjiang_bt.html", {
+            "province": "新疆兵团", "name": "新疆生产建设兵团",
+            "url": "https://www.xjbt.gov.cn/",
+        })
+        assert isinstance(items, list)
+
+    def test_disabled_returns_empty(self):
+        """disabled 时应返回空列表。"""
+        from parsers.gov_local import parse_gov_local
+        config = {**BASE_CONFIG}
+        config["sources"] = {**config["sources"]}
+        config["sources"]["gov_local"] = {"name": "地方政府门户", "enabled": False}
+        result = parse_gov_local(config, NOW)
+        assert result == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 7. 集成与回归测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestIntegration:
+    """集成和回归测试。"""
+
+    def test_all_parsers_importable(self):
+        """所有解析器函数应可从 parsers 包正常导入。"""
+        from parsers import (
+            parse_miit_home,
+            parse_gov_home,
+            parse_gov_rss,
+            parse_ndrc_home,
+            parse_most_home,
+            parse_moe_news,
+            parse_miit_local,
+            parse_gov_local,
+            parse_qqnews_search,
+            parse_weibo,
+            parse_website_monitor,
+            parse_weibo_monitor_sources,
+        )
+        # 确认都是可调用对象
+        for fn in [
+            parse_miit_home, parse_gov_home, parse_gov_rss,
+            parse_ndrc_home, parse_most_home, parse_moe_news,
+            parse_miit_local, parse_gov_local, parse_qqnews_search,
+            parse_weibo, parse_website_monitor, parse_weibo_monitor_sources,
+        ]:
+            assert callable(fn), f"{fn} 不可调用"
+
+    def test_collect_imports(self):
+        """collect.py 应能正常导入所有解析器。"""
+        import collect
+        assert hasattr(collect, "parse_gov_local")
+        assert "parse_gov_local" in collect.__all__
+
+    def test_gov_local_sources_count(self):
+        """GOV_LOCAL_SOURCES 应包含 32 个省级政府。"""
+        from parsers.gov_local import GOV_LOCAL_SOURCES
+        assert len(GOV_LOCAL_SOURCES) == 32
+
+    def test_miit_local_sources_count(self):
+        """MIIT_LOCAL_SOURCES 应包含 32 个地方工信部门。"""
+        from parsers.miit_local import MIIT_LOCAL_SOURCES
+        assert len(MIIT_LOCAL_SOURCES) == 32
+
+    def test_no_duplicate_sources(self):
+        """gov_local 和 miit_local 的源列表不应有重复省份。"""
+        from parsers.gov_local import GOV_LOCAL_SOURCES
+        from parsers.miit_local import MIIT_LOCAL_SOURCES
+        gov_provinces = [s["province"] for s in GOV_LOCAL_SOURCES]
+        miit_provinces = [s["province"] for s in MIIT_LOCAL_SOURCES]
+        assert len(gov_provinces) == len(set(gov_provinces)), "gov_local 有重复省份"
+        assert len(miit_provinces) == len(set(miit_provinces)), "miit_local 有重复省份"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 运行入口
+# ═══════════════════════════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    import pytest
+    sys.exit(pytest.main([__file__, "-v", "--tb=short"]))

@@ -41,9 +41,29 @@ sources:
     name: 中国政府网
     rss: https://rsshub.app/gov/zhengce/zuixin
 
-  gov_home: 
+  gov_home:
     name: 中国政府网
     url: https://www.gov.cn/
+
+  ndrc_home:
+    name: 国家发展和改革委员会
+    url: https://www.ndrc.gov.cn/
+
+  most_home:
+    name: 科学技术部
+    url: https://www.most.gov.cn/
+
+  moe_news:
+    name: 教育部
+    url: http://www.moe.gov.cn/jyb_xwfb/
+
+  miit_local:
+    name: 地方工信部门
+    enabled: true
+
+  gov_local:
+    name: 地方政府门户
+    enabled: true
 
   qqnews_search:
     name: 腾讯新闻

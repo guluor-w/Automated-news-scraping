@@ -32,6 +32,11 @@ try:
         parse_gov_home,
         parse_gov_rss,
         parse_miit_home,
+        parse_ndrc_home,
+        parse_most_home,
+        parse_moe_news,
+        parse_miit_local,
+        parse_gov_local,
         parse_qqnews_search,
         parse_weibo,
         parse_website_monitor,
@@ -48,6 +53,11 @@ except ImportError:
         parse_gov_home,
         parse_gov_rss,
         parse_miit_home,
+        parse_ndrc_home,
+        parse_most_home,
+        parse_moe_news,
+        parse_miit_local,
+        parse_gov_local,
         parse_qqnews_search,
         parse_weibo,
         parse_website_monitor,
@@ -60,6 +70,11 @@ __all__ = [
     "parse_miit_home",
     "parse_gov_home",
     "parse_gov_rss",
+    "parse_ndrc_home",
+    "parse_most_home",
+    "parse_moe_news",
+    "parse_miit_local",
+    "parse_gov_local",
     "parse_qqnews_search",
     "parse_weibo",
     "parse_website_monitor",
@@ -90,6 +105,11 @@ def main() -> None:
     all_items.extend(parse_miit_home(config, now))
     all_items.extend(parse_gov_home(config, now))
     all_items.extend(parse_gov_rss(config, now))
+    all_items.extend(parse_ndrc_home(config, now))
+    all_items.extend(parse_most_home(config, now))
+    all_items.extend(parse_moe_news(config, now))
+    all_items.extend(parse_miit_local(config, now))
+    all_items.extend(parse_gov_local(config, now))
     all_items.extend(parse_qqnews_search(config, now))
     all_items.extend(parse_weibo(config, now))
     all_items.extend(parse_website_monitor(config, now))

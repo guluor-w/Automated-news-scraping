@@ -44,7 +44,7 @@ from datetime import datetime
 from typing import List
 from urllib.parse import urlparse
 
-from models import Item
+from models import Item, MIIT_ONLY_KEYWORDS
 from utils import format_fetched_at, keyword_hit
 
 logger = logging.getLogger(__name__)
@@ -274,7 +274,7 @@ def parse_website_monitor(config: dict, now: datetime) -> List[Item]:
         return []
 
     keywords = config.get("keywords", [])
-    website_keywords = [k for k in keywords if k != "印发"]
+    website_keywords = [k for k in keywords if k not in MIIT_ONLY_KEYWORDS]
     fetched_at = format_fetched_at(now)
 
     async def _fetch() -> dict:

@@ -30,8 +30,9 @@ sources:
     name: 国家发展和改革委员会
     url: https://www.ndrc.gov.cn/
 
-注意：与 gov.py 一致，本解析器不使用"印发"关键词进行过滤，
-因为发改委属于政策密集型来源，"印发"类标题往往即为核心政策信息。
+注意：与 gov.py 一致，本解析器不使用"印发"和"体系建设"关键词进行过滤，
+因为这类词在非 MIIT 官方/工信微报场景下噪声较大，且对发改委这类政策密集型来源而言，
+往往会出现在核心政策信息标题中。
 
 新增来源提示
 ------------
@@ -46,7 +47,7 @@ from typing import Dict, List, Optional
 from bs4 import BeautifulSoup
 from dateutil import parser as dtparser
 
-from models import Item
+from models import Item, MIIT_ONLY_KEYWORDS
 from utils import (
     canonicalize_url_for_dedup,
     extract_date,
@@ -235,8 +236,8 @@ def parse_ndrc_home(config: dict, now: datetime) -> List[Item]:
     # 13) 互动交流 — /hdjl/ 路径（意见征集等）
     add_links("a[href*='/hdjl/']", "发改委官网-互动交流")
 
-    # ── 过滤（不使用"印发"关键词，与 gov.py 保持一致） ────────────────────────
-    ndrc_keywords = [k for k in keywords if k != "印发"]
+    # ── 过滤（不使用"印发"和"体系建设"关键词，与 gov.py 保持一致） ─────────────
+    ndrc_keywords = [k for k in keywords if k not in MIIT_ONLY_KEYWORDS]
 
     filtered: List[Item] = []
     for it in items:

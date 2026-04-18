@@ -35,7 +35,7 @@ from datetime import datetime, timedelta
 from html import unescape
 from typing import List, Optional
 
-from models import Item
+from models import Item, MIIT_ONLY_KEYWORDS
 from utils import format_fetched_at, keyword_hit, within_window
 
 logger = logging.getLogger(__name__)
@@ -532,7 +532,7 @@ def parse_weibo(config: dict, now: datetime) -> List[Item]:
 
     max_pages = int(weibo_cfg.get("max_pages", MAX_PAGES))
     keywords = config.get("keywords", [])
-    weibo_keywords = [k for k in keywords if k != "印发"]
+    weibo_keywords = [k for k in keywords if k not in MIIT_ONLY_KEYWORDS]
     window_days = int(config.get("window_days", 15))
     hard_cap_days = int(config.get("hard_cap_days", 15))
     fetched_at = format_fetched_at(now)

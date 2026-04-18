@@ -13,6 +13,10 @@ from typing import Optional
 # 时区：UTC+8（Asia/Shanghai / Asia/Singapore）
 SG_TZ = timezone(timedelta(hours=8))
 
+# 仅用于工业和信息化部官网和腾讯新闻-工信微报的专属关键词
+# 其他所有信源在过滤时必须排除这些关键词
+MIIT_ONLY_KEYWORDS = frozenset({"印发", "体系建设"})
+
 # 通用 HTTP 请求头 User-Agent
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "

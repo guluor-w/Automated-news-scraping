@@ -85,6 +85,9 @@ from parsers.miit_local import (
     _is_nav_text,
     _extract_date_from_url,
     _extract_date_from_context,
+    _clean_title,
+    _strip_date_affixes,
+    _TITLE_MAX_LEN,
 )
 
 
@@ -215,6 +218,136 @@ class TestNavTextFilter:
 
     def test_real_title_accepted(self):
         assert not _is_nav_text("关于印发数字化转型实施方案的通知")
+
+
+class TestCleanTitle:
+    """
+    测试 _clean_title / _strip_date_affixes 标题清理功能。
+
+    对应问题案例：
+      案例1/5 - 正文内容混入标题（body content bleed）
+      案例2   - 标题截断（...）+ 方括号日期后缀
+      案例3   - YYYY-MM-DD 日期后缀
+      案例4   - MM-DD 短日期后缀
+      案例5   - DD YYYY-MM 日期前缀 + 正文混入
+    """
+
+    def _make_a(self, inner_html="", title_attr=""):
+        """构造用于测试的 <a> BeautifulSoup 元素。"""
+        from bs4 import BeautifulSoup
+        attrs = f' title="{title_attr}"' if title_attr else ""
+        soup = BeautifulSoup(f'<a href="/test"{attrs}>{inner_html}</a>', "lxml")
+        return soup.find("a")
+
+    # ── _strip_date_affixes 单元测试 ─────────────────────────────────────────
+
+    def test_strip_trailing_full_date(self):
+        """案例3：后缀 YYYY-MM-DD 被去除。"""
+        result = _strip_date_affixes(
+            "湖北省智能体公共服务平台启动建设 AI产业有了\u201c公共底座\u201d！ 2026-04-17"
+        )
+        assert result == "湖北省智能体公共服务平台启动建设 AI产业有了\u201c公共底座\u201d！"
+
+    def test_strip_trailing_short_date(self):
+        """案例4：后缀 MM-DD 被去除。"""
+        result = _strip_date_affixes("关于举办2026年智能制造专题培训班的通知 04-16")
+        assert result == "关于举办2026年智能制造专题培训班的通知"
+
+    def test_strip_trailing_bracketed_date(self):
+        """案例2：后缀 [ YYYY-MM-DD ]（含空格方括号）被去除。"""
+        result = _strip_date_affixes(
+            "一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案... [ 2026-04-15 ]"
+        )
+        assert result == "一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案..."
+
+    def test_strip_leading_date_prefix(self):
+        """案例5：前缀 DD YYYY-MM 被去除。"""
+        result = _strip_date_affixes(
+            "16 2026-04 【关于加快推进新型工业化全面落实在重庆大地上】全链发力"
+        )
+        assert result == "【关于加快推进新型工业化全面落实在重庆大地上】全链发力"
+
+    def test_strip_leading_full_date_prefix(self):
+        """前缀 YYYY-MM-DD（完整日期）被去除。"""
+        result = _strip_date_affixes("2026-04-17 关于印发数字化转型实施方案的通知")
+        assert result == "关于印发数字化转型实施方案的通知"
+
+    def test_clean_text_unchanged(self):
+        """干净标题不被修改。"""
+        title = "关于印发数字化转型实施方案的通知"
+        assert _strip_date_affixes(title) == title
+
+    def test_year_in_title_not_stripped(self):
+        """标题中间的年份数字不被误删（如"2026年"不含连字符）。"""
+        title = "关于举办2026年智能制造专题培训班的通知"
+        assert _strip_date_affixes(title) == title
+
+    # ── _clean_title 集成测试 ────────────────────────────────────────────────
+
+    def test_title_attr_preferred_over_gettext(self):
+        """案例1/5：有 title 属性时优先使用，忽略含正文的 get_text 结果。"""
+        a = self._make_a(
+            inner_html=(
+                "<span>重庆市加快构建开源鸿蒙应用创新生态工作方案印发</span>"
+                "<span>近日，重庆市经济和信息化委员会印发《重庆市加快构建开源鸿蒙应用创新生态工作方案》…</span>"
+            ),
+            title_attr="重庆市加快构建开源鸿蒙应用创新生态工作方案印发",
+        )
+        assert _clean_title(a) == "重庆市加快构建开源鸿蒙应用创新生态工作方案印发"
+
+    def test_date_stripped_when_no_title_attr(self):
+        """案例3：无 title 属性时，后缀日期从 get_text 结果中去除。"""
+        a = self._make_a(
+            "湖北省智能体公共服务平台启动建设 AI产业有了\u201c公共底座\u201d！ 2026-04-17"
+        )
+        assert _clean_title(a) == "湖北省智能体公共服务平台启动建设 AI产业有了\u201c公共底座\u201d！"
+
+    def test_short_date_stripped(self):
+        """案例4：后缀 MM-DD 从 get_text 结果中去除。"""
+        a = self._make_a("关于举办2026年智能制造专题培训班的通知 04-16")
+        assert _clean_title(a) == "关于举办2026年智能制造专题培训班的通知"
+
+    def test_bracketed_date_stripped(self):
+        """案例2：后缀 [ YYYY-MM-DD ] 从 get_text 结果中去除。"""
+        a = self._make_a(
+            "一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案... [ 2026-04-15 ]"
+        )
+        assert _clean_title(a) == "一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案..."
+
+    def test_leading_date_stripped(self):
+        """案例5：前缀 DD YYYY-MM 从 get_text 结果中去除。"""
+        a = self._make_a(
+            "16 2026-04 【关于加快推进新型工业化全面落实在重庆大地上】全链发力"
+        )
+        assert _clean_title(a) == "【关于加快推进新型工业化全面落实在重庆大地上】全链发力"
+
+    def test_max_length_truncation(self):
+        """正文混入时超过 _TITLE_MAX_LEN 的文本被截断。"""
+        long_body = "A" * (_TITLE_MAX_LEN + 50)
+        a = self._make_a(long_body)
+        result = _clean_title(a)
+        assert len(result) <= _TITLE_MAX_LEN
+
+    def test_normal_title_preserved(self):
+        """正常标题不被修改（无前后缀日期，长度合适）。"""
+        a = self._make_a("关于印发数字化转型实施方案的通知")
+        assert _clean_title(a) == "关于印发数字化转型实施方案的通知"
+
+    def test_truncated_visible_text_prefers_full_title_attr(self):
+        """可见文本被截断为含 ... 时，应返回 title 属性中的完整标题。"""
+        a = self._make_a(
+            inner_html="<span>一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案...</span>",
+            title_attr="一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案》的通知",
+        )
+        assert _clean_title(a) == "一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案》的通知"
+
+    def test_truncated_visible_text_uses_title_attr_and_strips_bracketed_date(self):
+        """title 属性提供完整标题时，仍应清理其中附带的方括号日期。"""
+        a = self._make_a(
+            inner_html="<span>一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案...</span>",
+            title_attr="一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案》的通知 [ 2026-04-15 ]",
+        )
+        assert _clean_title(a) == "一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案》的通知"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

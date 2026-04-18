@@ -356,6 +356,40 @@ class TestMoeParser:
             label = _classify_section(href)
             assert label == expected_label, f"{href} → {label}，期望 {expected_label}"
 
+    def test_date_extraction_precise_url(self):
+        """URL 含 tYYYYMMDD_ 时应提取精确日期"""
+        from parsers.moe import _extract_precise_date_from_url
+        url = "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/202604/t20260418_1234567.html"
+        assert _extract_precise_date_from_url(url) == "2026-04-18"
+
+    def test_date_extraction_yyyymm_only_url(self):
+        """URL 仅含 /YYYYMM/ 时，精确提取返回 None，回退返回 YYYY-MM-01"""
+        from parsers.moe import _extract_precise_date_from_url, _extract_yyyymm_from_url
+        url = "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/202604/content_abc.html"
+        assert _extract_precise_date_from_url(url) is None
+        assert _extract_yyyymm_from_url(url) == "2026-04-01"
+
+    def test_date_extraction_prefers_text_over_yyyymm(self):
+        """对于仅有 YYYYMM 的 URL，附近文本的 MM-DD 应优先于 YYYY-MM-01 回退"""
+        from parsers.moe import parse_moe_news
+        # 构造一段包含 /YYYYMM/ URL 但页面文本含精确 MM-DD 的 HTML
+        html = """<html><body>
+            <ul>
+              <li><a href="/jyb_xwfb/gzdt_gzdt/202604/content_abc.html">关于推进人工智能教育工作的通知</a>
+                  <span>04-15</span></li>
+            </ul>
+        </body></html>"""
+        with patch("parsers.moe.http_get", return_value=html):
+            items = parse_moe_news(
+                {**BASE_CONFIG, "keywords": MATCH_ALL_KEYWORDS, "window_days": 365, "hard_cap_days": 365},
+                NOW,
+            )
+        assert items, "应解析出至少 1 条"
+        # 日期应来自附近文本 04-15，而非 URL 回退的 04-01
+        assert items[0].pub_date == "2026-04-15", (
+            f"日期应为 2026-04-15（来自附近文本），实际为 {items[0].pub_date}"
+        )
+
     def test_item_fields_valid(self):
         items = self._run()
         for it in items:

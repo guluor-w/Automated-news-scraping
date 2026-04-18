@@ -26,7 +26,8 @@ parse_moe_news(config, now) -> List[Item]
 日期提取策略：
   - 优先从 URL 路径中的 /YYYYMM/tYYYYMMDD_ 模式提取精确日期
   - 其次从链接附近文本中的 MM-DD 格式提取（补当前年份）
-  - 最后回退到 URL 路径中的 /YYYYMM/ 年月（日默认 01）
+  - 再次回退到 URL 路径中的 /YYYYMM/ 年月（日默认 01）
+  - 最后尝试从标题文本提取
 
 页面/RSS 配置（config.yaml）
 -----------------------------
@@ -77,12 +78,17 @@ _RE_MOE_YYYYMM = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])/")
 _RE_MMDD = re.compile(r"(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])")
 
 
-def _extract_date_from_url(url: str) -> Optional[str]:
-    """从 moe.gov.cn URL 路径中提取日期，优先精确日期，其次年月。"""
+def _extract_precise_date_from_url(url: str) -> Optional[str]:
+    """从 moe.gov.cn URL 路径中提取精确日期（tYYYYMMDD_ 模式），无则返回 None。"""
     m = _RE_MOE_FULL_DATE.search(url)
     if m:
         yyyy, mm, dd = m.group(3), m.group(4), m.group(5)
         return f"{yyyy}-{mm}-{dd}"
+    return None
+
+
+def _extract_yyyymm_from_url(url: str) -> Optional[str]:
+    """从 moe.gov.cn URL 路径中提取年月，返回 YYYY-MM-01（日默认 01）。"""
     m = _RE_MOE_YYYYMM.search(url)
     if m:
         return f"{m.group(1)}-{m.group(2)}-01"
@@ -167,14 +173,20 @@ def parse_moe_news(config: dict, now: datetime) -> List[Item]:
         title = a_tag.get_text(" ", strip=True)
         source_tag = f"教育部官网-{section_label}"
 
-        # 日期提取：URL 路径 > 附近文本 > 通用 extract_date
-        pub_date = _extract_date_from_url(href)
+        # 日期提取策略（精确度从高到低）：
+        # 1. URL 中的精确日期（tYYYYMMDD_ 模式）
+        # 2. 链接附近文本中的 MM-DD（避免被 YYYYMM 回退抢先）
+        # 3. URL 中的 YYYYMM → YYYY-MM-01 回退
+        # 4. 标题文本中的日期
+        pub_date = _extract_precise_date_from_url(href)
         if not pub_date:
             # 尝试从链接周围的文本（父元素）中提取 MM-DD
             parent = a_tag.parent
             if parent:
                 sibling_text = parent.get_text(" ", strip=True)
                 pub_date = _extract_date_from_text(sibling_text, current_year)
+        if not pub_date:
+            pub_date = _extract_yyyymm_from_url(href)
         if not pub_date:
             pub_date = extract_date(title)
 

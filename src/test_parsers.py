@@ -333,6 +333,22 @@ class TestCleanTitle:
         a = self._make_a("关于印发数字化转型实施方案的通知")
         assert _clean_title(a) == "关于印发数字化转型实施方案的通知"
 
+    def test_truncated_visible_text_prefers_full_title_attr(self):
+        """可见文本被截断为含 ... 时，应返回 title 属性中的完整标题。"""
+        a = self._make_a(
+            inner_html="<span>一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案...</span>",
+            title_attr="一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案》的通知",
+        )
+        assert _clean_title(a) == "一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案》的通知"
+
+    def test_truncated_visible_text_uses_title_attr_and_strips_bracketed_date(self):
+        """title 属性提供完整标题时，仍应清理其中附带的方括号日期。"""
+        a = self._make_a(
+            inner_html="<span>一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案...</span>",
+            title_attr="一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案》的通知 [ 2026-04-15 ]",
+        )
+        assert _clean_title(a) == "一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案》的通知"
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 2. NDRC 解析器测试

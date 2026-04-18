@@ -153,7 +153,7 @@ def _scrape_one_gov_site(
             continue
 
         # 清洗标题：优先使用 title 属性，去除首尾日期，截断过长文本
-        title = _clean_title(a_tag)
+        title = _clean_title(a_tag, raw_text)
         if len(title) < 6:
             continue
 

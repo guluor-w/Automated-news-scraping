@@ -190,7 +190,7 @@ _RE_TITLE_LEADING_DATE = re.compile(
     r")\s+"
 )
 
-# 后缀日期（三种格式，方括号可选、内外空格可选）：
+# 后缀日期（两种格式，方括号可选、内外空格可选）：
 #   " 2026-04-17"  或  " [ 2026-04-17 ]"
 #   " 04-16"       或  " [ 04-16 ]"
 _RE_TITLE_TRAILING_DATE = re.compile(
@@ -257,7 +257,7 @@ def _strip_date_affixes(text: str) -> str:
     return text.strip()
 
 
-def _clean_title(a_tag) -> str:
+def _clean_title(a_tag, raw_text: Optional[str] = None) -> str:
     """
     从 <a> 标签中提取干净的标题文本。
 
@@ -269,14 +269,16 @@ def _clean_title(a_tag) -> str:
       2. get_text() 可见文字（兜底），同时：
            - 去除首尾日期标注（date span 混入 get_text 的情况）；
            - 截断至 _TITLE_MAX_LEN，防止正文内容被误识为标题。
+
+    可选参数 raw_text 允许调用方传入已计算的 get_text() 结果，避免重复解析。
     """
     # 1) title 属性优先
     attr_title = (a_tag.get("title") or "").strip()
     if attr_title and len(attr_title) >= 6:
         return _strip_date_affixes(attr_title)
 
-    # 2) 可见文字兜底
-    text = a_tag.get_text(" ", strip=True)
+    # 2) 可见文字兜底（复用调用方已计算的值，避免重复 get_text）
+    text = raw_text if raw_text is not None else a_tag.get_text(" ", strip=True)
     text = _strip_date_affixes(text)
 
     # 3) 截断过长文本（防止正文混入）
@@ -460,7 +462,7 @@ def _scrape_one_site(
             continue
 
         # 清洗标题：优先使用 title 属性，去除首尾日期，截断过长文本
-        title = _clean_title(a_tag)
+        title = _clean_title(a_tag, raw_text)
         if len(title) < 6:
             continue
 

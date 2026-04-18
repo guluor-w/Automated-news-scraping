@@ -178,6 +178,31 @@ _RE_URL_LONG_TS_DATE = re.compile(
 # 默认请求超时（秒）
 DEFAULT_TIMEOUT = 20
 
+# ── 标题清理正则 ─────────────────────────────────────────────────────────────────
+
+# 前缀日期（两种格式）：
+#   "DD YYYY-MM "  例：16 2026-04 【标题…】
+#   "YYYY-MM-DD "  例：2026-04-17 关于…
+_RE_TITLE_LEADING_DATE = re.compile(
+    r"^(?:"
+    r"\d{1,2}\s+20\d{2}-(?:0[1-9]|1[0-2])"              # DD YYYY-MM
+    r"|20\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])"  # YYYY-MM-DD
+    r")\s+"
+)
+
+# 后缀日期（三种格式，方括号可选、内外空格可选）：
+#   " 2026-04-17"  或  " [ 2026-04-17 ]"
+#   " 04-16"       或  " [ 04-16 ]"
+_RE_TITLE_TRAILING_DATE = re.compile(
+    r"(?:"
+    r"\s+\[?\s*20\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\s*\]?"  # YYYY-MM-DD
+    r"|\s+\[?\s*(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\s*\]?"          # MM-DD
+    r")\s*$"
+)
+
+# 标题最大保留长度（中文标题通常 ≤ 80 字，超出视为正文混入）
+_TITLE_MAX_LEN = 120
+
 
 # ── 辅助函数 ────────────────────────────────────────────────────────────────────
 
@@ -215,6 +240,50 @@ def _is_nav_text(text: str) -> bool:
     if re.fullmatch(r"[\d\s.…>»<«\[\]【】]+", stripped):
         return True
     return False
+
+
+def _strip_date_affixes(text: str) -> str:
+    """
+    去除标题字符串首尾的日期标注。
+
+    处理以下格式：
+      前缀：「DD YYYY-MM 」（如 "16 2026-04 "）
+            「YYYY-MM-DD 」（如 "2026-04-17 "）
+      后缀：「 YYYY-MM-DD」或「 [ YYYY-MM-DD ]」
+            「 MM-DD」     或「 [ MM-DD ]」
+    """
+    text = _RE_TITLE_LEADING_DATE.sub("", text)
+    text = _RE_TITLE_TRAILING_DATE.sub("", text)
+    return text.strip()
+
+
+def _clean_title(a_tag) -> str:
+    """
+    从 <a> 标签中提取干净的标题文本。
+
+    策略（按优先级）：
+      1. <a title="..."> 属性：CMS 常在此存放完整、无截断的标题文本，
+         可避免以下两类问题：
+           - 显示文字被 CSS 截断（含 "..."）；
+           - <a> 内嵌正文摘要导致 get_text() 带入正文内容。
+      2. get_text() 可见文字（兜底），同时：
+           - 去除首尾日期标注（date span 混入 get_text 的情况）；
+           - 截断至 _TITLE_MAX_LEN，防止正文内容被误识为标题。
+    """
+    # 1) title 属性优先
+    attr_title = (a_tag.get("title") or "").strip()
+    if attr_title and len(attr_title) >= 6:
+        return _strip_date_affixes(attr_title)
+
+    # 2) 可见文字兜底
+    text = a_tag.get_text(" ", strip=True)
+    text = _strip_date_affixes(text)
+
+    # 3) 截断过长文本（防止正文混入）
+    if len(text) > _TITLE_MAX_LEN:
+        text = text[:_TITLE_MAX_LEN]
+
+    return text.strip()
 
 
 def _extract_date_from_url(url: str) -> Optional[str]:
@@ -368,24 +437,31 @@ def _scrape_one_site(
 
     for a_tag in soup.find_all("a", href=True):
         href = (a_tag.get("href") or "").strip()
-        title = a_tag.get_text(" ", strip=True)
 
-        # 跳过空链接和锚点
+        # 跳过空链接和锚点（在提取标题前先过滤，节省 clean_title 调用）
         if not href or href.startswith("#") or href.startswith("javascript"):
             continue
 
+        # 先用 get_text 做快速导航/长度预过滤，再用 _clean_title 清洗
+        raw_text = a_tag.get_text(" ", strip=True)
+
         # 跳过导航性文字
-        if _is_nav_text(title):
+        if _is_nav_text(raw_text):
             continue
 
         # 跳过标题过短的链接（至少 6 个字符）
-        if len(title) < 6:
+        if len(raw_text) < 6:
             continue
 
         url = normalize_url(base_url, href)
 
         # 仅保留看起来像新闻文章的链接
         if not _is_news_like_url(url):
+            continue
+
+        # 清洗标题：优先使用 title 属性，去除首尾日期，截断过长文本
+        title = _clean_title(a_tag)
+        if len(title) < 6:
             continue
 
         # 提取发布日期：优先从 URL，其次从上下文文本

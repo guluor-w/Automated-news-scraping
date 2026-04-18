@@ -48,6 +48,7 @@ from parsers.miit_local import (
     _is_nav_text,
     _extract_date_from_url,
     _extract_date_from_context,
+    _clean_title,
     DEFAULT_TIMEOUT,
 )
 
@@ -129,24 +130,31 @@ def _scrape_one_gov_site(
 
     for a_tag in soup.find_all("a", href=True):
         href = (a_tag.get("href") or "").strip()
-        title = a_tag.get_text(" ", strip=True)
 
-        # 跳过空链接和锚点
+        # 跳过空链接和锚点（在提取标题前先过滤，节省 clean_title 调用）
         if not href or href.startswith("#") or href.startswith("javascript"):
             continue
 
+        # 先用 get_text 做快速导航/长度预过滤，再用 _clean_title 清洗
+        raw_text = a_tag.get_text(" ", strip=True)
+
         # 跳过导航性文字
-        if _is_nav_text(title):
+        if _is_nav_text(raw_text):
             continue
 
         # 跳过标题过短的链接（至少 6 个字符）
-        if len(title) < 6:
+        if len(raw_text) < 6:
             continue
 
         url = normalize_url(base_url, href)
 
         # 仅保留看起来像新闻文章的链接
         if not _is_news_like_url(url):
+            continue
+
+        # 清洗标题：优先使用 title 属性，去除首尾日期，截断过长文本
+        title = _clean_title(a_tag)
+        if len(title) < 6:
             continue
 
         # 提取发布日期：优先从 URL，其次从上下文文本

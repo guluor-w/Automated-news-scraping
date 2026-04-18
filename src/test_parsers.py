@@ -18,8 +18,6 @@ import pytest
 # 将 src 目录加入模块搜索路径
 sys.path.insert(0, str(Path(__file__).parent))
 
-from models import Item
-
 SG_TZ = timezone(timedelta(hours=8))
 NOW = datetime(2026, 4, 18, 12, 0, 0, tzinfo=SG_TZ)
 

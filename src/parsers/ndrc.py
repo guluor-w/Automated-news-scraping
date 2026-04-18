@@ -35,8 +35,8 @@ sources:
 
 新增来源提示
 ------------
-若需在此模块扩展更多板块，请参照 add_links / add_links_with_date
-的调用方式，在函数末尾添加新的 soup.select + 对应 source_tag 即可。
+若需在此模块扩展更多板块，请参照 add_links 的调用方式，
+在函数末尾添加新的 soup.select + 对应 source_tag 即可。
 """
 
 import re
@@ -184,32 +184,6 @@ def parse_ndrc_home(config: dict, now: datetime) -> List[Item]:
                 continue
             title = a.get("title") or a.get_text(" ", strip=True)
             pub_date = _resolve_pub_date(a, href)
-            it = build_item(title, href, pub_date, source_tag)
-            if it:
-                items.append(it)
-
-    def add_links_with_date(selector: str, source_tag: str):
-        """
-        从包含链接和日期的列表项中提取。
-        适用于 <li> 内含 <a> 和日期文本的结构。
-        """
-        for li in soup.select(selector):
-            a = li.find("a", href=True)
-            if not a:
-                continue
-            href = a.get("href", "")
-            title = a.get("title") or a.get_text(" ", strip=True)
-
-            # 从 li 整体文本中提取日期
-            li_text = li.get_text(" ", strip=True)
-            pub_date = _extract_date_from_text(li_text)
-            if not pub_date:
-                pub_date = extract_date(li_text)
-            if not pub_date:
-                pub_date = _extract_date_from_url(
-                    normalize_url(base_url, href)
-                )
-
             it = build_item(title, href, pub_date, source_tag)
             if it:
                 items.append(it)

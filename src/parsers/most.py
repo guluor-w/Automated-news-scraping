@@ -71,10 +71,6 @@ _EXTERNAL_MEDIA_DOMAINS = [
 _RE_MOST_YYYYMMDD = re.compile(r"/t(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])_")
 # 粗略日期：URL 路径中的 /YYYYMM/ 目录
 _RE_MOST_YYYYMM = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])/")
-# 页面文本中的 YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD 格式
-_RE_MOST_DATE_TEXT = re.compile(
-    r"(20\d{2})[.\-/](0?[1-9]|1[0-2])[.\-/](0?[1-9]|[12]\d|3[01])"
-)
 
 
 def _extract_date_from_url(url: str) -> Optional[str]:

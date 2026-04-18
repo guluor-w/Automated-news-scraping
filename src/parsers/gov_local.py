@@ -25,9 +25,8 @@ sources:
 """
 
 import logging
-import re
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from bs4 import BeautifulSoup
 from dateutil import parser as dtparser
@@ -123,7 +122,7 @@ def _scrape_one_gov_site(
     base_url = source["url"]
     source_tag = f"地方政府-{province}"
 
-    html = http_get(base_url)
+    html = http_get(base_url, timeout=timeout)
     soup = BeautifulSoup(html, "lxml")
 
     items: List[Item] = []

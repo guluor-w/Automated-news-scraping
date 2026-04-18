@@ -361,7 +361,7 @@ def _scrape_one_site(
     base_url = source["url"]
     source_tag = f"地方工信-{province}"
 
-    html = http_get(base_url)
+    html = http_get(base_url, timeout=timeout)
     soup = BeautifulSoup(html, "lxml")
 
     items: List[Item] = []

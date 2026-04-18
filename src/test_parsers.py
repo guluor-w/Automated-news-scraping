@@ -4,6 +4,7 @@
 使用本地保存的 HTML 文件进行离线测试，通过 mock http_get 避免实际网络请求。
 
 运行方式：
+    若使用 pytest 运行，请先安装：pip install pytest
     python -m pytest src/test_parsers.py -v
     python src/test_parsers.py
 """
@@ -12,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 # 将 src 目录加入模块搜索路径
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -19,6 +22,9 @@ from models import Item
 
 SG_TZ = timezone(timedelta(hours=8))
 NOW = datetime(2026, 4, 18, 12, 0, 0, tzinfo=SG_TZ)
+
+# 宽松关键词：空字符串可匹配所有标题（keyword_hit 中 "" in title 恒为 True）
+MATCH_ALL_KEYWORDS = [""]
 
 # 测试 HTML 文件目录
 TEST_HTML_ROOT = Path(__file__).resolve().parents[1] / "test_html"
@@ -206,22 +212,18 @@ class TestNdrcParser:
         from parsers.ndrc import parse_ndrc_home
         html = _load_html("ndrc_home.html")
         if not html:
-            return None
+            pytest.skip("缺少测试 HTML 文件: ndrc_home.html")
         with patch("parsers.ndrc.http_get", return_value=html):
             return parse_ndrc_home(BASE_CONFIG, NOW)
 
     def test_returns_items(self):
         """应返回非空 Item 列表"""
         items = self._run()
-        if items is None:
-            return  # HTML 文件不存在时跳过
         assert len(items) > 0, "NDRC 应返回至少 1 条新闻"
 
     def test_items_have_dates(self):
         """绝大多数 Item 应有发布日期"""
         items = self._run()
-        if items is None:
-            return
         with_date = sum(1 for it in items if it.pub_date)
         ratio = with_date / len(items) if items else 0
         assert ratio >= 0.8, f"日期覆盖率 {ratio:.0%} 低于 80%"
@@ -229,8 +231,6 @@ class TestNdrcParser:
     def test_item_fields_valid(self):
         """每个 Item 的必填字段应非空"""
         items = self._run()
-        if items is None:
-            return
         for it in items:
             assert it.title and len(it.title) >= 6
             assert it.url.startswith("http")
@@ -241,8 +241,6 @@ class TestNdrcParser:
     def test_covers_multiple_sections(self):
         """应覆盖多个板块"""
         items = self._run()
-        if items is None:
-            return
         sections = {it.source for it in items}
         assert len(sections) >= 3, f"仅覆盖 {len(sections)} 个板块: {sections}"
 
@@ -251,22 +249,18 @@ class TestNdrcParser:
         from parsers.ndrc import parse_ndrc_home
         html = _load_html("ndrc_home.html")
         if not html:
-            return
+            pytest.skip("缺少测试 HTML 文件: ndrc_home.html")
         # 使用超宽松配置（不过滤关键词）来检查板块覆盖
-        wide_config = {**BASE_CONFIG, "keywords": [""], "window_days": 365, "hard_cap_days": 365}
+        wide_config = {**BASE_CONFIG, "keywords": MATCH_ALL_KEYWORDS, "window_days": 365, "hard_cap_days": 365}
         with patch("parsers.ndrc.http_get", return_value=html):
-            # 直接检查板块抓取阶段（过滤前）
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(html, "lxml")
-            new_selectors = {
-                "视频发改": "a[href*='/xwdt/spfg/']",
-                "委属单位": "a[href*='/wsdwhfz/']",
-                "发改数据": "a[href*='/fgsj/']",
-                "互动交流": "a[href*='/hdjl/']",
-            }
-            for name, sel in new_selectors.items():
-                count = len(soup.select(sel))
-                assert count > 0, f"板块「{name}」未找到链接"
+            items = parse_ndrc_home(wide_config, NOW)
+        sources = {it.source for it in items}
+        expected_sections = {"视频发改", "委属单位", "发改数据", "互动交流"}
+        missing_sections = {name for name in expected_sections if not any(name in source for source in sources)}
+        assert not missing_sections, (
+            f"解析结果未覆盖新增板块: {sorted(missing_sections)}；"
+            f"当前 source: {sorted(sources)}"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -280,20 +274,16 @@ class TestMostParser:
         from parsers.most import parse_most_home
         html = _load_html("most_home.html")
         if not html:
-            return None
+            pytest.skip("缺少测试 HTML 文件: most_home.html")
         with patch("parsers.most.http_get", return_value=html):
             return parse_most_home(BASE_CONFIG, NOW)
 
     def test_returns_items(self):
         items = self._run()
-        if items is None:
-            return
         assert len(items) > 0, "MOST 应返回至少 1 条新闻"
 
     def test_items_have_dates(self):
         items = self._run()
-        if items is None:
-            return
         with_date = sum(1 for it in items if it.pub_date)
         ratio = with_date / len(items) if items else 0
         assert ratio >= 0.7, f"日期覆盖率 {ratio:.0%} 低于 70%"
@@ -313,8 +303,6 @@ class TestMostParser:
 
     def test_item_fields_valid(self):
         items = self._run()
-        if items is None:
-            return
         for it in items:
             assert it.title and len(it.title) >= 6
             assert it.url.startswith("http")
@@ -332,14 +320,12 @@ class TestMoeParser:
         from parsers.moe import parse_moe_news
         html = _load_html("moe_news.html")
         if not html:
-            return None
+            pytest.skip("缺少测试 HTML 文件: moe_news.html")
         with patch("parsers.moe.http_get", return_value=html):
             return parse_moe_news(BASE_CONFIG, NOW)
 
     def test_returns_items(self):
         items = self._run()
-        if items is None:
-            return
         assert len(items) > 0, "MOE 应返回至少 1 条新闻"
 
     def test_new_sections_classified(self):
@@ -356,8 +342,6 @@ class TestMoeParser:
 
     def test_item_fields_valid(self):
         items = self._run()
-        if items is None:
-            return
         for it in items:
             assert it.title and len(it.title) >= 6
             assert it.url.startswith("http")
@@ -372,19 +356,20 @@ class TestMoeParser:
 class TestMiitLocal:
     """测试 miit_local 解析器（使用单个省份的保存 HTML）。"""
 
-    def _run_single(self, province_file, source_dict):
+    def _run_single(self, province_file, source_dict, keywords=None):
         """对单个省份文件运行抓取逻辑。"""
         from parsers.miit_local import _scrape_one_site
         from utils import format_fetched_at
         html = _load_html(f"miit_local/{province_file}")
         if not html or len(html) < 1000:
-            return None
+            pytest.skip(f"缺少测试 HTML 文件: miit_local/{province_file}")
         fetched_at = format_fetched_at(NOW)
+        kw = keywords if keywords is not None else BASE_CONFIG["keywords"]
         with patch("parsers.miit_local.http_get", return_value=html):
             return _scrape_one_site(
                 source=source_dict,
                 fetched_at=fetched_at,
-                keywords=BASE_CONFIG["keywords"],
+                keywords=kw,
                 now=NOW,
                 window_days=BASE_CONFIG["window_days"],
                 hard_cap_days=BASE_CONFIG["hard_cap_days"],
@@ -392,13 +377,16 @@ class TestMiitLocal:
             )
 
     def test_beijing_has_items(self):
-        items = self._run_single("beijing.html", {
-            "province": "北京", "name": "北京市经济和信息化局",
-            "url": "https://jxj.beijing.gov.cn/jxdt/tzgg/",
-        })
-        if items is None:
-            return
-        assert len(items) >= 0  # 取决于关键词命中
+        items = self._run_single(
+            "beijing.html",
+            {
+                "province": "北京", "name": "北京市经济和信息化局",
+                "url": "https://jxj.beijing.gov.cn/jxdt/tzgg/",
+            },
+            keywords=MATCH_ALL_KEYWORDS,  # 宽松关键词：匹配所有标题
+        )
+        assert isinstance(items, list), "应返回列表"
+        assert len(items) > 0, "使用宽松关键词时北京工信应返回至少 1 条链接"
 
     def test_jiangsu_art_pattern(self):
         """江苏使用 /art/YYYY/M/D/ 模式，应正确识别。"""
@@ -436,7 +424,7 @@ class TestGovLocal:
         from utils import format_fetched_at
         html = _load_html(f"gov_local/{province_file}")
         if not html or len(html) < 1000:
-            return None
+            pytest.skip(f"缺少测试 HTML 文件: gov_local/{province_file}")
         fetched_at = format_fetched_at(NOW)
         with patch("parsers.gov_local.http_get", return_value=html):
             return _scrape_one_gov_site(
@@ -454,8 +442,6 @@ class TestGovLocal:
             "province": "北京", "name": "北京市人民政府",
             "url": "https://www.beijing.gov.cn/",
         })
-        if items is None:
-            return
         assert isinstance(items, list)
         for it in items:
             assert it.source == "地方政府-北京"
@@ -467,8 +453,6 @@ class TestGovLocal:
             "province": "青海", "name": "青海省人民政府",
             "url": "https://www.qinghai.gov.cn/",
         })
-        if items is None:
-            return
         # 检查日期是否精确到日（不是 XX-XX-01）
         for it in items:
             if it.pub_date and it.pub_date.endswith("-01"):
@@ -484,8 +468,6 @@ class TestGovLocal:
             "province": "山东", "name": "山东省人民政府",
             "url": "https://www.shandong.gov.cn/",
         })
-        if items is None:
-            return
         assert isinstance(items, list)
 
     def test_xinjiang_bt_hyphen(self):
@@ -494,8 +476,6 @@ class TestGovLocal:
             "province": "新疆兵团", "name": "新疆生产建设兵团",
             "url": "https://www.xjbt.gov.cn/",
         })
-        if items is None:
-            return
         assert isinstance(items, list)
 
     def test_disabled_returns_empty(self):

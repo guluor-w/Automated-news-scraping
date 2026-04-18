@@ -93,9 +93,9 @@ def within_window(pub_date: Optional[str], now: datetime, window_days: int, hard
     return d >= (now - timedelta(days=window_days)).date()
 
 
-def http_get(url: str) -> str:
+def http_get(url: str, timeout: int = 30) -> str:
     """发起 GET 请求并返回响应文本，自动处理编码。"""
-    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=30)
+    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=timeout)
     resp.raise_for_status()
     resp.encoding = resp.apparent_encoding or "utf-8"
     return resp.text

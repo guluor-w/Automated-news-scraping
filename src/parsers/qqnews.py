@@ -13,7 +13,7 @@ parse_qqnews_search(config, now) -> List[Item]
 - 时间字段优先使用 API 返回的 time；无法解析则跳过（满足"近N天"约束）。
 - 仅保留 publisher（发布单位）名称中包含查询词的结果，以避免混入无关媒体。
 - 多个查询词之间随机休眠 10～20 秒，防止被封禁。
-- 特殊处理：仅"工信微报"来源保留"印发"关键词匹配。
+- 特殊处理：仅"工信微报"来源保留"印发"和"体系建设"关键词匹配，其他来源排除这两个关键词。
 
 配置示例（config.yaml）
 -----------------------
@@ -40,7 +40,7 @@ from typing import List, Optional
 import requests
 from dateutil import parser as dtparser
 
-from models import Item, SG_TZ, USER_AGENT
+from models import Item, SG_TZ, USER_AGENT, MIIT_ONLY_KEYWORDS
 from utils import format_fetched_at, keyword_hit
 
 QQNEWS_API_URL = "https://i.news.qq.com/gw/pc_search/result"
@@ -204,15 +204,15 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
     # ── 关键词过滤 ────────────────────────────────────────────────────────────
     base_keywords = config.get("keywords", [])
     keywords_full = base_keywords
-    keywords_no_yinfa = [k for k in base_keywords if k != "印发"]
+    keywords_no_miit = [k for k in base_keywords if k not in MIIT_ONLY_KEYWORDS]
 
     filtered: List[Item] = []
     for it in all_items:
-        # "工信微报"来源保留"印发"；其他来源不使用"印发"
+        # "工信微报"来源保留专属关键词（"印发"和"体系建设"）；其他来源排除这两个关键词
         if "工信微报" in it.source:
             target_keywords = keywords_full
         else:
-            target_keywords = keywords_no_yinfa
+            target_keywords = keywords_no_miit
 
         if not keyword_hit(it.title, target_keywords):
             continue

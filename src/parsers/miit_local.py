@@ -36,7 +36,7 @@ from typing import Dict, List, Optional
 from bs4 import BeautifulSoup
 from dateutil import parser as dtparser
 
-from models import Item
+from models import Item, MIIT_ONLY_KEYWORDS
 from utils import (
     canonicalize_url_for_dedup,
     extract_date,
@@ -438,7 +438,7 @@ def parse_miit_local(config: dict, now: datetime) -> List[Item]:
         return []
 
     fetched_at = format_fetched_at(now)
-    keywords = config["keywords"]
+    keywords = [k for k in config["keywords"] if k not in MIIT_ONLY_KEYWORDS]
     window_days = int(config["window_days"])
     hard_cap_days = int(config["hard_cap_days"])
     timeout = int(config.get("miit_local_timeout", DEFAULT_TIMEOUT))

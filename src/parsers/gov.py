@@ -11,7 +11,7 @@ parse_gov_rss(config, now) -> List[Item]
     解析 RSSHub 提供的中国政府网最新政策 RSS 源，
     按关键词和时间窗口过滤后返回新闻列表。
 
-注意：gov.cn 相关函数均不使用"印发"关键词进行过滤。
+注意：gov.cn 相关函数均不使用"印发"和"体系建设"关键词进行过滤。
 
 页面/RSS 配置（config.yaml）
 -----------------------------
@@ -39,7 +39,7 @@ from typing import Dict, List, Optional
 from bs4 import BeautifulSoup
 from dateutil import parser as dtparser
 
-from models import Item
+from models import Item, MIIT_ONLY_KEYWORDS
 from utils import (
     canonicalize_url_for_dedup,
     extract_date,
@@ -196,8 +196,8 @@ def parse_gov_home(config: dict, now: datetime) -> List[Item]:
 
         items = uniq_items
 
-    # ── 过滤（gov_home 不使用"印发"关键词） ───────────────────────────────────
-    gov_keywords = [k for k in keywords if k != "印发"]
+    # ── 过滤（gov_home 不使用"印发"和"体系建设"关键词） ───────────────────────
+    gov_keywords = [k for k in keywords if k not in MIIT_ONLY_KEYWORDS]
 
     filtered: List[Item] = []
     for it in items:
@@ -234,7 +234,7 @@ def parse_gov_rss(config: dict, now: datetime) -> List[Item]:
     """
     解析 gov_latest_policy_rss RSS 源（由 RSSHub 提供）。
 
-    注意：本渠道同样不使用"印发"关键词过滤。
+    注意：本渠道同样不使用"印发"和"体系建设"关键词过滤。
 
     Args:
         config: 来自 config.yaml 的全量配置字典。
@@ -262,7 +262,7 @@ def parse_gov_rss(config: dict, now: datetime) -> List[Item]:
     items: List[Item] = []
 
     raw_keywords = config.get("keywords", [])
-    rss_keywords = [k for k in raw_keywords if k != "印发"]
+    rss_keywords = [k for k in raw_keywords if k not in MIIT_ONLY_KEYWORDS]
 
     window_days = int(config.get("window_days", 15))
     hard_cap_days = int(config.get("hard_cap_days", 15))

@@ -44,7 +44,7 @@ from typing import Dict, List, Optional
 from bs4 import BeautifulSoup
 from dateutil import parser as dtparser
 
-from models import Item
+from models import Item, MIIT_ONLY_KEYWORDS
 from utils import (
     canonicalize_url_for_dedup,
     extract_date,
@@ -195,9 +195,10 @@ def parse_moe_news(config: dict, now: datetime) -> List[Item]:
             items.append(it)
 
     # ── 过滤（关键词 + 时间窗口） ─────────────────────────────────────────────
+    moe_keywords = [k for k in keywords if k not in MIIT_ONLY_KEYWORDS]
     filtered: List[Item] = []
     for it in items:
-        if not keyword_hit(it.title, keywords):
+        if not keyword_hit(it.title, moe_keywords):
             continue
         if not within_window(it.pub_date, now, window_days, hard_cap_days):
             continue

@@ -6,15 +6,33 @@
 运行方式：
     若使用 pytest 运行，请先安装：pip install pytest
     python -m pytest src/test_parsers.py -v
+
+    也可直接运行：
     python src/test_parsers.py
+
+    直接运行时，若未安装 pytest，会启用兼容降级逻辑；
+    遇到依赖 pytest.skip 的场景时会给出清晰提示并退出。
 """
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
+try:
+    import pytest
+except ImportError:
+    class _PytestCompat:
+        """未安装 pytest 时提供最小兼容接口。"""
 
+        @staticmethod
+        def skip(reason=""):
+            message = "Skipping test"
+            if reason:
+                message = f"{message}: {reason}"
+            print(message)
+            raise SystemExit(0)
+
+    pytest = _PytestCompat()
 # 将 src 目录加入模块搜索路径
 sys.path.insert(0, str(Path(__file__).parent))
 

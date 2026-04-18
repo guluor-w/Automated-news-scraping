@@ -263,9 +263,9 @@ class TestCleanTitle:
     def test_strip_leading_date_prefix(self):
         """案例5：前缀 DD YYYY-MM 被去除。"""
         result = _strip_date_affixes(
-            "16 2026-04 【把习近平总书记的殷殷嘱托全面落实在重庆大地上】全链发力"
+            "16 2026-04 【关于加快推进新型工业化全面落实在重庆大地上】全链发力"
         )
-        assert result == "【把习近平总书记的殷殷嘱托全面落实在重庆大地上】全链发力"
+        assert result == "【关于加快推进新型工业化全面落实在重庆大地上】全链发力"
 
     def test_strip_leading_full_date_prefix(self):
         """前缀 YYYY-MM-DD（完整日期）被去除。"""
@@ -288,12 +288,12 @@ class TestCleanTitle:
         """案例1/5：有 title 属性时优先使用，忽略含正文的 get_text 结果。"""
         a = self._make_a(
             inner_html=(
-                "<span>习近平同越共中央总书记、国家主席苏林举行会谈</span>"
-                "<span>4月15日上午，中共中央总书记、国家主席习近平在北京人民大会堂…</span>"
+                "<span>重庆市加快构建开源鸿蒙应用创新生态工作方案印发</span>"
+                "<span>近日，重庆市经济和信息化委员会印发《重庆市加快构建开源鸿蒙应用创新生态工作方案》…</span>"
             ),
-            title_attr="习近平同越共中央总书记、国家主席苏林举行会谈",
+            title_attr="重庆市加快构建开源鸿蒙应用创新生态工作方案印发",
         )
-        assert _clean_title(a) == "习近平同越共中央总书记、国家主席苏林举行会谈"
+        assert _clean_title(a) == "重庆市加快构建开源鸿蒙应用创新生态工作方案印发"
 
     def test_date_stripped_when_no_title_attr(self):
         """案例3：无 title 属性时，后缀日期从 get_text 结果中去除。"""
@@ -317,9 +317,9 @@ class TestCleanTitle:
     def test_leading_date_stripped(self):
         """案例5：前缀 DD YYYY-MM 从 get_text 结果中去除。"""
         a = self._make_a(
-            "16 2026-04 【把习近平总书记的殷殷嘱托全面落实在重庆大地上】全链发力"
+            "16 2026-04 【关于加快推进新型工业化全面落实在重庆大地上】全链发力"
         )
-        assert _clean_title(a) == "【把习近平总书记的殷殷嘱托全面落实在重庆大地上】全链发力"
+        assert _clean_title(a) == "【关于加快推进新型工业化全面落实在重庆大地上】全链发力"
 
     def test_max_length_truncation(self):
         """正文混入时超过 _TITLE_MAX_LEN 的文本被截断。"""

@@ -1076,32 +1076,49 @@ class TestSoeParser:
             f"非 MIIT 信源不应通过 MIIT_ONLY_KEYWORDS 匹配，实际返回: {[it.title for it in items]}"
         )
 
-    def test_column_description_filtered(self):
-        """以中文句号结尾的栏目描述性文字应被过滤，不作为新闻条目。"""
+    def test_exclude_paths_filters_column_sections(self):
+        """per-source exclude_paths 应过滤掉指定栏目路径（如 CETC 业务领域）。"""
         from parsers.soe import parse_soe
-        # 模拟中国电子科技集团首页中的栏目介绍链接
-        html_column_desc = """<html><body>
+        # 模拟中国电子科技集团首页：业务领域链接 + 真实新闻链接
+        html_mixed = """<html><body>
             <a href="/zgdk/1592960/1592986/1651587/index.html">
-              聚焦智慧城市、行业数字化、工业互联网及智能制造，推动国家治理能力提升和产业数字化，从需求牵引到牵引需求。
+              聚焦智慧城市、行业数字化、工业互联网及智能制造，推动国家治理能力提升和产业数字化，从需求牵引到牵引需求
             </a>
             <a href="/zgdk/1592571/1592909/2119043/index.html">
               国务院国资委党委与中央企业党委开展专题联学 为深化拓展"人工智能+"贡献力量
             </a>
         </body></html>"""
-        test_sources = [{"name": "测试央企", "url": "http://test.example.com/"}]
+        # 注入包含 exclude_paths 的测试源，模拟实际 CETC 配置
+        test_sources = [{
+            "name": "测试央企",
+            "url": "http://test.example.com/",
+            "exclude_paths": ["/1592960/1592986/"],
+        }]
         with patch("parsers.soe.SOE_SOURCES", test_sources), \
-             patch("parsers.soe.http_get", return_value=html_column_desc):
+             patch("parsers.soe.http_get", return_value=html_mixed):
             items = parse_soe(
                 {**self._SOE_CONFIG, "keywords": MATCH_ALL_KEYWORDS},
                 NOW,
             )
-        titles = [it.title for it in items]
-        # 栏目介绍（以。结尾）不应出现
-        assert not any(t.endswith("。") for t in titles), (
-            f"栏目描述不应被返回：{[t for t in titles if t.endswith('。')]}"
+        urls = [it.url for it in items]
+        # 业务领域路径应被排除
+        assert not any("/1592960/1592986/" in u for u in urls), (
+            f"exclude_paths 路径不应出现：{[u for u in urls if '/1592960/1592986/' in u]}"
         )
-        # 真正的新闻标题应被保留
-        assert any("人工智能" in t for t in titles), "真实新闻标题应被返回"
+        # 真正的新闻链接应被保留
+        assert any("/1592571/" in u for u in urls), "新闻路径应被保留"
+
+    def test_source_without_exclude_paths(self):
+        """未配置 exclude_paths 的站点不受影响，所有新闻链接正常抓取。"""
+        from parsers.soe import parse_soe
+        test_sources = [{"name": "测试央企无排除", "url": "http://test.example.com/"}]
+        with patch("parsers.soe.SOE_SOURCES", test_sources), \
+             patch("parsers.soe.http_get", return_value=self._SOE_HTML):
+            items = parse_soe(
+                {**self._SOE_CONFIG, "keywords": MATCH_ALL_KEYWORDS},
+                NOW,
+            )
+        assert len(items) > 0, "无 exclude_paths 时应正常返回新闻"
 
     def test_contentlist_url_rejected(self):
         """华电 contentList URL（栏目列表页）不应被识别为新闻链接。"""

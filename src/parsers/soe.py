@@ -255,13 +255,13 @@ def _scrape_soe_site(
         if not _is_soe_news_url(url):
             continue
 
-        title = _clean_title(a_tag, raw_text)
-        if len(title) < 6:
+        # 跳过各站点明确配置的非新闻栏目路径（如业务领域、服务目录等）
+        exclude_paths = source.get("exclude_paths", [])
+        if any(ep in url for ep in exclude_paths):
             continue
 
-        # 跳过栏目介绍性文字：以中文句号结尾的文本通常是业务领域描述，
-        # 而非新闻标题（如"聚焦智慧城市...从需求牵引到牵引需求。"）
-        if title.endswith("。"):
+        title = _clean_title(a_tag, raw_text)
+        if len(title) < 6:
             continue
 
         # 日期提取
@@ -359,7 +359,9 @@ SOE_SOURCES = [
     {"name": "中国船舶集团有限公司", "url": "http://www.csic.com.cn/"},
     {"name": "中国兵器工业集团有限公司", "url": "http://www.norincogroup.com.cn/"},
     {"name": "中国兵器装备集团有限公司", "url": "https://www.csgc.com.cn/"},
-    {"name": "中国电子科技集团有限公司", "url": "http://www.cetc.com.cn/"},
+    {"name": "中国电子科技集团有限公司", "url": "http://www.cetc.com.cn/",
+     # /zgdk/1592960/1592986/ 为"业务领域"栏目，链接均为行业介绍，不是新闻
+     "exclude_paths": ["/1592960/1592986/"]},
     {"name": "中国航空发动机集团有限公司", "url": "http://www.aecc.cn/"},
     {"name": "中国融通资产管理集团有限公司", "url": "https://www.crtamg.com.cn/"},
     {"name": "中国石油天然气集团有限公司", "url": "http://www.cnpc.com.cn/"},
@@ -412,7 +414,9 @@ SOE_SOURCES = [
     {"name": "中国商用飞机有限责任公司", "url": "http://www.comac.cc/"},
     {"name": "中国节能环保集团有限公司", "url": "http://www.cecep.cn/"},
     {"name": "中国国际工程咨询有限公司", "url": "http://www.ciecc.com.cn/"},
-    {"name": "中国诚通控股集团有限公司", "url": "http://www.cctgroup.com.cn/"},
+    {"name": "中国诚通控股集团有限公司", "url": "http://www.cctgroup.com.cn/",
+     # /736493/736498/ 为"战略性新兴产业"等业务板块介绍，不是新闻
+     "exclude_paths": ["/736493/736498/"]},
     {"name": "中国中煤能源集团有限公司", "url": "http://www.chinacoal.com/"},
     {"name": "中国煤炭科工集团有限公司", "url": "http://www.ccteg.cn/"},
     {"name": "中国机械科学研究总院集团有限公司", "url": "http://www.cam.com.cn/"},
@@ -425,7 +429,9 @@ SOE_SOURCES = [
     {"name": "中国资源循环集团有限公司", "url": "http://www.crrg.com.cn/"},
     {"name": "中国有研科技集团有限公司", "url": "http://www.grinm.com/"},
     {"name": "矿冶科技集团有限公司", "url": "http://www.bgrimm.com/"},
-    {"name": "中国国际技术智力合作集团有限公司", "url": "http://www.ciic.com.cn/"},
+    {"name": "中国国际技术智力合作集团有限公司", "url": "http://www.ciic.com.cn/",
+     # /1039027/1039029/ 为"服务领域"栏目（如数字化转型咨询），不是新闻
+     "exclude_paths": ["/1039027/1039029/"]},
     {"name": "中国建筑科学研究院有限公司", "url": "http://www.cabr.com.cn/"},
     {"name": "中国信息通信科技集团有限公司", "url": "http://www.cict.com/"},
     {"name": "中国农业发展集团有限公司", "url": "http://www.cnadc.com.cn/"},

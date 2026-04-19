@@ -18,6 +18,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+from models import MIIT_ONLY_KEYWORDS
+
 try:
     import pytest
 except ImportError:
@@ -738,12 +740,12 @@ class TestSasacParser:
             assert it.fetched_at
 
     def test_miit_only_keywords_excluded(self):
-        """仅含 MIIT_ONLY_KEYWORDS（'印发'）的标题不应命中。"""
+        """仅含 MIIT_ONLY_KEYWORDS 的标题不应命中。"""
         # 标题"国资委印发工作方案（仅含印发关键词）"只含"印发"，应被排除
-        items = self._run(keywords=["印发"])
+        items = self._run(keywords=list(MIIT_ONLY_KEYWORDS))
         titles = [it.title for it in items]
         assert not any("印发" in t and "智能" not in t and "数字" not in t for t in titles), (
-            "非 MIIT 信源不应通过 MIIT_ONLY_KEYWORDS 过滤：印发"
+            "非 MIIT 信源不应通过 MIIT_ONLY_KEYWORDS 过滤"
         )
 
     def test_cross_year_date_fix(self):
@@ -854,7 +856,7 @@ class TestNdaParser:
 
     def test_miit_only_keywords_excluded(self):
         """仅含 MIIT_ONLY_KEYWORDS（'印发'/'体系建设'）的标题不应命中。"""
-        items = self._run(keywords=["印发", "体系建设"])
+        items = self._run(keywords=list(MIIT_ONLY_KEYWORDS))
         assert len(items) == 0, (
             f"非 MIIT 信源不应通过 MIIT_ONLY_KEYWORDS 匹配，实际返回: {[it.title for it in items]}"
         )
@@ -964,7 +966,7 @@ class TestSoeParser:
         with patch("parsers.soe.SOE_SOURCES", test_sources), \
              patch("parsers.soe.http_get", return_value=html_miit_only):
             items = parse_soe(
-                {**self._SOE_CONFIG, "keywords": ["印发", "体系建设"]},
+                {**self._SOE_CONFIG, "keywords": list(MIIT_ONLY_KEYWORDS)},
                 NOW,
             )
         assert len(items) == 0, (

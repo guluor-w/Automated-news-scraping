@@ -38,6 +38,9 @@ try:
         parse_miit_local,
         parse_gov_local,
         parse_qqnews_search,
+        parse_sasac_home,
+        parse_nda_home,
+        parse_soe,
         parse_weibo,
         parse_website_monitor,
         parse_weibo_monitor_sources,  # 向后兼容
@@ -59,6 +62,9 @@ except ImportError:
         parse_miit_local,
         parse_gov_local,
         parse_qqnews_search,
+        parse_sasac_home,
+        parse_nda_home,
+        parse_soe,
         parse_weibo,
         parse_website_monitor,
         parse_weibo_monitor_sources,
@@ -76,6 +82,9 @@ __all__ = [
     "parse_miit_local",
     "parse_gov_local",
     "parse_qqnews_search",
+    "parse_sasac_home",
+    "parse_nda_home",
+    "parse_soe",
     "parse_weibo",
     "parse_website_monitor",
     "parse_weibo_monitor_sources",
@@ -111,6 +120,9 @@ def main() -> None:
     all_items.extend(parse_miit_local(config, now))
     all_items.extend(parse_gov_local(config, now))
     all_items.extend(parse_qqnews_search(config, now))
+    all_items.extend(parse_sasac_home(config, now))
+    all_items.extend(parse_nda_home(config, now))
+    all_items.extend(parse_soe(config, now))
     all_items.extend(parse_weibo(config, now))
     all_items.extend(parse_website_monitor(config, now))
 

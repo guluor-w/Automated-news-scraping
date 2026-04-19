@@ -116,8 +116,9 @@ _RE_DASH_ID_PATH = re.compile(r"/s/\d+-\d+-\d+\.html$")
 _RE_HIERARCHICAL_INDEX = re.compile(r"/\d{5,}/index\.html$")
 
 # /webfront/webpage/web/contentPage/id/{UUID}（中国华电）
+# 注：仅匹配 contentPage（文章页），不匹配 contentList（列表/栏目页）
 _RE_WEBFRONT_CONTENT = re.compile(
-    r"/webfront/webpage/web/content(?:Page|List)/(?:id|channelId)/[0-9a-f-]+"
+    r"/webfront/webpage/web/contentPage/id/[0-9a-f-]+"
 )
 
 # 雪花 ID 双段文件名（招商局 /content/{snowflake}_{snowflake}.html）
@@ -256,6 +257,11 @@ def _scrape_soe_site(
 
         title = _clean_title(a_tag, raw_text)
         if len(title) < 6:
+            continue
+
+        # 跳过栏目介绍性文字：以中文句号结尾的文本通常是业务领域描述，
+        # 而非新闻标题（如"聚焦智慧城市...从需求牵引到牵引需求。"）
+        if title.endswith("。"):
             continue
 
         # 日期提取

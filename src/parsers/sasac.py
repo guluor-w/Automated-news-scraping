@@ -33,9 +33,8 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from bs4 import BeautifulSoup
-from dateutil import parser as dtparser
 
-from models import Item
+from models import Item, MIIT_ONLY_KEYWORDS
 from utils import (
     canonicalize_url_for_dedup,
     extract_date,
@@ -50,8 +49,6 @@ from utils import (
 
 # TRS Channel-Content 路径 /nNNN/cNNN/content.html
 _RE_CHANNEL_CONTENT = re.compile(r"/n\d+/c\d+/content\.html")
-# 备用：带日期的 TRS 路径（部分二级页面）
-_RE_SASAC_DATE = re.compile(r"/(20\d{2})(0[1-9]|1[0-2])/")
 
 # ── 日期提取 ─────────────────────────────────────────────────────────────────
 
@@ -63,8 +60,23 @@ _RE_FULL_DATE = re.compile(
 )
 
 
-def _extract_date_from_context(a_tag, year: int) -> Optional[str]:
-    """从 <a> 标签的相邻文本中提取日期。SASAC 页面使用 [MM-DD] 格式。"""
+def _extract_date_from_context(a_tag, year: int, now_date=None) -> Optional[str]:
+    """从 <a> 标签的相邻文本中提取日期。SASAC 页面使用 [MM-DD] 格式。
+
+    now_date: 当前日期（datetime.date），用于跨年修正。
+    若补全年份后的日期晚于今日（例如 1 月初看到 12-31），则年份回退 1 年。
+    """
+
+    def _mmdd_to_full(mm: str, dd: str) -> str:
+        candidate = f"{year}-{mm}-{dd}"
+        if now_date is not None:
+            try:
+                if datetime.strptime(candidate, "%Y-%m-%d").date() > now_date:
+                    candidate = f"{year - 1}-{mm}-{dd}"
+            except ValueError:
+                pass
+        return candidate
+
     # 1) 紧邻的兄弟 <span>
     for sibling_fn in (a_tag.find_next_sibling, a_tag.find_previous_sibling):
         sib = sibling_fn("span")
@@ -77,7 +89,7 @@ def _extract_date_from_context(a_tag, year: int) -> Optional[str]:
             # 再尝试 [MM-DD]
             m = _RE_BRACKET_MMDD.search(text)
             if m:
-                return f"{year}-{m.group(1)}-{m.group(2)}"
+                return _mmdd_to_full(m.group(1), m.group(2))
 
     # 2) 父元素全文
     parent = a_tag.parent
@@ -88,7 +100,7 @@ def _extract_date_from_context(a_tag, year: int) -> Optional[str]:
             return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
         m = _RE_BRACKET_MMDD.search(text)
         if m:
-            return f"{year}-{m.group(1)}-{m.group(2)}"
+            return _mmdd_to_full(m.group(1), m.group(2))
 
     return None
 
@@ -104,7 +116,7 @@ def parse_sasac_home(config: dict, now: datetime) -> List[Item]:
 
     fetched_at = format_fetched_at(now)
     items: List[Item] = []
-    keywords = config["keywords"]
+    keywords = [k for k in config["keywords"] if k not in MIIT_ONLY_KEYWORDS]
     window_days = int(config["window_days"])
     hard_cap_days = int(config["hard_cap_days"])
     current_year = now.year
@@ -126,7 +138,7 @@ def parse_sasac_home(config: dict, now: datetime) -> List[Item]:
             continue
 
         # 日期提取
-        pub_date = _extract_date_from_context(a_tag, current_year)
+        pub_date = _extract_date_from_context(a_tag, current_year, now.date())
         if not pub_date:
             pub_date = extract_date(title)
 

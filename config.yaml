@@ -86,6 +86,7 @@ sources:
   soe:
     name: 中央企业
     enabled: true
+    soe_timeout: 5
 
 
 # 微博/官网监控数据源（需要 Playwright，配置项由 parsers/weibo.py 和 parsers/website_monitor.py 读取）

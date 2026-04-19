@@ -18,6 +18,9 @@ most             科学技术部           parse_most_home
 moe              教育部               parse_moe_news
 miit_local       工信部地方主管部门   parse_miit_local
 gov_local        各省级政府门户       parse_gov_local
+sasac            国务院国有资产监督管理委员会 parse_sasac_home
+nda              国家数据局           parse_nda_home
+soe              中央企业             parse_soe
 qqnews           腾讯新闻搜索         parse_qqnews_search
 weibo            微博账号             parse_weibo
 website_monitor  各部门官网           parse_website_monitor

@@ -672,7 +672,308 @@ class TestGovLocal:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 7. 集成与回归测试
+# 7. SASAC 解析器测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestSasacParser:
+    """测试 SASAC（国资委）解析器。"""
+
+    _SASAC_HTML = """<html><body>
+        <ul>
+          <li>
+            <a href="/n2588025/n2588129/c35407052/content.html"
+               title="关于推进智能制造数字化转型的通知">
+              关于推进智能制造数字化转型的通知
+            </a>
+            <span>[04-15]</span>
+          </li>
+          <li>
+            <a href="/n2588025/n2588129/c35407053/content.html"
+               title="国资委印发工作方案（仅含印发关键词）">
+              国资委印发工作方案（仅含印发关键词）
+            </a>
+            <span>[04-14]</span>
+          </li>
+          <li>
+            <a href="/n2588025/c35407054/content.html"
+               title="关于数字化转型的新闻">
+              关于数字化转型的新闻
+            </a>
+            <span>[12-31]</span>
+          </li>
+        </ul>
+    </body></html>"""
+
+    _SASAC_CONFIG = {
+        **BASE_CONFIG,
+        "sources": {
+            **BASE_CONFIG["sources"],
+            "sasac_home": {"name": "国务院国有资产监督管理委员会", "url": "http://www.sasac.gov.cn/"},
+        },
+        "window_days": 365,
+        "hard_cap_days": 365,
+    }
+
+    def _run(self, keywords=None):
+        from parsers.sasac import parse_sasac_home
+        config = dict(self._SASAC_CONFIG)
+        if keywords is not None:
+            config = {**config, "keywords": keywords}
+        with patch("parsers.sasac.http_get", return_value=self._SASAC_HTML):
+            return parse_sasac_home(config, NOW)
+
+    def test_returns_items(self):
+        """基本解析：宽松关键词应返回至少 1 条新闻。"""
+        items = self._run(keywords=MATCH_ALL_KEYWORDS)
+        assert len(items) > 0, "SASAC 应返回至少 1 条新闻"
+
+    def test_item_fields_valid(self):
+        """每个 Item 的必填字段应非空。"""
+        items = self._run(keywords=MATCH_ALL_KEYWORDS)
+        for it in items:
+            assert it.title and len(it.title) >= 6
+            assert it.url.startswith("http")
+            assert it.publisher == "国务院国有资产监督管理委员会"
+            assert it.source == "国资委官网"
+            assert it.fetched_at
+
+    def test_miit_only_keywords_excluded(self):
+        """仅含 MIIT_ONLY_KEYWORDS（'印发'）的标题不应命中。"""
+        # 标题"国资委印发工作方案（仅含印发关键词）"只含"印发"，应被排除
+        items = self._run(keywords=["印发"])
+        titles = [it.title for it in items]
+        assert not any("印发" in t and "智能" not in t and "数字" not in t for t in titles), (
+            "非 MIIT 信源不应通过 MIIT_ONLY_KEYWORDS 过滤：印发"
+        )
+
+    def test_cross_year_date_fix(self):
+        """MM-DD 跨年修正：若补全后日期晚于今日，应回退 1 年。"""
+        from parsers.sasac import _extract_date_from_context
+        from bs4 import BeautifulSoup
+        # 构造含 12-31 的 <a> + <span> 结构
+        html = '<a href="/n1/c1/content.html">标题</a><span>[12-31]</span>'
+        soup = BeautifulSoup(html, "lxml")
+        a_tag = soup.find("a")
+        # NOW 为 2026-04-18，补 2026 后 2026-12-31 > 今日，应回退到 2025
+        result = _extract_date_from_context(a_tag, NOW.year, NOW.date())
+        assert result == "2025-12-31", f"跨年修正失败：期望 2025-12-31，得到 {result}"
+
+    def test_url_filter_rejects_non_channel_content(self):
+        """非 Channel-Content 格式的 URL 应被过滤。"""
+        from parsers.sasac import parse_sasac_home
+        html = """<html><body>
+            <a href="/n2588025/index.html" title="首页导航">首页导航导航导航</a>
+            <a href="/n2588025/c99/content.html" title="数字化转型通知链接">数字化转型通知链接</a>
+        </body></html>"""
+        config = {
+            **self._SASAC_CONFIG,
+            "keywords": MATCH_ALL_KEYWORDS,
+            "window_days": 365, "hard_cap_days": 365,
+        }
+        with patch("parsers.sasac.http_get", return_value=html):
+            items = parse_sasac_home(config, NOW)
+        urls = [it.url for it in items]
+        assert not any("/index.html" in u for u in urls), "非新闻链接不应被返回"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 8. NDA 解析器测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestNdaParser:
+    """测试 NDA（国家数据局）解析器。"""
+
+    _NDA_HTML = """<html><body>
+        <ul>
+          <li>
+            <a href="/sjj/swdt/xwfb/0415/20260415190239098954885_pc.html">
+              关于推进数字化转型的通知
+            </a>
+            <span>2026.04.15</span>
+          </li>
+          <li>
+            <a href="/sjj/zwgk/zcfb/0410/20260410120000000000000_pc.html">
+              印发体系建设专项计划（仅含印发关键词）
+            </a>
+            <span>2026.04.10</span>
+          </li>
+          <li>
+            <a href="/sjj/swdt/xwfb/0416/20260416100000000000001_pc.html">
+              数据要素市场化配置改革进展综述
+            </a>
+            <span>2026.04.16</span>
+          </li>
+        </ul>
+    </body></html>"""
+
+    _NDA_CONFIG = {
+        **BASE_CONFIG,
+        "sources": {
+            **BASE_CONFIG["sources"],
+            "nda_home": {"name": "国家数据局", "url": "https://www.nda.gov.cn/sjj/index_pc.html"},
+        },
+        "window_days": 365,
+        "hard_cap_days": 365,
+    }
+
+    def _run(self, keywords=None):
+        from parsers.nda import parse_nda_home
+        config = dict(self._NDA_CONFIG)
+        if keywords is not None:
+            config = {**config, "keywords": keywords}
+        with patch("parsers.nda.http_get", return_value=self._NDA_HTML):
+            return parse_nda_home(config, NOW)
+
+    def test_returns_items(self):
+        """基本解析：宽松关键词应返回至少 1 条新闻。"""
+        items = self._run(keywords=MATCH_ALL_KEYWORDS)
+        assert len(items) > 0, "NDA 应返回至少 1 条新闻"
+
+    def test_item_fields_valid(self):
+        """每个 Item 的必填字段应非空。"""
+        items = self._run(keywords=MATCH_ALL_KEYWORDS)
+        for it in items:
+            assert it.title and len(it.title) >= 6
+            assert it.url.startswith("http")
+            assert it.publisher == "国家数据局"
+            assert it.fetched_at
+
+    def test_date_extracted_from_url(self):
+        """日期应从 URL 文件名（YYYYMMDD 前缀）中正确提取。"""
+        items = self._run(keywords=MATCH_ALL_KEYWORDS)
+        with_date = [it for it in items if it.pub_date]
+        assert len(with_date) > 0, "至少应有 1 条带日期的新闻"
+        for it in with_date:
+            assert it.pub_date.startswith("2026-04-"), f"日期格式异常: {it.pub_date}"
+
+    def test_section_classified(self):
+        """source 字段应包含板块名称。"""
+        items = self._run(keywords=MATCH_ALL_KEYWORDS)
+        for it in items:
+            assert it.source.startswith("国家数据局-"), f"source 字段异常: {it.source}"
+
+    def test_miit_only_keywords_excluded(self):
+        """仅含 MIIT_ONLY_KEYWORDS（'印发'/'体系建设'）的标题不应命中。"""
+        items = self._run(keywords=["印发", "体系建设"])
+        assert len(items) == 0, (
+            f"非 MIIT 信源不应通过 MIIT_ONLY_KEYWORDS 匹配，实际返回: {[it.title for it in items]}"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 9. SOE 解析器测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestSoeParser:
+    """测试 SOE（央企）解析器。"""
+
+    _SOE_HTML = """<html><body>
+        <ul>
+          <li>
+            <a href="/n2588025/c35407052/content.html">
+              关于推进智能制造数字化转型的通知
+            </a>
+            <span>2026-04-15</span>
+          </li>
+          <li>
+            <a href="/art/2026/4/15/art_100_200.html">
+              人工智能赋能工业数字化转型
+            </a>
+          </li>
+          <li>
+            <a href="/">首页</a>
+          </li>
+          <li>
+            <a href="/about.html">关于我们</a>
+          </li>
+        </ul>
+    </body></html>"""
+
+    _SOE_CONFIG = {
+        **BASE_CONFIG,
+        "sources": {
+            **BASE_CONFIG["sources"],
+            "soe": {"name": "中央企业", "enabled": True},
+        },
+        "window_days": 365,
+        "hard_cap_days": 365,
+        "soe_timeout": 5,
+    }
+
+    def test_channel_content_url_recognized(self):
+        """Channel-Content TRS URL 应被识别为新闻链接。"""
+        from parsers.soe import _is_soe_news_url
+        assert _is_soe_news_url("http://www.example.com/n2588025/c35407052/content.html")
+
+    def test_egov_art_url_recognized(self):
+        """E-Gov /art/ URL 应被识别为新闻链接。"""
+        from parsers.soe import _is_soe_news_url
+        assert _is_soe_news_url("http://www.example.com/art/2026/4/15/art_100_200.html")
+
+    def test_numeric_id_url_recognized(self):
+        """纯数字 ID 文件名 URL 应被识别为新闻链接。"""
+        from parsers.soe import _is_soe_news_url
+        assert _is_soe_news_url("http://www.example.com/group/news/71062.shtml")
+
+    def test_homepage_url_rejected(self):
+        """主页 URL 不应被识别为新闻链接。"""
+        from parsers.soe import _is_soe_news_url
+        assert not _is_soe_news_url("http://www.example.com/")
+
+    def test_about_url_rejected(self):
+        """about.html 不应被识别为新闻链接。"""
+        from parsers.soe import _is_soe_news_url
+        assert not _is_soe_news_url("http://www.example.com/about.html")
+
+    def test_disabled_returns_empty(self):
+        """enabled: false 时应返回空列表。"""
+        from parsers.soe import parse_soe
+        config = {
+            **self._SOE_CONFIG,
+            "sources": {
+                **self._SOE_CONFIG["sources"],
+                "soe": {"name": "中央企业", "enabled": False},
+            },
+        }
+        result = parse_soe(config, NOW)
+        assert result == []
+
+    def test_with_mock_html(self):
+        """注入单个测试站点，使用 mock HTML，应能解析出新闻条目。"""
+        from parsers.soe import parse_soe
+        test_sources = [{"name": "测试央企", "url": "http://test.example.com/"}]
+        with patch("parsers.soe.SOE_SOURCES", test_sources), \
+             patch("parsers.soe.http_get", return_value=self._SOE_HTML):
+            items = parse_soe(
+                {**self._SOE_CONFIG, "keywords": MATCH_ALL_KEYWORDS},
+                NOW,
+            )
+        assert len(items) > 0, "mock HTML 应解析出至少 1 条新闻"
+        for it in items:
+            assert it.publisher == "测试央企"
+            assert it.source == "央企-测试央企"
+
+    def test_miit_only_keywords_excluded(self):
+        """仅含 MIIT_ONLY_KEYWORDS 的标题不应命中。"""
+        from parsers.soe import parse_soe
+        # 构造仅含"印发"/"体系建设"关键词的 HTML
+        html_miit_only = """<html><body>
+            <a href="/n1/c1/content.html">印发体系建设工作方案通知</a>
+        </body></html>"""
+        test_sources = [{"name": "测试央企", "url": "http://test.example.com/"}]
+        with patch("parsers.soe.SOE_SOURCES", test_sources), \
+             patch("parsers.soe.http_get", return_value=html_miit_only):
+            items = parse_soe(
+                {**self._SOE_CONFIG, "keywords": ["印发", "体系建设"]},
+                NOW,
+            )
+        assert len(items) == 0, (
+            f"非 MIIT 信源不应通过 MIIT_ONLY_KEYWORDS 匹配，实际返回: {[it.title for it in items]}"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 10. 集成与回归测试
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestIntegration:
@@ -690,6 +991,9 @@ class TestIntegration:
             parse_miit_local,
             parse_gov_local,
             parse_qqnews_search,
+            parse_sasac_home,
+            parse_nda_home,
+            parse_soe,
             parse_weibo,
             parse_website_monitor,
             parse_weibo_monitor_sources,
@@ -699,6 +1003,7 @@ class TestIntegration:
             parse_miit_home, parse_gov_home, parse_gov_rss,
             parse_ndrc_home, parse_most_home, parse_moe_news,
             parse_miit_local, parse_gov_local, parse_qqnews_search,
+            parse_sasac_home, parse_nda_home, parse_soe,
             parse_weibo, parse_website_monitor, parse_weibo_monitor_sources,
         ]:
             assert callable(fn), f"{fn} 不可调用"

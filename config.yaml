@@ -69,11 +69,23 @@ sources:
     name: 腾讯新闻
     url: https://i.news.qq.com/gw/pc_search/result
     # 支持多关键词查询，可在此处添加更多公众号或关键词
-    queries: 
+    queries:
       - 工信微报
 
     max_pages: 5  #最多查询的页面
     page_size: 20 # 每页条数
+
+  sasac_home:
+    name: 国务院国有资产监督管理委员会
+    url: http://www.sasac.gov.cn/
+
+  nda_home:
+    name: 国家数据局
+    url: https://www.nda.gov.cn/sjj/index_pc.html
+
+  soe:
+    name: 中央企业
+    enabled: true
 
 
 # 微博/官网监控数据源（需要 Playwright，配置项由 parsers/weibo.py 和 parsers/website_monitor.py 读取）

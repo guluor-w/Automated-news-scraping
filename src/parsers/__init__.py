@@ -34,6 +34,9 @@ from .moe import parse_moe_news
 from .miit_local import parse_miit_local
 from .gov_local import parse_gov_local
 from .qqnews import parse_qqnews_search
+from .sasac import parse_sasac_home
+from .nda import parse_nda_home
+from .soe import parse_soe
 from .weibo import parse_weibo
 from .website_monitor import parse_website_monitor
 
@@ -62,6 +65,9 @@ __all__ = [
     "parse_miit_local",
     "parse_gov_local",
     "parse_qqnews_search",
+    "parse_sasac_home",
+    "parse_nda_home",
+    "parse_soe",
     "parse_weibo",
     "parse_website_monitor",
     # 向后兼容

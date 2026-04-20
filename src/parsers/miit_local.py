@@ -180,25 +180,38 @@ DEFAULT_TIMEOUT = 20
 
 # ── 标题清理正则 ─────────────────────────────────────────────────────────────────
 
-# 前缀日期（两种格式）：
+# 前缀日期（三种格式）：
 #   "DD YYYY-MM "  例：16 2026-04 【标题…】
 #   "YYYY-MM-DD "  例：2026-04-17 关于…
+#   "YYYY.MM DD "  例：2026.04 14 袁野赴…（哈电集团格式）
 _RE_TITLE_LEADING_DATE = re.compile(
     r"^(?:"
     r"\d{1,2}\s+20\d{2}-(?:0[1-9]|1[0-2])"              # DD YYYY-MM
     r"|20\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])"  # YYYY-MM-DD
+    r"|20\d{2}\.(?:0[1-9]|1[0-2])\s+\d{1,2}"            # YYYY.MM DD（哈电格式）
     r")\s+"
 )
 
-# 后缀日期（两种格式，方括号可选、内外空格可选）：
+# 后缀日期（三种格式，方括号可选、内外空格可选）：
 #   " 2026-04-17"  或  " [ 2026-04-17 ]"
 #   " 04-16"       或  " [ 04-16 ]"
+#   " 04/16 2026"  或  " 04/16"（招商局格式，斜杠分隔）
 _RE_TITLE_TRAILING_DATE = re.compile(
     r"(?:"
     r"\s+\[?\s*20\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\s*\]?"  # YYYY-MM-DD
     r"|\s+\[?\s*(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\s*\]?"          # MM-DD
+    r"|\s+(?:0[1-9]|1[0-2])/(?:0[1-9]|[12]\d|3[01])(?:\s+20\d{2})?"       # MM/DD 或 MM/DD YYYY
     r")\s*$"
 )
+
+# 正文摘要起始标志：中文日期（N月N日，）出现在非标题开头位置
+# 用于识别新闻卡片中标题后紧跟的正文摘要（如招商局集团网站格式）
+# 示例："灵卫·智能巡检机器人亮相香港国际创科展 4月13日，招商局狮子山..."
+#        ────────────── 标题 ─────────────────── ↑摘要起始
+_RE_EXCERPT_START = re.compile(r"(?<=\S)\s+\d{1,2}月\d{1,2}日[，,、。 ]")
+
+# 触发摘要截断所需的最小标题前置长度（确保截断点之前有足够的标题内容）
+_MIN_TITLE_CHARS_BEFORE_EXCERPT = 5
 
 # 标题最大保留长度（中文标题通常 ≤ 80 字，超出视为正文混入）
 _TITLE_MAX_LEN = 120
@@ -249,8 +262,10 @@ def _strip_date_affixes(text: str) -> str:
     处理以下格式：
       前缀：「DD YYYY-MM 」（如 "16 2026-04 "）
             「YYYY-MM-DD 」（如 "2026-04-17 "）
+            「YYYY.MM DD 」（如 "2026.04 14 "，哈电集团格式）
       后缀：「 YYYY-MM-DD」或「 [ YYYY-MM-DD ]」
             「 MM-DD」     或「 [ MM-DD ]」
+            「 MM/DD YYYY」或「 MM/DD」（招商局格式，斜杠分隔）
     """
     text = _RE_TITLE_LEADING_DATE.sub("", text)
     text = _RE_TITLE_TRAILING_DATE.sub("", text)
@@ -268,6 +283,8 @@ def _clean_title(a_tag, raw_text: Optional[str] = None) -> str:
            - <a> 内嵌正文摘要导致 get_text() 带入正文内容。
       2. get_text() 可见文字（兜底），同时：
            - 去除首尾日期标注（date span 混入 get_text 的情况）；
+           - 在「标题 + N月N日，摘要…」模式下截断至摘要起始处
+             （用于招商局等将标题、摘要和日期封装在同一 <a> 内的 CMS）；
            - 截断至 _TITLE_MAX_LEN，防止正文内容被误识为标题。
 
     可选参数 raw_text 允许调用方传入已计算的 get_text() 结果，避免重复解析。
@@ -280,6 +297,12 @@ def _clean_title(a_tag, raw_text: Optional[str] = None) -> str:
     # 2) 可见文字兜底（复用调用方已计算的值，避免重复 get_text）
     text = raw_text if raw_text is not None else a_tag.get_text(" ", strip=True)
     text = _strip_date_affixes(text)
+
+    # 2.5) 检测「标题 + 正文摘要」混合文本：若存在「空格 + N月N日，」模式，
+    #      则截断至摘要起始，仅保留前面的标题部分。
+    m = _RE_EXCERPT_START.search(text)
+    if m and m.start() > _MIN_TITLE_CHARS_BEFORE_EXCERPT:
+        text = text[:m.start()]
 
     # 3) 截断过长文本（防止正文混入）
     if len(text) > _TITLE_MAX_LEN:
@@ -359,6 +382,8 @@ def _extract_date_from_context(a_tag) -> Optional[str]:
       - 江苏：<li>04-13 <a>标题</a></li>  （MM-DD，无年份）
       - 新疆：<span class="year">2026-04</span><span class="date">14</span>
       - 西藏：<span>2026-04-16</span><a>标题</a>
+      - 表格：<tr><td><a>标题</a></td><td>2026-04-15</td></tr>
+      - 哈电：日期在 <em>/<i> 元素内
     """
     # 1) 下一个兄弟 <span>（北京、广东等）
     sibling = a_tag.find_next_sibling("span")
@@ -376,11 +401,11 @@ def _extract_date_from_context(a_tag) -> Optional[str]:
         if d:
             return d
 
-    # 3) 父元素内所有 <span>（覆盖更复杂的嵌套结构）
     parent = a_tag.parent
     if parent:
-        for span in parent.find_all("span"):
-            text = span.get_text(" ", strip=True).strip("[]【】")
+        # 3) 父元素内所有 <span>/<em>/<i>/<time>（覆盖更多元素类型）
+        for tag in parent.find_all(["span", "em", "i", "time"]):
+            text = tag.get_text(" ", strip=True).strip("[]【】")
             d = extract_date(text)
             if d:
                 return d
@@ -399,6 +424,18 @@ def _extract_date_from_context(a_tag) -> Optional[str]:
         d = extract_date(parent.get_text(" ", strip=True))
         if d:
             return d
+
+        # 6) 表格行布局：父元素是 <td> 时，扫描同行其他单元格
+        if parent.name == "td":
+            row = parent.parent
+            if row and row.name == "tr":
+                for cell in row.find_all("td"):
+                    if cell is parent:
+                        continue
+                    text = cell.get_text(" ", strip=True).strip("[]【】")
+                    d = extract_date(text)
+                    if d:
+                        return d
 
     return None
 

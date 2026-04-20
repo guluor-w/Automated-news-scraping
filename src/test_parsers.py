@@ -90,6 +90,7 @@ from parsers.miit_local import (
     _clean_title,
     _strip_date_affixes,
     _TITLE_MAX_LEN,
+    _MIN_TITLE_CHARS_BEFORE_EXCERPT,
 )
 
 
@@ -350,6 +351,108 @@ class TestCleanTitle:
             title_attr="一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案》的通知 [ 2026-04-15 ]",
         )
         assert _clean_title(a) == "一图读懂《关于印发重庆市加快构建开源鸿蒙应用创新生态工作方案》的通知"
+
+    # ── 新增：哈电集团 YYYY.MM DD 前缀格式 ──────────────────────────────────────
+
+    def test_strip_leading_date_dot_format(self):
+        """哈电集团格式前缀 YYYY.MM DD 被去除。"""
+        result = _strip_date_affixes("2026.04 14 袁野赴中国电信调研财务数智化转型工作进展")
+        assert result == "袁野赴中国电信调研财务数智化转型工作进展"
+
+    def test_clean_title_harbin_electric_prefix(self):
+        """_clean_title 应去除哈电集团格式的 YYYY.MM DD 前缀日期。"""
+        a = self._make_a("2026.04 14 袁野赴中国电信调研财务数智化转型工作进展")
+        assert _clean_title(a) == "袁野赴中国电信调研财务数智化转型工作进展"
+
+    # ── 新增：招商局集团 MM/DD YYYY 后缀格式 ─────────────────────────────────────
+
+    def test_strip_trailing_slash_date_with_year(self):
+        """招商局格式后缀 MM/DD YYYY 被去除。"""
+        result = _strip_date_affixes("灵卫·智能巡检机器人亮相香港国际创科展 04/16 2026")
+        assert result == "灵卫·智能巡检机器人亮相香港国际创科展"
+
+    def test_strip_trailing_slash_date_without_year(self):
+        """招商局格式后缀 MM/DD（无年份）被去除。"""
+        result = _strip_date_affixes("灵卫·智能巡检机器人亮相河套AI社区产业生态大会 04/05 ")
+        assert result == "灵卫·智能巡检机器人亮相河套AI社区产业生态大会"
+
+    # ── 新增：招商局 标题+摘要 混合文本截断 ──────────────────────────────────────
+
+    def test_excerpt_body_stripped_from_title(self):
+        """招商局格式：标题后的正文摘要（以 N月N日， 起始）应被截断。"""
+        mixed = (
+            "灵卫 · 智能巡检机器人亮相香港国际创科展"
+            " 4月13日，招商局狮子山人工智能实验室携灵卫智能巡检机器人亮相香港国际创科展。"
+            "展会期间，香港特别行政区政府财政司司长陈茂波，香港特别行政区政府创新科技... 04/16 2026"
+        )
+        a = self._make_a(mixed)
+        result = _clean_title(a)
+        assert result == "灵卫 · 智能巡检机器人亮相香港国际创科展"
+
+    def test_excerpt_body_stripped_case2(self):
+        """招商局格式（案例2）：标题+摘要混合文本截断。"""
+        mixed = (
+            "灵卫 · 智能巡检机器人亮相河套AI社区产业生态大会"
+            " 4月1日，河套模力福地 AI 社区产业生态大会在深圳市举行，"
+            "招商局狮子山人工智能实验室携灵卫智能巡检机器人亮相本次大会，"
+            "重点展示了具身智能创新产品在智慧社... 04/05 "
+        )
+        a = self._make_a(mixed)
+        result = _clean_title(a)
+        assert result == "灵卫 · 智能巡检机器人亮相河套AI社区产业生态大会"
+
+    def test_title_with_date_middle_not_stripped(self):
+        """标题中含有年份数字但不在摘要起始位置的不被误截断。"""
+        # 标题中的"4月19日"后面没有逗号/顿号，不触发截断
+        title = "关于2026年4月19日发布数字化政策的通知"
+        a = self._make_a(title)
+        assert _clean_title(a) == title
+
+
+# ─── 新增：_extract_date_from_context 扩展测试 ─────────────────────────────────
+
+class TestExtractDateFromContext:
+    """测试 _extract_date_from_context 对多种 HTML 布局的日期提取。"""
+
+    def _make_context(self, html: str):
+        """构造带上下文的 BeautifulSoup 元素，返回其中的 <a> 标签。"""
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, "lxml")
+        return soup.find("a")
+
+    def test_date_in_em_element(self):
+        """日期在 <em> 元素中应被提取。"""
+        a = self._make_context(
+            "<li><a href='/info/123.htm'>智能制造新政发布</a><em>2026-04-15</em></li>"
+        )
+        result = _extract_date_from_context(a)
+        assert result == "2026-04-15"
+
+    def test_date_in_i_element(self):
+        """日期在 <i> 元素中应被提取。"""
+        a = self._make_context(
+            "<li><a href='/info/123.htm'>数字化转型通知</a><i>2026-04-14</i></li>"
+        )
+        result = _extract_date_from_context(a)
+        assert result == "2026-04-14"
+
+    def test_date_in_table_sibling_td(self):
+        """表格布局：日期在兄弟 <td> 中应被提取。"""
+        a = self._make_context(
+            "<tr><td><a href='/news/123.htm'>人工智能赋能制造业</a></td>"
+            "<td>2026-04-15</td></tr>"
+        )
+        result = _extract_date_from_context(a)
+        assert result == "2026-04-15"
+
+    def test_existing_span_still_works(self):
+        """原有 <span> 日期提取逻辑仍然正常工作。"""
+        a = self._make_context(
+            "<li><a href='/art/2026/4/13/art_100.html'>工信部印发方案</a>"
+            "<span>[2026-04-13]</span></li>"
+        )
+        result = _extract_date_from_context(a)
+        assert result == "2026-04-13"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -972,6 +1075,62 @@ class TestSoeParser:
         assert len(items) == 0, (
             f"非 MIIT 信源不应通过 MIIT_ONLY_KEYWORDS 匹配，实际返回: {[it.title for it in items]}"
         )
+
+    def test_exclude_paths_filters_column_sections(self):
+        """per-source exclude_paths 应过滤掉指定栏目路径（如 CETC 业务领域）。"""
+        from parsers.soe import parse_soe
+        # 模拟中国电子科技集团首页：业务领域链接 + 真实新闻链接
+        html_mixed = """<html><body>
+            <a href="/zgdk/1592960/1592986/1651587/index.html">
+              聚焦智慧城市、行业数字化、工业互联网及智能制造，推动国家治理能力提升和产业数字化，从需求牵引到牵引需求
+            </a>
+            <a href="/zgdk/1592571/1592909/2119043/index.html">
+              国务院国资委党委与中央企业党委开展专题联学 为深化拓展"人工智能+"贡献力量
+            </a>
+        </body></html>"""
+        # 注入包含 exclude_paths 的测试源，模拟实际 CETC 配置
+        test_sources = [{
+            "name": "测试央企",
+            "url": "http://test.example.com/",
+            "exclude_paths": ["/1592960/1592986/"],
+        }]
+        with patch("parsers.soe.SOE_SOURCES", test_sources), \
+             patch("parsers.soe.http_get", return_value=html_mixed):
+            items = parse_soe(
+                {**self._SOE_CONFIG, "keywords": MATCH_ALL_KEYWORDS},
+                NOW,
+            )
+        urls = [it.url for it in items]
+        # 业务领域路径应被排除
+        assert not any("/1592960/1592986/" in u for u in urls), (
+            f"exclude_paths 路径不应出现：{[u for u in urls if '/1592960/1592986/' in u]}"
+        )
+        # 真正的新闻链接应被保留
+        assert any("/1592571/" in u for u in urls), "新闻路径应被保留"
+
+    def test_source_without_exclude_paths(self):
+        """未配置 exclude_paths 的站点不受影响，所有新闻链接正常抓取。"""
+        from parsers.soe import parse_soe
+        test_sources = [{"name": "测试央企无排除", "url": "http://test.example.com/"}]
+        with patch("parsers.soe.SOE_SOURCES", test_sources), \
+             patch("parsers.soe.http_get", return_value=self._SOE_HTML):
+            items = parse_soe(
+                {**self._SOE_CONFIG, "keywords": MATCH_ALL_KEYWORDS},
+                NOW,
+            )
+        assert len(items) > 0, "无 exclude_paths 时应正常返回新闻"
+
+    def test_contentlist_url_rejected(self):
+        """华电 contentList URL（栏目列表页）不应被识别为新闻链接。"""
+        from parsers.soe import _is_soe_news_url
+        url = "http://www.chd.com.cn/webfront/webpage/web/contentList/channelId/b87052da8ac94affad09200ecceb0279/pageNo/1"
+        assert not _is_soe_news_url(url), "contentList URL 应被拒绝"
+
+    def test_contentpage_url_accepted(self):
+        """华电 contentPage URL（文章页）应被识别为新闻链接。"""
+        from parsers.soe import _is_soe_news_url
+        url = "http://www.chd.com.cn/webfront/webpage/web/contentPage/id/50f401fb37024262b88ed7f31ec91d25"
+        assert _is_soe_news_url(url), "contentPage URL 应被接受"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

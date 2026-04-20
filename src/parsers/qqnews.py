@@ -177,7 +177,7 @@ def parse_qqnews_search(config: dict, now: datetime) -> List[Item]:
                             if dt < threshold:
                                 continue
 
-                            pub_date = dt.date().isoformat()
+                            pub_date = f"{dt.year}/{dt.month}/{dt.day}"
                             publisher = (n.get("source") or src.get("name") or "腾讯新闻").strip()
 
                             # 仅保留发布单位名称中包含查询词的结果

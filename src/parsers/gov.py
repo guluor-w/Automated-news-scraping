@@ -67,7 +67,7 @@ def extract_gov_date_from_url(url: str) -> Optional[str]:
     if not m:
         return None
     yyyy, mm = m.group(1), m.group(2)
-    return f"{yyyy}-{mm}-01"
+    return f"{yyyy}/{int(mm)}/1"
 
 
 def extract_gov_pub_date_from_article_html(article_html: str) -> Optional[str]:
@@ -87,12 +87,12 @@ def extract_gov_pub_date_from_article_html(article_html: str) -> Optional[str]:
         m = re.search(pat, text)
         if m:
             y, mo, d = m.group(1), m.group(2).zfill(2), m.group(3).zfill(2)
-            return f"{y}-{mo}-{d}"
+            return f"{y}/{int(mo)}/{int(d)}"
 
     m = _RE_DATE_YMD.search(text)
     if m:
         y, mo, d = m.group(1), m.group(2).zfill(2), m.group(3).zfill(2)
-        return f"{y}-{mo}-{d}"
+        return f"{y}/{int(mo)}/{int(d)}"
 
     return None
 
@@ -283,7 +283,7 @@ def parse_gov_rss(config: dict, now: datetime) -> List[Item]:
         if pub_date_str:
             try:
                 dt = dtparser.parse(pub_date_str)
-                pub_date = dt.date().isoformat()
+                pub_date = f"{dt.year}/{dt.month}/{dt.day}"
             except Exception:
                 pass
 

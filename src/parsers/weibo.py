@@ -35,6 +35,8 @@ from datetime import datetime, timedelta
 from html import unescape
 from typing import List, Optional
 
+from dateutil import parser as dtparser
+
 from models import Item, MIIT_ONLY_KEYWORDS
 from utils import format_fetched_at, keyword_hit, within_window
 
@@ -568,7 +570,13 @@ def parse_weibo(config: dict, now: datetime) -> List[Item]:
             title = post.get("title", "").strip()
             url = post.get("article_url") or post.get("url", "")
             pub_date_str = post.get("parsed_time", "")
-            pub_date = pub_date_str[:10] if pub_date_str and len(pub_date_str) >= 10 else None
+            pub_date = None
+            if pub_date_str and len(pub_date_str) >= 10:
+                try:
+                    _d = dtparser.parse(pub_date_str[:10])
+                    pub_date = f"{_d.year}/{_d.month}/{_d.day}"
+                except Exception:
+                    pub_date = pub_date_str[:10]
 
             if not title or not url:
                 continue

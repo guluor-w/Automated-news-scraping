@@ -576,7 +576,7 @@ def parse_weibo(config: dict, now: datetime) -> List[Item]:
                     _d = dtparser.parse(pub_date_str[:10])
                     pub_date = f"{_d.year}/{_d.month}/{_d.day}"
                 except Exception:
-                    pub_date = pub_date_str[:10]
+                    pub_date = None
 
             if not title or not url:
                 continue

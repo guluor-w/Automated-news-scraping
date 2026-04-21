@@ -20,6 +20,8 @@ from utils import canonicalize_url_for_dedup
 
 # GitHub Pages 发布地址（用于 RSS <link> 字段）
 _PAGES_URL = "https://guluor-w.github.io/Automated-news-scraping/"
+# 发布日期缺失时用于排序的哨兵值（排在所有有效日期之后）
+_DATE_SENTINEL = datetime.min
 
 
 def load_existing(csv_path: str) -> pd.DataFrame:
@@ -70,8 +72,6 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
         new_df = existing.copy()
 
     # 按发布日期（空值排后）和查询时间排序
-    _DATE_SENTINEL = datetime.min
-
     def sort_key(row):
         d = row.get("发布日期", "")
         if not d:

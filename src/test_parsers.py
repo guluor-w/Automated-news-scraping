@@ -166,9 +166,13 @@ class TestDateExtractionFromUrl:
         """TRS 文件名 tYYYYMMDD_ID.html → 精确日期"""
         url = "https://jxj.beijing.gov.cn/jxdt/tzgg/202604/t20260418_4591280.html"
         assert _extract_date_from_url(url) == "2026/4/18"
+
+    def test_trs_shtml(self):
         """TRS 文件名 .shtml 扩展名"""
         url = "http://gxt.hunan.gov.cn/xxgk/202604/t20260415_12345678.shtml"
         assert _extract_date_from_url(url) == "2026/4/15"
+
+    def test_egov_art_date(self):
         """E-Gov /art/YYYY/M/D/ 非零填充日期"""
         url = "http://gxt.jiangsu.gov.cn/art/2026/4/3/art_73259_11524668.html"
         assert _extract_date_from_url(url) == "2026/4/3"

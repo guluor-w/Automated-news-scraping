@@ -327,47 +327,39 @@ def _extract_date_from_url(url: str) -> Optional[str]:
     # 1) TRS CMS 文件名精确日期
     m = _RE_TRS_FILENAME.search(url)
     if m:
-        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
 
     # 2) E-Gov /art/YYYY/M/D/ 风格（江苏、山东，月/日不补零）
     m = _RE_ART_DATE.search(url)
     if m:
-        yyyy = m.group(1)
-        mm = m.group(2).zfill(2)
-        dd = m.group(3).zfill(2)
-        return f"{yyyy}-{mm}-{dd}"
+        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
 
     # 3) /YYYY/MM/DD/ 斜杠分隔完整日期（青海 /system/2026/04/16/）
     m = _RE_URL_SLASH_DATE.search(url)
     if m:
-        yyyy = m.group(1)
-        mm = m.group(2).zfill(2)
-        dd = m.group(3).zfill(2)
-        return f"{yyyy}-{mm}-{dd}"
+        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
 
     # 4) /YYYY-MM-DD/ 连字符目录（新疆兵团 /c/2026-04-17/）
     m = _RE_URL_HYPHEN_DATE.search(url)
     if m:
-        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
 
     # 5) 长时间戳：前8位为 YYYYMMDD（辽宁 /2026031009183942113/）
     m = _RE_URL_LONG_TS_DATE.search(url)
     if m:
-        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
 
     # 6) 路径中的 YYYYMMDD（8位连续数字，如上海 /20260417/）
     m = _RE_URL_YYYYMMDD.search(url)
     if m:
-        yyyy, mm, dd = m.group(1), m.group(2), m.group(3)
-        return f"{yyyy}-{mm}-{dd}"
+        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
 
     # 7) 路径中的 YYYYMM 目录（日默认 01）
     m = _RE_URL_YYYYMM.search(url)
     if not m:
         m = _RE_URL_YYYY_MM.search(url)
     if m:
-        yyyy, mm = m.group(1), m.group(2)
-        return f"{yyyy}-{mm}-01"
+        return f"{m.group(1)}/{int(m.group(2))}/1"
 
     return None
 

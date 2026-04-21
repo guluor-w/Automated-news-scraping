@@ -78,11 +78,11 @@ def _extract_date_from_url(url: str) -> Optional[str]:
     # 优先：文件名中的 tYYYYMMDD_ 精确日期
     m = _RE_MOST_YYYYMMDD.search(url)
     if m:
-        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
     # 回退：路径中的 YYYYMM 目录（日默认 01）
     m = _RE_MOST_YYYYMM.search(url)
     if m:
-        return f"{m.group(1)}-{m.group(2)}-01"
+        return f"{m.group(1)}/{int(m.group(2))}/1"
     return None
 
 

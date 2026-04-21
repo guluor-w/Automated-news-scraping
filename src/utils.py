@@ -35,7 +35,7 @@ def normalize_url(base: str, href: str) -> str:
 
 
 def extract_date(text: str) -> Optional[str]:
-    """从任意文本中尝试提取 YYYY-MM-DD 格式的日期字符串。"""
+    """从任意文本中尝试提取 YYYY/M/D 格式的日期字符串（月日不补零）。"""
     if not text:
         return None
     for pat in DATE_PATTERNS:
@@ -43,13 +43,13 @@ def extract_date(text: str) -> Optional[str]:
         if m:
             y, mo, d = map(int, m.groups())
             try:
-                return f"{y:04d}-{mo:02d}-{d:02d}"
+                return f"{y}/{mo}/{d}"
             except Exception:
                 return None
     try:
         dt = dtparser.parse(text, fuzzy=True)
         if dt.year >= 2000:
-            return dt.date().isoformat()
+            return f"{dt.year}/{dt.month}/{dt.day}"
     except Exception:
         pass
     return None

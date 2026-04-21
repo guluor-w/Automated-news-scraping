@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 import pandas as pd
+from dateutil import parser as dtparser
 
 from models import Item, SG_TZ
 from utils import canonicalize_url_for_dedup
@@ -97,9 +98,9 @@ def _xml_escape(s: str) -> str:
 
 
 def _pub_date_to_rfc822(pub_date: str) -> str:
-    """将 YYYY-MM-DD 日期字符串转换为 RSS 所需的 RFC 822 格式。"""
+    """将日期字符串（YYYY/M/D 或 YYYY-MM-DD）转换为 RSS 所需的 RFC 822 格式。"""
     try:
-        dt = datetime.strptime(pub_date, "%Y-%m-%d").replace(tzinfo=SG_TZ)
+        dt = dtparser.parse(pub_date).replace(tzinfo=SG_TZ)
         return dt.strftime("%a, %d %b %Y 00:00:00 +0800")
     except (ValueError, TypeError):
         return ""

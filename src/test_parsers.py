@@ -165,42 +165,38 @@ class TestDateExtractionFromUrl:
     def test_trs_filename(self):
         """TRS 文件名 tYYYYMMDD_ID.html → 精确日期"""
         url = "https://jxj.beijing.gov.cn/jxdt/tzgg/202604/t20260418_4591280.html"
-        assert _extract_date_from_url(url) == "2026-04-18"
-
-    def test_trs_shtml(self):
+        assert _extract_date_from_url(url) == "2026/4/18"
         """TRS 文件名 .shtml 扩展名"""
         url = "http://gxt.hunan.gov.cn/xxgk/202604/t20260415_12345678.shtml"
-        assert _extract_date_from_url(url) == "2026-04-15"
-
-    def test_egov_art_date(self):
+        assert _extract_date_from_url(url) == "2026/4/15"
         """E-Gov /art/YYYY/M/D/ 非零填充日期"""
         url = "http://gxt.jiangsu.gov.cn/art/2026/4/3/art_73259_11524668.html"
-        assert _extract_date_from_url(url) == "2026-04-03"
+        assert _extract_date_from_url(url) == "2026/4/3"
 
     def test_slash_separated_date(self):
         """斜杠分隔 /YYYY/MM/DD/ 日期（青海）"""
         url = "http://www.qinghai.gov.cn/zwgk/system/2026/04/16/030097355.shtml"
-        assert _extract_date_from_url(url) == "2026-04-16"
+        assert _extract_date_from_url(url) == "2026/4/16"
 
     def test_hyphen_date(self):
         """连字符 /YYYY-MM-DD/ 日期（新疆兵团）"""
         url = "http://btgxj.xjbt.gov.cn/c/2026-04-17/8480381.shtml"
-        assert _extract_date_from_url(url) == "2026-04-17"
+        assert _extract_date_from_url(url) == "2026/4/17"
 
     def test_long_timestamp(self):
         """长时间戳前 8 位（辽宁）"""
         url = "http://gxt.ln.gov.cn/2026031009183942113/index.shtml"
-        assert _extract_date_from_url(url) == "2026-03-10"
+        assert _extract_date_from_url(url) == "2026/3/10"
 
     def test_yyyymmdd_dir(self):
         """8 位日期目录（上海）"""
         url = "http://www.sheitc.sh.gov.cn/zxxx/20260417/abc.html"
-        assert _extract_date_from_url(url) == "2026-04-17"
+        assert _extract_date_from_url(url) == "2026/4/17"
 
     def test_yyyymm_fallback(self):
         """仅 YYYYMM 目录时日默认 01"""
         url = "http://gxt.example.gov.cn/news/202604/content.html"
-        assert _extract_date_from_url(url) == "2026-04-01"
+        assert _extract_date_from_url(url) == "2026/4/1"
 
     def test_no_date(self):
         """无日期的 URL 返回 None"""
@@ -426,7 +422,7 @@ class TestExtractDateFromContext:
             "<li><a href='/info/123.htm'>智能制造新政发布</a><em>2026-04-15</em></li>"
         )
         result = _extract_date_from_context(a)
-        assert result == "2026-04-15"
+        assert result == "2026/4/15"
 
     def test_date_in_i_element(self):
         """日期在 <i> 元素中应被提取。"""
@@ -434,7 +430,7 @@ class TestExtractDateFromContext:
             "<li><a href='/info/123.htm'>数字化转型通知</a><i>2026-04-14</i></li>"
         )
         result = _extract_date_from_context(a)
-        assert result == "2026-04-14"
+        assert result == "2026/4/14"
 
     def test_date_in_table_sibling_td(self):
         """表格布局：日期在兄弟 <td> 中应被提取。"""
@@ -443,7 +439,7 @@ class TestExtractDateFromContext:
             "<td>2026-04-15</td></tr>"
         )
         result = _extract_date_from_context(a)
-        assert result == "2026-04-15"
+        assert result == "2026/4/15"
 
     def test_existing_span_still_works(self):
         """原有 <span> 日期提取逻辑仍然正常工作。"""
@@ -452,7 +448,7 @@ class TestExtractDateFromContext:
             "<span>[2026-04-13]</span></li>"
         )
         result = _extract_date_from_context(a)
-        assert result == "2026-04-13"
+        assert result == "2026/4/13"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -598,17 +594,17 @@ class TestMoeParser:
         """URL 含 tYYYYMMDD_ 时应提取精确日期"""
         from parsers.moe import _extract_precise_date_from_url
         url = "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/202604/t20260418_1234567.html"
-        assert _extract_precise_date_from_url(url) == "2026-04-18"
+        assert _extract_precise_date_from_url(url) == "2026/4/18"
 
     def test_date_extraction_yyyymm_only_url(self):
-        """URL 仅含 /YYYYMM/ 时，精确提取返回 None，回退返回 YYYY-MM-01"""
+        """URL 仅含 /YYYYMM/ 时，精确提取返回 None，回退返回 YYYY/M/1"""
         from parsers.moe import _extract_precise_date_from_url, _extract_yyyymm_from_url
         url = "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/202604/content_abc.html"
         assert _extract_precise_date_from_url(url) is None
-        assert _extract_yyyymm_from_url(url) == "2026-04-01"
+        assert _extract_yyyymm_from_url(url) == "2026/4/1"
 
     def test_date_extraction_prefers_text_over_yyyymm(self):
-        """对于仅有 YYYYMM 的 URL，附近文本的 MM-DD 应优先于 YYYY-MM-01 回退"""
+        """对于仅有 YYYYMM 的 URL，附近文本的 MM-DD 应优先于 YYYY/M/1 回退"""
         from parsers.moe import parse_moe_news
         # 构造一段包含 /YYYYMM/ URL 但页面文本含精确 MM-DD 的 HTML
         html = """<html><body>
@@ -624,8 +620,8 @@ class TestMoeParser:
             )
         assert items, "应解析出至少 1 条"
         # 日期应来自附近文本 04-15，而非 URL 回退的 04-01
-        assert items[0].pub_date == "2026-04-15", (
-            f"日期应为 2026-04-15（来自附近文本），实际为 {items[0].pub_date}"
+        assert items[0].pub_date == "2026/4/15", (
+            f"日期应为 2026/4/15（来自附近文本），实际为 {items[0].pub_date}"
         )
 
     def test_item_fields_valid(self):
@@ -681,13 +677,13 @@ class TestMiitLocal:
         from parsers.miit_local import _is_news_like_url, _extract_date_from_url
         url = "http://gxt.jiangsu.gov.cn/art/2026/4/13/art_73259_11524668.html"
         assert _is_news_like_url(url)
-        assert _extract_date_from_url(url) == "2026-04-13"
+        assert _extract_date_from_url(url) == "2026/4/13"
 
     def test_shanghai_yyyymmdd(self):
         """上海使用 /YYYYMMDD/ 目录，应正确提取日期。"""
         from parsers.miit_local import _extract_date_from_url
         url = "http://www.sheitc.sh.gov.cn/zxxx/20260417/uuid.html"
-        assert _extract_date_from_url(url) == "2026-04-17"
+        assert _extract_date_from_url(url) == "2026/4/17"
 
     def test_xizang_spa(self):
         """西藏使用 /detail?id=N SPA 链接，应正确识别。"""
@@ -741,14 +737,14 @@ class TestGovLocal:
             "province": "青海", "name": "青海省人民政府",
             "url": "https://www.qinghai.gov.cn/",
         })
-        # 检查日期是否精确到日（不是 XX-XX-01）
+        # 检查日期是否精确到日（不是 YYYY/M/1 的 YYYYMM 回退）
         for it in items:
-            if it.pub_date and it.pub_date.endswith("-01"):
+            if it.pub_date and it.pub_date.endswith("/1"):
                 # 对于 YYYYMM 回退的情况，可以接受
                 pass
             elif it.pub_date:
-                parts = it.pub_date.split("-")
-                assert len(parts) == 3 and parts[2] != "00"
+                parts = it.pub_date.split("/")
+                assert len(parts) == 3 and parts[2] != "0"
 
     def test_shandong_egov(self):
         """山东使用 E-Gov /art/ 模式。"""
@@ -861,7 +857,7 @@ class TestSasacParser:
         a_tag = soup.find("a")
         # NOW 为 2026-04-18，补 2026 后 2026-12-31 > 今日，应回退到 2025
         result = _extract_date_from_context(a_tag, NOW.year, NOW.date())
-        assert result == "2025-12-31", f"跨年修正失败：期望 2025-12-31，得到 {result}"
+        assert result == "2025/12/31", f"跨年修正失败：期望 2025/12/31，得到 {result}"
 
     def test_url_filter_rejects_non_channel_content(self):
         """非 Channel-Content 格式的 URL 应被过滤。"""
@@ -949,7 +945,7 @@ class TestNdaParser:
         with_date = [it for it in items if it.pub_date]
         assert len(with_date) > 0, "至少应有 1 条带日期的新闻"
         for it in with_date:
-            assert it.pub_date.startswith("2026-04-"), f"日期格式异常: {it.pub_date}"
+            assert it.pub_date.startswith("2026/4/"), f"日期格式异常: {it.pub_date}"
 
     def test_section_classified(self):
         """source 字段应包含板块名称。"""

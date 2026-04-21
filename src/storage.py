@@ -70,9 +70,16 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
         new_df = existing.copy()
 
     # 按发布日期（空值排后）和查询时间排序
+    _DATE_SENTINEL = datetime.min
+
     def sort_key(row):
         d = row.get("发布日期", "")
-        return d if d else "0000-00-00"
+        if not d:
+            return _DATE_SENTINEL
+        try:
+            return dtparser.parse(d)
+        except (ValueError, TypeError):
+            return _DATE_SENTINEL
 
     if not new_df.empty:
         new_df["__sortdate"] = new_df.apply(sort_key, axis=1)

@@ -88,7 +88,7 @@ def _extract_precise_date_from_url(url: str) -> Optional[str]:
 
 
 def _extract_yyyymm_from_url(url: str) -> Optional[str]:
-    """从 moe.gov.cn URL 路径中提取年月，返回 YYYY-MM-01（日默认 01）。"""
+    """从 moe.gov.cn URL 路径中提取年月，返回 YYYY/M/1（月、日不补零）。"""
     m = _RE_MOE_YYYYMM.search(url)
     if m:
         return f"{m.group(1)}/{int(m.group(2))}/1"

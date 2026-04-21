@@ -20,8 +20,8 @@ from utils import canonicalize_url_for_dedup
 
 # GitHub Pages 发布地址（用于 RSS <link> 字段）
 _PAGES_URL = "https://guluor-w.github.io/Automated-news-scraping/"
-# 发布日期缺失时用于排序的哨兵值（排在所有有效日期之后）
-_DATE_SENTINEL = datetime.min
+# 发布日期缺失时用于排序的哨兵值（使用 pandas 可表示范围内的时间戳）
+_DATE_SENTINEL = pd.Timestamp.min
 
 
 def load_existing(csv_path: str) -> pd.DataFrame:

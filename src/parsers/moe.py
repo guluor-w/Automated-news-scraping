@@ -83,7 +83,7 @@ def _extract_precise_date_from_url(url: str) -> Optional[str]:
     m = _RE_MOE_FULL_DATE.search(url)
     if m:
         yyyy, mm, dd = m.group(3), m.group(4), m.group(5)
-        return f"{yyyy}/{int(mm)}/{int(dd)}"
+        return f"{yyyy}-{int(mm):02d}-{int(dd):02d}"
     return None
 
 
@@ -91,7 +91,7 @@ def _extract_yyyymm_from_url(url: str) -> Optional[str]:
     """从 moe.gov.cn URL 路径中提取年月，返回 YYYY/M/1（月、日不补零）。"""
     m = _RE_MOE_YYYYMM.search(url)
     if m:
-        return f"{m.group(1)}/{int(m.group(2))}/1"
+        return f"{m.group(1)}-{int(m.group(2)):02d}-01"
     return None
 
 
@@ -100,7 +100,7 @@ def _extract_date_from_text(text: str, year: int) -> Optional[str]:
     m = _RE_MMDD.search(text)
     if m:
         mm, dd = m.group(1), m.group(2)
-        return f"{year}/{int(mm)}/{int(dd)}"
+        return f"{year}-{int(mm):02d}-{int(dd):02d}"
     return None
 
 

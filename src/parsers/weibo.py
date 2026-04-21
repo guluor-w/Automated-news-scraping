@@ -574,7 +574,7 @@ def parse_weibo(config: dict, now: datetime) -> List[Item]:
             if pub_date_str and len(pub_date_str) >= 10:
                 try:
                     _d = dtparser.parse(pub_date_str[:10])
-                    pub_date = f"{_d.year}/{_d.month}/{_d.day}"
+                    pub_date = _d.strftime("%Y-%m-%d")
                 except Exception:
                     pub_date = None
 

@@ -75,11 +75,11 @@ def _extract_date_from_url(url: str) -> Optional[str]:
     # 优先：文件名中的 tYYYYMMDD_ 精确日期
     m = _RE_NDRC_YYYYMMDD.search(url)
     if m:
-        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
     # 回退：路径中的 YYYYMM 目录（日默认 01）
     m = _RE_NDRC_YYYYMM.search(url)
     if m:
-        return f"{m.group(1)}/{int(m.group(2))}/1"
+        return f"{m.group(1)}-{int(m.group(2)):02d}-01"
     return None
 
 
@@ -88,7 +88,7 @@ def _extract_date_from_text(text: str) -> Optional[str]:
     m = _RE_DATE_SLASH.search(text)
     if not m:
         return None
-    return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
+    return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
 
 
 # ── parse_ndrc_home ──────────────────────────────────────────────────────────

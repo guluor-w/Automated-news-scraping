@@ -197,17 +197,17 @@ def _extract_soe_date(a_tag, url: str) -> Optional[str]:
     if m:
         yyyy = m.group(1)
         mm = int(m.group(2))
-        return f"{yyyy}/{mm}/1"
+        return f"{yyyy}-{int(mm):02d}-01"
 
     # 3) 时间戳文件名
     m = _RE_TIMESTAMP_FILENAME.search(url)
     if m:
-        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
 
     # 4) 南航等长目录 ID
     m = _RE_LONG_DIR_ID.search(url)
     if m:
-        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
 
     # 5) miit_local 的上下文日期提取
     d = _extract_date_from_context(a_tag)

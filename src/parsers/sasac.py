@@ -75,7 +75,7 @@ def _extract_date_from_context(a_tag, year: int, now_date=None) -> Optional[str]
                     y = year - 1
             except ValueError:
                 pass
-        return f"{y}/{int(mm)}/{int(dd)}"
+        return f"{y}-{int(mm):02d}-{int(dd):02d}"
 
     # 1) 紧邻的兄弟 <span>
     for sibling_fn in (a_tag.find_next_sibling, a_tag.find_previous_sibling):
@@ -85,7 +85,7 @@ def _extract_date_from_context(a_tag, year: int, now_date=None) -> Optional[str]
             # 先尝试完整日期
             m = _RE_FULL_DATE.search(text)
             if m:
-                return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
+                return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
             m = _RE_BRACKET_MMDD.search(text)
             if m:
                 return _mmdd_to_full(m.group(1), m.group(2))
@@ -96,7 +96,7 @@ def _extract_date_from_context(a_tag, year: int, now_date=None) -> Optional[str]
         text = parent.get_text(" ", strip=True)
         m = _RE_FULL_DATE.search(text)
         if m:
-            return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
+            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
         m = _RE_BRACKET_MMDD.search(text)
         if m:
             return _mmdd_to_full(m.group(1), m.group(2))

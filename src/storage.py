@@ -16,7 +16,7 @@ import pandas as pd
 from dateutil import parser as dtparser
 
 from models import Item, SG_TZ
-from utils import canonicalize_url_for_dedup
+from utils import canonicalize_url_for_dedup, normalize_pub_date
 
 # GitHub Pages 发布地址（用于 RSS <link> 字段）
 _PAGES_URL = "https://guluor-w.github.io/Automated-news-scraping/"
@@ -87,6 +87,10 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
             by=["__sortdate", "查询时间"], ascending=[False, False]
         ).drop(columns=["__sortdate"])
 
+    # 统一发布日期格式为 YYYY-MM-DD
+    if not new_df.empty and "发布日期" in new_df.columns:
+        new_df["发布日期"] = new_df["发布日期"].astype(str).apply(normalize_pub_date)
+
     return new_df, added
 
 
@@ -105,7 +109,7 @@ def _xml_escape(s: str) -> str:
 
 
 def _pub_date_to_rfc822(pub_date: str) -> str:
-    """将日期字符串（YYYY/M/D 或 YYYY-MM-DD）转换为 RSS 所需的 RFC 822 格式。"""
+    """将日期字符串（YYYY-MM-DD）转换为 RSS 所需的 RFC 822 格式。"""
     try:
         dt = dtparser.parse(pub_date).replace(tzinfo=SG_TZ)
         return dt.strftime("%a, %d %b %Y 00:00:00 +0800")

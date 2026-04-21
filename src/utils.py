@@ -34,8 +34,23 @@ def normalize_url(base: str, href: str) -> str:
     return base.rstrip("/") + "/" + href
 
 
+def normalize_pub_date(date_str: str) -> str:
+    """将任意合法日期字符串统一转换为 YYYY-MM-DD 格式。
+
+    支持输入格式包括 YYYY-MM-DD、YYYY/MM/DD、YYYY-MM-DDTHH:MM:SS+TZ 等。
+    对空值或无法解析的字符串原样返回。
+    """
+    if not date_str or not str(date_str).strip():
+        return date_str
+    try:
+        dt = dtparser.parse(str(date_str))
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        return date_str
+
+
 def extract_date(text: str) -> Optional[str]:
-    """从任意文本中尝试提取 YYYY/M/D 格式的日期字符串（月日不补零）。"""
+    """从任意文本中尝试提取 YYYY-MM-DD 格式的日期字符串。"""
     if not text:
         return None
     for pat in DATE_PATTERNS:
@@ -43,13 +58,13 @@ def extract_date(text: str) -> Optional[str]:
         if m:
             y, mo, d = map(int, m.groups())
             try:
-                return f"{y}/{mo}/{d}"
+                return f"{y}-{mo:02d}-{d:02d}"
             except Exception:
                 return None
     try:
         dt = dtparser.parse(text, fuzzy=True)
         if dt.year >= 2000:
-            return f"{dt.year}/{dt.month}/{dt.day}"
+            return dt.strftime("%Y-%m-%d")
     except Exception:
         pass
     return None

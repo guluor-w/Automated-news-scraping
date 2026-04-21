@@ -76,7 +76,7 @@ def _extract_date_nda(a_tag, url: str) -> Optional[str]:
     # 1) URL 文件名
     m = _RE_NDA_URL_DATE.search(url)
     if m:
-        return f"{m.group(1)}/{int(m.group(2))}/{int(m.group(3))}"
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
 
     # 2) 相邻 <span> 中的 YYYY.MM.DD
     for sibling_fn in (a_tag.find_next_sibling, a_tag.find_previous_sibling):
@@ -85,7 +85,7 @@ def _extract_date_nda(a_tag, url: str) -> Optional[str]:
             text = sib.get_text(" ", strip=True)
             dm = _RE_DOT_DATE.search(text)
             if dm:
-                return f"{dm.group(1)}/{int(dm.group(2))}/{int(dm.group(3))}"
+                return f"{dm.group(1)}-{int(dm.group(2)):02d}-{int(dm.group(3)):02d}"
 
     # 3) 父元素
     parent = a_tag.parent
@@ -93,7 +93,7 @@ def _extract_date_nda(a_tag, url: str) -> Optional[str]:
         text = parent.get_text(" ", strip=True)
         dm = _RE_DOT_DATE.search(text)
         if dm:
-            return f"{dm.group(1)}/{int(dm.group(2))}/{int(dm.group(3))}"
+            return f"{dm.group(1)}-{int(dm.group(2)):02d}-{int(dm.group(3)):02d}"
 
     return None
 

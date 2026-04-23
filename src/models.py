@@ -17,6 +17,9 @@ SG_TZ = timezone(timedelta(hours=8))
 # 其他所有信源在过滤时必须排除这些关键词
 MIIT_ONLY_KEYWORDS = frozenset({"印发", "体系建设"})
 
+# 央企信源需要排除的关键词（央企信源不使用这些词作为匹配关键词）
+SOE_EXCLUDED_KEYWORDS = frozenset({"装备"})
+
 # 通用 HTTP 请求头 User-Agent
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "

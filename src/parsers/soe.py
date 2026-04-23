@@ -41,7 +41,7 @@ from typing import Dict, List, Optional
 from bs4 import BeautifulSoup
 from dateutil import parser as dtparser
 
-from models import Item, MIIT_ONLY_KEYWORDS
+from models import Item, MIIT_ONLY_KEYWORDS, SOE_EXCLUDED_KEYWORDS
 from utils import (
     canonicalize_url_for_dedup,
     extract_date,
@@ -301,7 +301,7 @@ def parse_soe(config: dict, now: datetime) -> List[Item]:
         return []
 
     fetched_at = format_fetched_at(now)
-    keywords = [k for k in config["keywords"] if k not in MIIT_ONLY_KEYWORDS]
+    keywords = [k for k in config["keywords"] if k not in MIIT_ONLY_KEYWORDS and k not in SOE_EXCLUDED_KEYWORDS]
     window_days = int(config["window_days"])
     hard_cap_days = int(config["hard_cap_days"])
     timeout = int(config.get("soe_timeout", DEFAULT_TIMEOUT))

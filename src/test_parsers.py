@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from models import MIIT_ONLY_KEYWORDS
+from models import MIIT_ONLY_KEYWORDS, SOE_EXCLUDED_KEYWORDS
 
 try:
     import pytest
@@ -1074,6 +1074,24 @@ class TestSoeParser:
             )
         assert len(items) == 0, (
             f"非 MIIT 信源不应通过 MIIT_ONLY_KEYWORDS 匹配，实际返回: {[it.title for it in items]}"
+        )
+
+    def test_soe_excluded_keywords(self):
+        """仅含 SOE_EXCLUDED_KEYWORDS 的标题不应命中。"""
+        from parsers.soe import parse_soe
+        # 构造仅含"装备"关键词的 HTML
+        html_soe_excluded = """<html><body>
+            <a href="/n1/c1/content.html">新型储能装备制造项目开工</a>
+        </body></html>"""
+        test_sources = [{"name": "测试央企", "url": "http://test.example.com/"}]
+        with patch("parsers.soe.SOE_SOURCES", test_sources), \
+             patch("parsers.soe.http_get", return_value=html_soe_excluded):
+            items = parse_soe(
+                {**self._SOE_CONFIG, "keywords": list(SOE_EXCLUDED_KEYWORDS)},
+                NOW,
+            )
+        assert len(items) == 0, (
+            f"央企信源不应通过 SOE_EXCLUDED_KEYWORDS 匹配，实际返回: {[it.title for it in items]}"
         )
 
     def test_exclude_paths_filters_column_sections(self):

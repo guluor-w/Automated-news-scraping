@@ -38,7 +38,7 @@ from typing import List, Optional
 from dateutil import parser as dtparser
 
 from models import Item, MIIT_ONLY_KEYWORDS
-from utils import format_fetched_at, keyword_hit, within_window
+from utils import format_fetched_at, keyword_hit, keyword_hit_first_sentence, within_window
 
 logger = logging.getLogger(__name__)
 
@@ -578,10 +578,24 @@ def parse_weibo(config: dict, now: datetime) -> List[Item]:
                 except Exception:
                     pub_date = None
 
+            text = post.get("text", "").strip()
             if not title or not url:
                 continue
-            if not keyword_hit(title, weibo_keywords):
+
+            # 正文前半部分：第一个句号前，无句号则取前 50%
+            text_prefix = text
+            if text:
+                for i, ch in enumerate(text):
+                    if ch in '。.':
+                        text_prefix = text[:i]
+                        break
+                else:
+                    text_prefix = text[:max(1, len(text) // 2)]
+
+            # 标题或正文前半部分包含关键词即保留
+            if not keyword_hit(title, weibo_keywords) and not keyword_hit(text_prefix, weibo_keywords):
                 continue
+
             if pub_date and not within_window(pub_date, now, window_days, hard_cap_days):
                 continue
 

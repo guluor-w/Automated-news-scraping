@@ -87,6 +87,31 @@ def keyword_hit(title: str, keywords: List[str]) -> bool:
     return False
 
 
+def keyword_hit_first_sentence(text: str, keywords: List[str]) -> bool:
+    """
+    判断文本的前半部分是否包含任意关键词。
+
+    前半部分优先取第一个中文句号'。'或英文句号'.'之前的内容；
+    若不存在句号，则取文本的前 50%。
+
+    英文关键词使用词边界匹配，中文使用子串匹配。
+    """
+    if not text:
+        return False
+
+    # 查找第一个中文句号或英文句号
+    for i, ch in enumerate(text):
+        if ch in '。.':
+            prefix = text[:i]
+            break
+    else:
+        # 无句号时取前 50%
+        cut = max(1, len(text) // 2)
+        prefix = text[:cut]
+
+    return keyword_hit(prefix, keywords)
+
+
 def within_window(pub_date: Optional[str], now: datetime, window_days: int, hard_cap_days: int) -> bool:
     """
     判断 pub_date 是否在有效时间窗口内。

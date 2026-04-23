@@ -87,9 +87,9 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
             by=["__sortdate", "查询时间"], ascending=[False, False]
         ).drop(columns=["__sortdate"])
 
-    # 统一发布日期格式为 YYYY-MM-DD
+    # 统一发布日期格式为 YYYY-MM-DD；缺失值保留空字符串而非 nan
     if not new_df.empty and "发布日期" in new_df.columns:
-        new_df["发布日期"] = new_df["发布日期"].astype(str).apply(normalize_pub_date)
+        new_df["发布日期"] = new_df["发布日期"].fillna("").astype(str).apply(normalize_pub_date)
 
     return new_df, added
 

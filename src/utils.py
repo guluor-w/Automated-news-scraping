@@ -38,15 +38,15 @@ def normalize_pub_date(date_str: str) -> str:
     """将任意合法日期字符串统一转换为 YYYY-MM-DD 格式。
 
     支持输入格式包括 YYYY-MM-DD、YYYY/MM/DD、YYYY-MM-DDTHH:MM:SS+TZ 等。
-    对空值或无法解析的字符串原样返回。
+    对空值或无法解析的字符串返回空字符串。
     """
-    if not date_str or not str(date_str).strip():
-        return date_str
+    if not date_str or not str(date_str).strip() or str(date_str).strip().lower() == "nan":
+        return ""
     try:
         dt = dtparser.parse(str(date_str))
         return dt.strftime("%Y-%m-%d")
     except Exception:
-        return date_str
+        return ""
 
 
 def extract_date(text: str) -> Optional[str]:

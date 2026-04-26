@@ -5,7 +5,35 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sun, 26 Apr 2026 14:56:25 +0800</lastBuildDate>
+    <lastBuildDate>Mon, 27 Apr 2026 02:25:03 +0800</lastBuildDate>
+    <item>
+      <title>视听中国的微博视频</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5292030759206946&amp;luicode=10000011&amp;lfid=1005057408066931&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5292030759206946&amp;luicode=10000011&amp;lfid=1005057408066931&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sun, 26 Apr 2026 00:00:00 +0800</pubDate>
+      <description>视听中国｜微博-视听中国</description>
+    </item>
+    <item>
+      <title>视听中国的微博视频</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5292030494965763&amp;luicode=10000011&amp;lfid=1005057408066931&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5292030494965763&amp;luicode=10000011&amp;lfid=1005057408066931&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sun, 26 Apr 2026 00:00:00 +0800</pubDate>
+      <description>视听中国｜微博-视听中国</description>
+    </item>
+    <item>
+      <title>央视一套的微博视频</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5291954381193321&amp;luicode=10000011&amp;lfid=1005053011694992&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5291954381193321&amp;luicode=10000011&amp;lfid=1005053011694992&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sun, 26 Apr 2026 00:00:00 +0800</pubDate>
+      <description>安徽发布｜微博-安徽发布</description>
+    </item>
+    <item>
+      <title>【 #智能眼镜成科技消费新宠# 】 #AI眼镜越来越智能了# 数据显示，2025年中国智能眼镜市场全年出货量246万台，同比增长87.1%。2026年随着多家头...</title>
+      <link>https://m.weibo.cn/detail/5292000006111513</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5292000006111513</guid>
+      <pubDate>Sun, 26 Apr 2026 00:00:00 +0800</pubDate>
+      <description>天津发布｜微博-天津发布</description>
+    </item>
     <item>
       <title>农村土地流转开启“一键估价” 北京发布土地经营权流转价格模型</title>
       <link>https://www.beijing.gov.cn/ywdt/gzdt/202604/t20260426_4613567.html</link>

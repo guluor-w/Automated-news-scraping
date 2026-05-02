@@ -5,7 +5,42 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sat, 02 May 2026 14:54:05 +0800</lastBuildDate>
+    <lastBuildDate>Sun, 03 May 2026 02:30:51 +0800</lastBuildDate>
+    <item>
+      <title>中国三峡集团的微博视频</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5294093992132671&amp;luicode=10000011&amp;lfid=1005052752396553&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5294093992132671&amp;luicode=10000011&amp;lfid=1005052752396553&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0800</pubDate>
+      <description>国资小新｜微博-国资小新</description>
+    </item>
+    <item>
+      <title>中国交通的微博视频</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5294203295694867&amp;luicode=10000011&amp;lfid=1005057073634525&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5294203295694867&amp;luicode=10000011&amp;lfid=1005057073634525&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0800</pubDate>
+      <description>中国交通｜微博-中国交通</description>
+    </item>
+    <item>
+      <title>道中华</title>
+      <link>https://weibo.com/ttarticle/p/show?id=2309405294212072997006&amp;luicode=10000011&amp;lfid=1005057921810443&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://weibo.com/ttarticle/p/show?id=2309405294212072997006&amp;luicode=10000011&amp;lfid=1005057921810443&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0800</pubDate>
+      <description>道中华｜微博-道中华</description>
+    </item>
+    <item>
+      <title>【《立心之约——中学生AI微课十讲》】 #读浙# 本书为人工智能科普读物，面向中学生开展人工智能启蒙教育，主要介绍人工智能的定义、研究范畴、探索路径，以及行业发...</title>
+      <link>https://m.weibo.cn/detail/5294217179695422</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5294217179695422</guid>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0800</pubDate>
+      <description>浙江发布｜微博-浙江发布</description>
+    </item>
+    <item>
+      <title>#津彩相逢# 【南开大学全新推出工科试验班 培养未来产业复合型人才】记者从南开大学获悉，2026年学校全新设立工科试验班（未来产业精英），突出“科技+产业”育人...</title>
+      <link>https://m.weibo.cn/detail/5294171880949561</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5294171880949561</guid>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0800</pubDate>
+      <description>天津发布｜微博-天津发布</description>
+    </item>
     <item>
       <title>4月份中国制造业采购经理指数继续位于扩张区间</title>
       <link>https://www.ln.gov.cn/web/ywdt/rdgz/2026050207063594727/index.shtml</link>

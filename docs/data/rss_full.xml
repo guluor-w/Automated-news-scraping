@@ -5,7 +5,7 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Mon, 04 May 2026 15:26:56 +0800</lastBuildDate>
+    <lastBuildDate>Tue, 05 May 2026 03:00:53 +0800</lastBuildDate>
     <item>
       <title>#上新了大国工程# 【全国首根66千伏铝芯海缆，正式亮相！】近日， @中国能建 广东院EPC总承包建设的华电阳江三山岛六海上风电场项目完成全国首根66千伏铝芯海...</title>
       <link>https://m.weibo.cn/detail/5294813608938183</link>
@@ -33,6 +33,13 @@
       <guid isPermaLink="true">https://m.weibo.cn/detail/5294752324913414</guid>
       <pubDate>Mon, 04 May 2026 00:00:00 +0800</pubDate>
       <description>河南政府网｜微博-河南政府网</description>
+    </item>
+    <item>
+      <title>联播 | 我国已建成高质量数据集超11.6万个</title>
+      <link>https://www.nda.gov.cn/sjj/swdt/mtsy/0503/20260503202141429092651_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/mtsy/0503/20260503202141429092651_pc.html</guid>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0800</pubDate>
+      <description>国家数据局｜国家数据局-媒体声音</description>
     </item>
     <item>
       <title>深度调研 | 抢占智能时代制高点：我国人工智能产业发展调查</title>

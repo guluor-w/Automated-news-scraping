@@ -42,7 +42,6 @@ import logging
 import random
 from datetime import datetime
 from typing import List
-from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 

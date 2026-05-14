@@ -149,7 +149,7 @@ _RE_GUANGXI_TRS = re.compile(r"/t\d{7,}\.shtml")
 #   1) 含数字（常见 ID/序号）；
 #   2) UUID 风格（8+ 位十六进制或带短横线）。
 _RE_YEAR_DIR_ARTICLE = re.compile(
-    r"/(20\d{2})/(?:[^/?#]+/)*(?:[^/?#]*\d[^/?#]*|[0-9a-f-]{8,})\.(?:s?html?)$"
+    r"/(20\d{2})/(?:[^/?#]+/)*(?:[^/?#]*\d[^/?#]*|[0-9a-f-]{8,})\.(?:html?|shtml)$"
 )
 
 # ── 日期提取正则 ──────────────────────────────────────────────────────────────
@@ -405,7 +405,7 @@ def _extract_date_from_context(a_tag, now: Optional[datetime] = None) -> Optiona
       - 表格：<tr><td><a>标题</a></td><td>2026-04-15</td></tr>
     """
     _DATE_TAG_NAMES = ["span", "div", "em", "i", "time", "p", "h6", "td"]
-    ref_now = now or datetime.now()
+    ref_now = now if now is not None else datetime.now().astimezone()
 
     def extract_date_by_text(text: str) -> Optional[str]:
         text = text.strip("[]【】")

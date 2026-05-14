@@ -30,7 +30,7 @@ sources:
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from bs4 import BeautifulSoup
@@ -405,7 +405,7 @@ def _extract_date_from_context(a_tag, now: Optional[datetime] = None) -> Optiona
       - 表格：<tr><td><a>标题</a></td><td>2026-04-15</td></tr>
     """
     _DATE_TAG_NAMES = ["span", "div", "em", "i", "time", "p", "h6", "td"]
-    ref_now = now if now is not None else datetime.now().astimezone()
+    ref_now = now if now is not None else datetime.now(timezone.utc)
 
     def extract_date_by_text(text: str) -> Optional[str]:
         text = text.strip("[]【】")

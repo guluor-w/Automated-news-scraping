@@ -200,8 +200,10 @@ _detail_date_cache: "OrderedDict[str, Optional[str]]" = OrderedDict()
 
 
 def _cache_detail_date(url: str, value: Optional[str]) -> None:
+    existed = url in _detail_date_cache
     _detail_date_cache[url] = value
-    _detail_date_cache.move_to_end(url)
+    if existed:
+        _detail_date_cache.move_to_end(url)
     while len(_detail_date_cache) > _DETAIL_DATE_CACHE_MAXSIZE:
         _detail_date_cache.popitem(last=False)
 

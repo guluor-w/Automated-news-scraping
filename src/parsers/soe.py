@@ -206,19 +206,25 @@ def _fetch_detail_date(url: str, timeout: int = 5) -> Optional[str]:
         return _detail_date_cache[url]
 
     try:
-        # 先检查重定向后的 URL 是否包含日期（华电等站点）
         import requests
+
+        # 单次请求同时获取重定向后的最终 URL 和详情页 HTML，
+        # 避免先 requests.get 再 http_get 的重复网络请求。
         resp = requests.get(url, timeout=timeout, headers={
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         })
+        resp.raise_for_status()
+
         final_url = resp.url
         d = _extract_date_from_url(final_url)
         if d:
             _detail_date_cache[url] = d
             return d
 
-        # 使用 http_get 获取正确编码的 HTML（处理 GBK 等编码）
-        html = http_get(final_url, timeout=timeout)
+        # 统一基于同一响应做编码处理，兼容 GBK 等页面编码
+        if not resp.encoding or resp.encoding.lower() == "iso-8859-1":
+            resp.encoding = resp.apparent_encoding or resp.encoding
+        html = resp.text
         soup = BeautifulSoup(html, "lxml")
 
         # 1) meta 标签

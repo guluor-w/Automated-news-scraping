@@ -280,8 +280,11 @@ def _is_meaningless_title(title: str) -> bool:
     """判断标题是否为无意义的占位文本（如"XXX的微博视频"）。"""
     if not title:
         return True
+    t = title.strip()
+    if not t:
+        return True
     # 匹配 "XXX的微博视频"、"XXX的微博直播" 等模式
-    if re.search(r"^.+的(?:微博视频|微博直播|微博)$", title.strip()):
+    if re.search(r"^.+的(?:微博视频|微博直播|微博)$", t):
         return True
     return False
 

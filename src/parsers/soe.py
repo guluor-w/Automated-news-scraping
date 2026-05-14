@@ -35,6 +35,7 @@ sources:
 
 import logging
 import re
+from collections import OrderedDict
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -191,8 +192,18 @@ def _is_soe_news_url(url: str) -> bool:
 
 # ── 详情页日期提取（首页列表无日期时的回退策略）────────────────────────────────
 
-# 缓存详情页日期，避免同一页面重复请求
-_detail_date_cache: Dict[str, Optional[str]] = {}
+_DETAIL_DATE_CACHE_MAXSIZE = 1024
+_CACHE_MISS = object()
+
+# 缓存详情页日期，避免同一页面重复请求；限制容量避免长期运行时内存持续增长
+_detail_date_cache: "OrderedDict[str, Optional[str]]" = OrderedDict()
+
+
+def _cache_detail_date(url: str, value: Optional[str]) -> None:
+    _detail_date_cache[url] = value
+    _detail_date_cache.move_to_end(url)
+    while len(_detail_date_cache) > _DETAIL_DATE_CACHE_MAXSIZE:
+        _detail_date_cache.popitem(last=False)
 
 
 def _fetch_detail_date(url: str, timeout: int = 5) -> Optional[str]:
@@ -202,8 +213,10 @@ def _fetch_detail_date(url: str, timeout: int = 5) -> Optional[str]:
     其次 <meta name="publishDate"> / <meta name="createDate">，
     最后扫描正文中的日期文本。
     """
-    if url in _detail_date_cache:
-        return _detail_date_cache[url]
+    cached = _detail_date_cache.get(url, _CACHE_MISS)
+    if cached is not _CACHE_MISS:
+        _detail_date_cache.move_to_end(url)
+        return cached
 
     try:
         import requests
@@ -218,7 +231,7 @@ def _fetch_detail_date(url: str, timeout: int = 5) -> Optional[str]:
         final_url = resp.url
         d = _extract_date_from_url(final_url)
         if d:
-            _detail_date_cache[url] = d
+            _cache_detail_date(url, d)
             return d
 
         # 统一基于同一响应做编码处理，兼容 GBK 等页面编码
@@ -233,7 +246,7 @@ def _fetch_detail_date(url: str, timeout: int = 5) -> Optional[str]:
             if meta and meta.get("content"):
                 d = extract_date(meta["content"])
                 if d:
-                    _detail_date_cache[url] = d
+                    _cache_detail_date(url, d)
                     return d
 
         # 2) 常见的日期容器（按优先级）
@@ -247,7 +260,7 @@ def _fetch_detail_date(url: str, timeout: int = 5) -> Optional[str]:
             if tag:
                 d = extract_date(tag.get_text(" ", strip=True))
                 if d:
-                    _detail_date_cache[url] = d
+                    _cache_detail_date(url, d)
                     return d
         # id 选择器
         for elem_id in [
@@ -258,7 +271,7 @@ def _fetch_detail_date(url: str, timeout: int = 5) -> Optional[str]:
             if tag:
                 d = extract_date(tag.get_text(" ", strip=True))
                 if d:
-                    _detail_date_cache[url] = d
+                    _cache_detail_date(url, d)
                     return d
 
         # 3) 正文前 500 字符中的日期
@@ -266,13 +279,13 @@ def _fetch_detail_date(url: str, timeout: int = 5) -> Optional[str]:
         if body:
             d = extract_date(body.get_text(" ", strip=True)[:500])
             if d:
-                _detail_date_cache[url] = d
+                _cache_detail_date(url, d)
                 return d
 
-        _detail_date_cache[url] = None
+        _cache_detail_date(url, None)
         return None
     except Exception:
-        _detail_date_cache[url] = None
+        _cache_detail_date(url, None)
         return None
 
 

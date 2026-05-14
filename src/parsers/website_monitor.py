@@ -245,7 +245,9 @@ class WebsiteNewsClient:
             for cand in candidates[:max_items]:
                 pub_date = cand["pub_date"]
                 if not pub_date:
-                    pub_date = _fetch_detail_date(cand["url"], timeout=8)
+                    pub_date = await asyncio.to_thread(
+                        _fetch_detail_date, cand["url"], 8
+                    )
                 articles.append({
                     "title": cand["title"],
                     "url": cand["url"],

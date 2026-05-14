@@ -147,6 +147,16 @@ class TestUrlPatternRecognition:
         url = "http://www.qinghai.gov.cn/zwgk/system/2026/04/16/030097355.shtml"
         assert _is_news_like_url(url)
 
+    def test_year_directory_index_rejected(self):
+        """仅 /YYYY/ 栏目页（无文章文件名）不应被误判为新闻。"""
+        url = "https://example.com/news/2026/index.html"
+        assert not _is_news_like_url(url)
+
+    def test_year_directory_article_with_id_accepted(self):
+        """仅 /YYYY/ 路径但文件名含 ID 的文章页应被识别。"""
+        url = "https://example.com/news/2026/article_987654.html"
+        assert _is_news_like_url(url)
+
     def test_non_news_rejected(self):
         """非新闻链接（导航、索引页等）应被拒绝。"""
         urls = [
@@ -453,6 +463,15 @@ class TestExtractDateFromContext:
         )
         result = _extract_date_from_context(a)
         assert result == "2026-04-13"
+
+    def test_mm_dd_uses_passed_now_year(self):
+        """无年份 MM-DD 日期应使用调用方传入 now 的年份。"""
+        a = self._make_context(
+            "<li><a href='/news/123.html'>智能制造新政发布</a><span>[04-16]</span></li>"
+        )
+        custom_now = datetime(2024, 5, 1, tzinfo=SG_TZ)
+        result = _extract_date_from_context(a, now=custom_now)
+        assert result == "2024-04-16"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

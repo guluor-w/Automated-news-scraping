@@ -60,7 +60,6 @@ from parsers.miit_local import (
     _is_nav_text,
     _is_news_like_url,
     DEFAULT_TIMEOUT,
-    extract_date,
 )
 
 logger = logging.getLogger(__name__)

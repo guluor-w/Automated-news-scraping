@@ -157,10 +157,12 @@ def _scrape_one_gov_site(
         if len(title) < 6:
             continue
 
-        # 提取发布日期：优先从 URL，其次从上下文文本
+        # 提取发布日期：优先从 URL，其次从上下文文本，再其次从原始链接文本
         pub_date = _extract_date_from_url(url)
         if not pub_date:
-            pub_date = _extract_date_from_context(a_tag)
+            pub_date = _extract_date_from_context(a_tag, now)
+        if not pub_date:
+            pub_date = extract_date(raw_text)
         if not pub_date:
             pub_date = extract_date(title)
 

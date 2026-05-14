@@ -42,10 +42,17 @@ import logging
 import random
 from datetime import datetime
 from typing import List
-from urllib.parse import urlparse
+
+from bs4 import BeautifulSoup
 
 from models import Item, MIIT_ONLY_KEYWORDS
-from utils import format_fetched_at, keyword_hit
+from parsers.miit_local import (
+    _clean_title,
+    _extract_date_from_context,
+    _extract_date_from_url,
+)
+from parsers.soe import _fetch_detail_date
+from utils import format_fetched_at, keyword_hit, normalize_url
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +64,7 @@ logger = logging.getLogger(__name__)
 #   "disabled": True — 跳过该源（保留配置但暂停抓取）
 WEBSITE_SOURCES = {
     # --- 中央部委 ---
-    "国家数据局":           {"url": "https://www.nda.gov.cn/sjj/swdt/list/index_pc_1.html",    "org": "国家数据局"},
+    # "国家数据局":           {"url": "https://www.nda.gov.cn/sjj/swdt/list/index_pc_1.html",    "org": "国家数据局"},  # 已由 parse_nda_home 覆盖
     "国家信访局":           {"url": "https://www.gjxfj.gov.cn/gjxfj/news/index.htm",           "org": "国家信访局"},
     "财政部":               {"url": "https://www.mof.gov.cn/zhengwuxinxi/caizhengxinwen/",     "org": "财政部"},
     "审计署":               {"url": "https://www.audit.gov.cn/n4/n19/index.html",              "org": "审计署"},
@@ -65,34 +72,39 @@ WEBSITE_SOURCES = {
     "国家国际发展合作署":   {"url": "http://www.cidca.gov.cn/hzdt2.htm",                       "org": "国家国际发展合作署"},
     "国家核安全局":         {"url": "https://nnsa.mee.gov.cn/ywdt/hyzx/",                      "org": "国家核安全局"},
     "国家档案局":           {"url": "https://www.saac.gov.cn/daj/xwdt/xwdt.shtml",             "org": "国家档案局"},
-    "首都之窗":             {"url": "https://www.beijing.gov.cn/ywdt/",                        "org": "北京市人民政府门户网站"},
+    # "首都之窗":             {"url": "https://www.beijing.gov.cn/ywdt/",                        "org": "北京市人民政府门户网站"},  # 已由 parse_gov_local 覆盖
     "人力资源和社会保障部": {"url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/dongtaixinwen/buneiyaowen/", "org": "人力资源和社会保障部"},
 
     # --- 央企 ---
-    "中国融通集团":     {"url": "https://www.crtamg.com.cn/xwzx/jtdt/",             "org": "中国融通资产管理集团有限公司"},
-    "哈电集团":         {"url": "https://www.harbin-electric.com/xwzx.htm",          "org": "哈尔滨电气集团有限公司"},
-    "中铝集团":         {"url": "https://www.chinalco.com.cn/xwzx/",                "org": "中国铝业集团有限公司"},
-    "中国航空集团":     {"url": "https://www.airchinagroup.com/cnah/include/xwzxindex.shtml", "org": "中国航空集团有限公司"},
-    "招商局集团":       {"url": "https://www.cmhk.com/main/xwzx/jtyw/index.html",  "org": "招商局集团有限公司"},
-    "华润集团":         {"url": "https://winfo.crc.com.cn/news/crc_dynamic/",       "org": "华润（集团）有限公司"},
-    "中国节能":         {"url": "https://www.cecep.cn/cecep/news/jtxw/",             "org": "中国节能环保集团有限公司"},
-    "中国有色集团":     {"url": "https://www.cnmc.com.cn/cnmc/xwzx/jtxw/",          "org": "中国有色矿业集团有限公司"},
-    "中国稀土集团":     {"url": "https://www.regcc.cn/zgxtjt/xwzx/news.shtml",      "org": "中国稀土集团有限公司"},
-    "国药集团":         {"url": "https://www.sinopharm.com/mediacenter.html",        "org": "中国医药集团有限公司"},
+    # 以下央企已由 soe.py 覆盖，此处注释避免重复抓取
+    # "中国融通集团":     {"url": "https://www.crtamg.com.cn/xwzx/jtdt/",             "org": "中国融通资产管理集团有限公司"},
+    # "哈电集团":         {"url": "https://www.harbin-electric.com/xwzx.htm",          "org": "哈尔滨电气集团有限公司"},
+    # "中铝集团":         {"url": "https://www.chinalco.com.cn/xwzx/",                "org": "中国铝业集团有限公司"},
+    # "中国航空集团":     {"url": "https://www.airchinagroup.com/cnah/include/xwzxindex.shtml", "org": "中国航空集团有限公司"},
+    # "招商局集团":       {"url": "https://www.cmhk.com/main/xwzx/jtyw/index.html",  "org": "招商局集团有限公司"},
+    # "华润集团":         {"url": "https://winfo.crc.com.cn/news/crc_dynamic/",       "org": "华润（集团）有限公司"},
+    # "中国节能":         {"url": "https://www.cecep.cn/cecep/news/jtxw/",             "org": "中国节能环保集团有限公司"},
+    # "中国有色集团":     {"url": "https://www.cnmc.com.cn/cnmc/xwzx/jtxw/",          "org": "中国有色矿业集团有限公司"},
+    # "中国稀土集团":     {"url": "https://www.regcc.cn/zgxtjt/xwzx/news.shtml",      "org": "中国稀土集团有限公司"},
+    # "国药集团":         {"url": "https://www.sinopharm.com/mediacenter.html",        "org": "中国医药集团有限公司"},
     # 注: 以下几个源暂不可用，保留配置以便后续恢复; disabled=True 时自动跳过
     #   - 中国中煤: 境外网络超时
     #   - 中国矿产资源集团: 纯SPA无服务端渲染
     #   - 中咨公司: 官网502不可达
     "中国中煤":         {"url": "https://www.chinacoal.com/col/col3/index.html",     "org": "中国中煤能源集团有限公司", "slow": True, "disabled": True},
     "中国矿产资源集团": {"url": "https://www.cmr-co.com/news",                      "org": "中国矿产资源集团有限公司", "disabled": True},
-    "中国资源循环集团": {"url": "http://www.crrg.com.cn/crrg/xwzx/jtyw/index.html", "org": "中国资源循环集团有限公司"},
-    "中国有研":         {"url": "https://www.grinm.com/1332.html",                  "org": "中国有研科技集团有限公司", "slow": True},
-    "中国建科":         {"url": "https://www.cctc.cn/xwzx/jtyw/index.shtml",        "org": "中国建设科技有限公司"},
-    "中盐集团":         {"url": "http://www.chinasalt.com.cn/xwzx",                 "org": "中国盐业集团有限公司"},
-    "矿冶科技集团":     {"url": "https://www.bgrimm.com/xwzx/kydt/index1.htm",      "org": "矿冶科技集团有限公司"},
-    "南光集团":         {"url": "http://www.namkwong.com.mo/col/col1816/index.html", "org": "南光（集团）有限公司"},
+    # 以下央企已由 soe.py 覆盖，此处注释避免重复抓取
+    # "中国资源循环集团": {"url": "http://www.crrg.com.cn/crrg/xwzx/jtyw/index.html", "org": "中国资源循环集团有限公司"},
+    # "中国有研":         {"url": "https://www.grinm.com/1332.html",                  "org": "中国有研科技集团有限公司", "slow": True},
+    # "中国建科":         {"url": "https://www.cctc.cn/xwzx/jtyw/index.shtml",        "org": "中国建设科技有限公司"},
+    # "中盐集团":         {"url": "http://www.chinasalt.com.cn/xwzx",                 "org": "中国盐业集团有限公司"},
+    # "矿冶科技集团":     {"url": "https://www.bgrimm.com/xwzx/kydt/index1.htm",      "org": "矿冶科技集团有限公司"},
+    # "南光集团":         {"url": "http://www.namkwong.com.mo/col/col1816/index.html", "org": "南光（集团）有限公司"},
     "中咨公司":         {"url": "https://www.ciecc.com.cn/col/col1595/index.html",  "org": "中国国际工程咨询有限公司", "disabled": True},
-    "中国机械总院":     {"url": "https://www.cam.com.cn/channels/169.html",          "org": "中国机械科学研究总院集团有限公司"},
+    # "中国机械总院":     {"url": "https://www.cam.com.cn/channels/169.html",          "org": "中国机械科学研究总院集团有限公司"},
+
+    # --- 补充：静态抓取效果不佳的源（已在 soe.py / gov_local.py 中配置的源请勿重复添加） ---
+    "广东省政府":       {"url": "https://www.gd.gov.cn/gdywdt/gdyw/",               "org": "广东省人民政府"},
 }
 
 
@@ -133,11 +145,14 @@ class WebsiteNewsClient:
         self._playwright = None
 
     async def fetch_news(self, name: str, url: str, max_items: int = 20,
-                         timeout: int = 30000) -> list:
+                         timeout: int = 30000, now=None) -> list:
         """
         从指定 URL 抓取新闻列表。
-        返回: [{"title": ..., "url": ..., "source": name}, ...]
+        使用 Playwright 渲染页面后，用 BeautifulSoup 解析以复用现有的
+        标题清洗和日期提取逻辑。
+        返回: [{"title": ..., "url": ..., "source": name, "pub_date": ...}, ...]
         """
+        from datetime import datetime
         await self._ensure_browser()
         articles = []
         context = None
@@ -167,50 +182,78 @@ class WebsiteNewsClient:
                 except Exception:
                     raise nav_err
 
-            links = await page.evaluate("""() => {
-                const anchors = document.querySelectorAll('a');
-                return Array.from(anchors).map(a => ({
-                    text: (a.textContent || '').trim(),
-                    href: a.href || '',
-                    title: a.getAttribute('title') || '',
-                }));
-            }""")
-
-            base_url = url.rsplit("/", 1)[0] if "/" in url else url
+            html = await page.content()
+            soup = BeautifulSoup(html, "lxml")
+            candidates = []
             seen_urls: set = set()
 
-            for link in links:
-                text = link.get("title") or link.get("text", "")
-                href = link.get("href", "")
+            for a_tag in soup.find_all("a", href=True):
+                href = (a_tag.get("href") or "").strip()
+                if not href or href.startswith("#") or href.startswith("javascript"):
+                    continue
 
-                if not text or len(text) < 6:
-                    continue
-                if not href or href == url:
-                    continue
-                if any(kw in text for kw in self.EXCLUDE_KEYWORDS):
+                raw_text = a_tag.get_text(" ", strip=True)
+                if any(kw in raw_text for kw in self.EXCLUDE_KEYWORDS):
                     continue
                 if any(kw in href for kw in ["javascript:", "void(0)", "mailto:"]):
                     continue
-                if href in seen_urls:
+
+                # 使用现有的标题清洗逻辑
+                title = _clean_title(a_tag, raw_text)
+                if len(title) < 6:
                     continue
 
-                if href.startswith("//"):
-                    href = "https:" + href
-                elif href.startswith("./"):
-                    href = base_url + "/" + href[2:]
-                elif href.startswith("/"):
-                    parsed = urlparse(url)
-                    href = f"{parsed.scheme}://{parsed.netloc}{href}"
+                abs_url = normalize_url(url, href)
+                if abs_url == url or abs_url in seen_urls:
+                    continue
 
-                seen_urls.add(href)
-                articles.append({
-                    "title": text.strip()[:120],
-                    "url": href,
+                # 排除导航/栏目首页（避免首页导航菜单干扰）
+                if abs_url.rstrip('/').endswith(('/index.html', '/index.shtml', '/index.htm')):
+                    continue
+
+                seen_urls.add(abs_url)
+
+                # 提取日期：优先 URL，其次上下文
+                pub_date = _extract_date_from_url(abs_url)
+                if not pub_date:
+                    pub_date = _extract_date_from_context(a_tag, now or datetime.now())
+
+                # 计算新闻相关性分数（用于排序）
+                score = 0
+                if pub_date:
+                    score += 10  # 有日期的优先
+                if '/202' in abs_url:  # URL 含年份路径
+                    score += 5
+                if any(p in abs_url for p in ['/jtyw/', '/news/', '/xw/', '/article/', '/content/', '/post_']):
+                    score += 3
+                if '/index' in abs_url:
+                    score -= 5  # 栏目页降级
+
+                candidates.append({
+                    "title": title[:120],
+                    "url": abs_url,
                     "source": name,
+                    "pub_date": pub_date,
+                    "score": score,
+                    "a_tag": a_tag,
                 })
 
-                if len(articles) >= max_items:
-                    break
+            # 按相关性排序，优先真实新闻链接
+            candidates.sort(key=lambda x: x["score"], reverse=True)
+
+            # 取前 max_items 个，无日期的尝试详情页获取
+            for cand in candidates[:max_items]:
+                pub_date = cand["pub_date"]
+                if not pub_date:
+                    pub_date = await asyncio.to_thread(
+                        _fetch_detail_date, cand["url"], 8
+                    )
+                articles.append({
+                    "title": cand["title"],
+                    "url": cand["url"],
+                    "source": name,
+                    "pub_date": pub_date,
+                })
 
         except Exception as e:
             logger.error(f"    官网抓取异常 ({name}): {e}")
@@ -223,12 +266,13 @@ class WebsiteNewsClient:
 
 # ─────────────── 内部抓取函数（可在测试中 patch） ────────────────────────────
 
-async def _fetch_website_raw(sources: dict) -> dict:
+async def _fetch_website_raw(sources: dict, now=None) -> dict:
     """
     使用 WebsiteNewsClient 抓取所有官网新闻。
 
     Args:
         sources: WEBSITE_SOURCES 格式的字典。
+        now: 当前时间，用于日期上下文提取。
 
     Returns:
         {显示名: [article, ...]} 字典（已跳过 disabled 源）。
@@ -242,7 +286,7 @@ async def _fetch_website_raw(sources: dict) -> dict:
             url = cfg["url"]
             timeout = 60000 if cfg.get("slow") else 30000
             logger.info(f"[官网] {name}")
-            articles = await client.fetch_news(name, url, timeout=timeout)
+            articles = await client.fetch_news(name, url, timeout=timeout, now=now)
             all_results[name] = articles
             await asyncio.sleep(random.uniform(1, 3))
     finally:
@@ -278,7 +322,7 @@ def parse_website_monitor(config: dict, now: datetime) -> List[Item]:
     fetched_at = format_fetched_at(now)
 
     async def _fetch() -> dict:
-        return await _fetch_website_raw(WEBSITE_SOURCES)
+        return await _fetch_website_raw(WEBSITE_SOURCES, now=now)
 
     def _run_fetch() -> dict:
         return asyncio.run(_fetch())
@@ -307,7 +351,7 @@ def parse_website_monitor(config: dict, now: datetime) -> List[Item]:
 
             title = post.get("title", "").strip()
             url = post.get("url", "")
-            pub_date = None  # TODO: extract pub_date from article page
+            pub_date = post.get("pub_date")
 
             if not title or not url:
                 continue

@@ -35,6 +35,7 @@ sources:
 
 import logging
 import re
+from collections import OrderedDict
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -135,6 +136,11 @@ _RE_CRRC_ARTICLE = re.compile(
     r"/\d{4}-\d{2}/\d{2}/article_\d+\.html$"
 )
 
+# 三峡集团时间戳目录：/sxjt/xwzx55/ttxw15/2026051221021491644/index.html
+_RE_TIMESTAMP_DIR = re.compile(
+    r"/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{10,}/index\.html"
+)
+
 
 def _is_soe_news_url(url: str) -> bool:
     """
@@ -179,13 +185,116 @@ def _is_soe_news_url(url: str) -> bool:
         return True
     if _RE_CRRC_ARTICLE.search(url):
         return True
+    if _RE_TIMESTAMP_DIR.search(url):
+        return True
     return False
 
 
-def _extract_soe_date(a_tag, url: str) -> Optional[str]:
+# ── 详情页日期提取（首页列表无日期时的回退策略）────────────────────────────────
+
+_DETAIL_DATE_CACHE_MAXSIZE = 1024
+_CACHE_MISS = object()
+
+# 缓存详情页日期，避免同一页面重复请求；限制容量避免长期运行时内存持续增长
+_detail_date_cache: "OrderedDict[str, Optional[str]]" = OrderedDict()
+
+
+def _cache_detail_date(url: str, value: Optional[str]) -> None:
+    existed = url in _detail_date_cache
+    _detail_date_cache[url] = value
+    if existed:
+        _detail_date_cache.move_to_end(url)
+    while len(_detail_date_cache) > _DETAIL_DATE_CACHE_MAXSIZE:
+        _detail_date_cache.popitem(last=False)
+
+
+def _fetch_detail_date(url: str, timeout: int = 5) -> Optional[str]:
+    """
+    从详情页 HTML 中提取发布日期。
+    优先检查重定向后的 URL 路径（如华电 /site/2/2026-05-08/ID.html），
+    其次 <meta name="publishDate"> / <meta name="createDate">，
+    最后扫描正文中的日期文本。
+    """
+    cached = _detail_date_cache.get(url, _CACHE_MISS)
+    if cached is not _CACHE_MISS:
+        _detail_date_cache.move_to_end(url)
+        return cached
+
+    try:
+        import requests
+
+        # 单次请求同时获取重定向后的最终 URL 和详情页 HTML，
+        # 避免先 requests.get 再 http_get 的重复网络请求。
+        resp = requests.get(url, timeout=timeout, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        resp.raise_for_status()
+
+        final_url = resp.url
+        d = _extract_date_from_url(final_url)
+        if d:
+            _cache_detail_date(url, d)
+            return d
+
+        # 统一基于同一响应做编码处理，兼容 GBK 等页面编码
+        if not resp.encoding or resp.encoding.lower() == "iso-8859-1":
+            resp.encoding = resp.apparent_encoding or resp.encoding
+        html = resp.text
+        soup = BeautifulSoup(html, "lxml")
+
+        # 1) meta 标签
+        for meta_name in ["publishDate", "createDate", "pubDate", "PubDate", "releaseDate", "createdate"]:
+            meta = soup.find("meta", attrs={"name": meta_name})
+            if meta and meta.get("content"):
+                d = extract_date(meta["content"])
+                if d:
+                    _cache_detail_date(url, d)
+                    return d
+
+        # 2) 常见的日期容器（按优先级）
+        # class 选择器
+        for cls in [
+            "date", "time", "pub-time", "publish-date", "news-date",
+            "article-date", "source", "info", "news-header__author-inddfo-item",
+            "news-info", "post-date", "entry-date", "meta-date",
+        ]:
+            tag = soup.find(attrs={"class": cls})
+            if tag:
+                d = extract_date(tag.get_text(" ", strip=True))
+                if d:
+                    _cache_detail_date(url, d)
+                    return d
+        # id 选择器
+        for elem_id in [
+            "artileViewDate", "publishDate", "pubDate", "postDate",
+            "newsDate", "articleDate", "createdTime", "releaseTime",
+        ]:
+            tag = soup.find(attrs={"id": elem_id})
+            if tag:
+                d = extract_date(tag.get_text(" ", strip=True))
+                if d:
+                    _cache_detail_date(url, d)
+                    return d
+
+        # 3) 正文前 500 字符中的日期
+        body = soup.find("body")
+        if body:
+            d = extract_date(body.get_text(" ", strip=True)[:500])
+            if d:
+                _cache_detail_date(url, d)
+                return d
+
+        _cache_detail_date(url, None)
+        return None
+    except Exception:
+        _cache_detail_date(url, None)
+        return None
+
+
+def _extract_soe_date(a_tag, url: str, now: datetime, timeout: int = 5) -> Optional[str]:
     """
     从央企新闻链接中提取发布日期。
-    优先 URL，其次上下文文本。
+    优先 URL，其次上下文文本，最后从详情页回退提取。
     """
     # 1) miit_local 的 URL 日期提取
     d = _extract_date_from_url(url)
@@ -209,8 +318,18 @@ def _extract_soe_date(a_tag, url: str) -> Optional[str]:
     if m:
         return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
 
-    # 5) miit_local 的上下文日期提取
-    d = _extract_date_from_context(a_tag)
+    # 5) 三峡集团时间戳目录
+    m = _RE_TIMESTAMP_DIR.search(url)
+    if m:
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+
+    # 6) miit_local 的上下文日期提取
+    d = _extract_date_from_context(a_tag, now)
+    if d:
+        return d
+
+    # 7) 详情页回退提取（仅对疑似新闻链接，避免过多请求）
+    d = _fetch_detail_date(url, timeout=timeout)
     if d:
         return d
 
@@ -265,7 +384,9 @@ def _scrape_soe_site(
             continue
 
         # 日期提取
-        pub_date = _extract_soe_date(a_tag, url)
+        pub_date = _extract_soe_date(a_tag, url, now, timeout=min(timeout, 5))
+        if not pub_date:
+            pub_date = extract_date(raw_text)
         if not pub_date:
             pub_date = extract_date(title)
 
@@ -359,7 +480,7 @@ SOE_SOURCES = [
     {"name": "中国船舶集团有限公司", "url": "http://www.csic.com.cn/"},
     {"name": "中国兵器工业集团有限公司", "url": "http://www.norincogroup.com.cn/"},
     {"name": "中国兵器装备集团有限公司", "url": "https://www.csgc.com.cn/"},
-    {"name": "中国电子科技集团有限公司", "url": "http://www.cetc.com.cn/",
+    {"name": "中国电子科技集团有限公司", "url": "http://www.cetc.com.cn/zgdk/1592571/index.html",
      # /zgdk/1592960/1592986/ 为"业务领域"栏目，链接均为行业介绍，不是新闻
      "exclude_paths": ["/1592960/1592986/"]},
     {"name": "中国航空发动机集团有限公司", "url": "http://www.aecc.cn/"},

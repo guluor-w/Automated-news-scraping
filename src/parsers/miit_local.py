@@ -70,8 +70,8 @@ MIIT_LOCAL_SOURCES = [
     {"province": "河南", "name": "河南省工业和信息化厅", "url": "http://gxt.henan.gov.cn/"},
     {"province": "湖北", "name": "湖北省经济和信息化厅", "url": "http://jxt.hubei.gov.cn/"},
     {"province": "湖南", "name": "湖南省工业和信息化厅", "url": "http://gxt.hunan.gov.cn/"},
-    {"province": "广东", "name": "广东省工业和信息化厅", "url": "http://gdii.gd.gov.cn/"},
-    {"province": "广西", "name": "广西壮族自治区工业和信息化厅", "url": "http://gxt.gxzf.gov.cn/"},
+    {"province": "广东", "name": "广东省工业和信息化厅", "url": "https://gdii.gd.gov.cn/zwgk/tzgg1011/index.html"},
+    {"province": "广西", "name": "广西壮族自治区工业和信息化厅", "url": "http://gxt.gxzf.gov.cn/wzsy/tzgg_6719901/tzgg/"},
     {"province": "海南", "name": "海南省工业和信息化厅", "url": "http://iitb.hainan.gov.cn/"},
     {"province": "重庆", "name": "重庆市经济和信息化委员会", "url": "http://jjxxw.cq.gov.cn/"},
     {"province": "四川", "name": "四川省经济和信息化厅", "url": "http://jxt.sc.gov.cn/"},
@@ -113,6 +113,7 @@ _RE_NEWS_DATE_SLASH = re.compile(
     r"/(20\d{2})(0[1-9]|1[0-2])/"           # /YYYYMM/
     r"|/(20\d{2})-(0[1-9]|1[0-2])/"          # /YYYY-MM/
     r"|/(20\d{2})/(0?[1-9]|1[0-2])/"         # /YYYY/MM/ （允许非零填充）
+    r"|/(20\d{2})/"                          # /YYYY/ （中国建设科技等）
 )
 
 # 模式 D：/YYYYMMDD/ 完整8位日期目录（上海 /zxxx/20260417/uuid.html）
@@ -173,6 +174,11 @@ _RE_URL_HYPHEN_DATE = re.compile(
 # 模式 F 日期提取：长时间戳中的前8位 YYYYMMDD（辽宁）
 _RE_URL_LONG_TS_DATE = re.compile(
     r"/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{5,}/"
+)
+
+# 国药格式：/(YYYY-MM)/(DD)/ 如 /2026-05/07/c_20548.htm
+_RE_URL_HYPHEN_YYYYMM_DD = re.compile(
+    r"/(20\d{2})-(0[1-9]|1[0-2])/(0[1-9]|[12]\d|3[01])/"
 )
 
 # 默认请求超时（秒）
@@ -354,80 +360,175 @@ def _extract_date_from_url(url: str) -> Optional[str]:
     if m:
         return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
 
-    # 7) 路径中的 YYYYMM 目录（日默认 01）
+    # 7) 国药格式 /(YYYY-MM)/(DD)/
+    m = _RE_URL_HYPHEN_YYYYMM_DD.search(url)
+    if m:
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+
+    # 8) 路径中的 YYYYMM 目录（日默认 01）
     m = _RE_URL_YYYYMM.search(url)
     if not m:
         m = _RE_URL_YYYY_MM.search(url)
     if m:
         return f"{m.group(1)}-{int(m.group(2)):02d}-01"
 
+    # 9) /YYYY/ 路径中的年份（月日默认 01-01，仅作为最后回退）
+    m = re.search(r"/(20\d{2})/", url)
+    if m:
+        return f"{m.group(1)}-01-01"
+
     return None
 
 
-def _extract_date_from_context(a_tag) -> Optional[str]:
+def _extract_date_from_context(a_tag, now: Optional[datetime] = None) -> Optional[str]:
     """
     从 <a> 标签的相邻兄弟节点或父容器中提取日期文本。
 
-    实际页面结构因省份而异：
-      - 北京：<li><a>标题</a><span class="date">[2026-04-17]</span></li>
-      - 广东：<li><a>标题</a><span class="date">2026-04-15</span></li>
-      - 江苏：<li>04-13 <a>标题</a></li>  （MM-DD，无年份）
+    实际页面结构因省份/央企而异：
+      - 北京/广东工信：<li><a>标题</a><span class="date">2026-04-15</span></li>
+      - 江苏：<li>04-13 <a>标题</a></li>
       - 新疆：<span class="year">2026-04</span><span class="date">14</span>
       - 西藏：<span>2026-04-16</span><a>标题</a>
+      - 哈电：<div><a>标题</a><div class="right">2026.05.14 ...</div></div>
+      - 电气装备：<div class="title"><a>标题</a></div><div class="time">05/13</div>
+      - 中建材：<h5><a>标题</a></h5><span>[05-06]</span>
+      - 检验认证：<div class="news_list_date">2026.05</div><div class="news_list_l">08</div>
       - 表格：<tr><td><a>标题</a></td><td>2026-04-15</td></tr>
-      - 哈电：日期在 <em>/<i> 元素内
     """
-    # 1) 下一个兄弟 <span>（北京、广东等）
-    sibling = a_tag.find_next_sibling("span")
-    if sibling:
-        text = sibling.get_text(" ", strip=True).strip("[]【】")
-        d = extract_date(text)
-        if d:
-            return d
+    _DATE_TAG_NAMES = ["span", "div", "em", "i", "time", "p", "h6", "td"]
 
-    # 2) 前一个兄弟 <span>（西藏等站点 date 在 a 之前）
-    prev_sibling = a_tag.find_previous_sibling("span")
-    if prev_sibling:
-        text = prev_sibling.get_text(" ", strip=True).strip("[]【】")
-        d = extract_date(text)
-        if d:
-            return d
+    # 0) <a> 标签自身文本中的日期（哈电格式：2026.05 09）
+    a_text = a_tag.get_text(" ", strip=True)
+    m = re.search(r'(20\d{2})\.(\d{1,2})\s+(\d{1,2})', a_text)
+    if m:
+        mm, dd = int(m.group(2)), int(m.group(3))
+        if 1 <= mm <= 12 and 1 <= dd <= 31:
+            return f"{m.group(1)}-{mm:02d}-{dd:02d}"
 
-    parent = a_tag.parent
-    if parent:
-        # 3) 父元素内所有 <span>/<em>/<i>/<time>（覆盖更多元素类型）
-        for tag in parent.find_all(["span", "em", "i", "time"]):
-            text = tag.get_text(" ", strip=True).strip("[]【】")
+    # 1) 直接兄弟节点（span/div/em/i/time/p/h6）
+    for tag_name in _DATE_TAG_NAMES:
+        sibling = a_tag.find_next_sibling(tag_name)
+        if sibling:
+            text = sibling.get_text(" ", strip=True).strip("[]【】")
+            d = extract_date(text)
+            if d:
+                return d
+        prev = a_tag.find_previous_sibling(tag_name)
+        if prev:
+            text = prev.get_text(" ", strip=True).strip("[]【】")
             d = extract_date(text)
             if d:
                 return d
 
-        # 4) 新疆分段日期：<span class="year">2026-04</span><span class="date">14</span>
-        #    合并 year + date span 的文本
-        year_span = parent.find("span", class_="year")
-        date_span = parent.find("span", class_="date")
-        if year_span and date_span:
-            combined = year_span.get_text(strip=True) + "-" + date_span.get_text(strip=True)
-            d = extract_date(combined)
+    parent = a_tag.parent
+    if not parent:
+        return None
+
+    # 2) 父元素内所有候选元素（限制文本长度，避免匹配到正文摘要）
+    for tag in parent.find_all(_DATE_TAG_NAMES):
+        text = tag.get_text(" ", strip=True).strip("[]【】")
+        if len(text) > 40:
+            continue
+        d = extract_date(text)
+        if d:
+            return d
+
+    # 3) 父元素的下一个兄弟（电气装备 div.time 等）
+    for tag_name in _DATE_TAG_NAMES:
+        sib = parent.find_next_sibling(tag_name)
+        if sib:
+            text = sib.get_text(" ", strip=True).strip("[]【】")
+            d = extract_date(text)
             if d:
                 return d
 
-        # 5) 父元素全文（兜底）
+    # 4) 新疆分段日期：<span class="year">2026-04</span><span class="date">14</span>
+    year_span = parent.find("span", class_="year")
+    date_span = parent.find("span", class_="date")
+    if year_span and date_span:
+        combined = year_span.get_text(strip=True) + "-" + date_span.get_text(strip=True)
+        d = extract_date(combined)
+        if d:
+            return d
+
+    # 5) 父元素全文（兜底）- 仅当父元素不是超大列表容器时
+    if len(parent.find_all("a")) <= 5:
         d = extract_date(parent.get_text(" ", strip=True))
         if d:
             return d
 
-        # 6) 表格行布局：父元素是 <td> 时，扫描同行其他单元格
-        if parent.name == "td":
-            row = parent.parent
-            if row and row.name == "tr":
-                for cell in row.find_all("td"):
-                    if cell is parent:
-                        continue
-                    text = cell.get_text(" ", strip=True).strip("[]【】")
-                    d = extract_date(text)
-                    if d:
-                        return d
+    # 6) 祖父元素搜索
+    grandparent = parent.parent
+    if grandparent:
+        # 先搜索祖父元素内的候选日期元素（不受 <a> 数量限制，但受文本长度限制）
+        for tag in grandparent.find_all(_DATE_TAG_NAMES):
+            text = tag.get_text(" ", strip=True).strip("[]【】")
+            if len(text) > 40:
+                continue
+            d = extract_date(text)
+            if d:
+                return d
+        # 祖父元素全文兜底 - 仅当不是超大列表容器时
+        if len(grandparent.find_all("a")) <= 10:
+            d = extract_date(grandparent.get_text(" ", strip=True))
+            if d:
+                return d
+
+    # 7) 表格行布局
+    if parent.name == "td":
+        row = parent.parent
+        if row and row.name == "tr":
+            for cell in row.find_all("td"):
+                if cell is parent:
+                    continue
+                text = cell.get_text(" ", strip=True).strip("[]【】")
+                d = extract_date(text)
+                if d:
+                    return d
+
+    # 8) 特殊格式处理：[MM-DD]、MM-DD、MM/DD、YYYY.MM.DD
+    context_text = ""
+    for ancestor in [parent, grandparent]:
+        if ancestor and len(ancestor.find_all("a")) <= 10:
+            context_text = ancestor.get_text(" ", strip=True)
+            if context_text:
+                break
+
+    if context_text:
+        # [MM-DD]（中建材）
+        m = re.search(r'\[(\d{1,2})-(\d{1,2})\]', context_text)
+        if m:
+            year = now.year if now else datetime.now().year
+            return f"{year}-{int(m.group(1)):02d}-{int(m.group(2)):02d}"
+
+        # MM-DD 纯文本（中国电建 bt_time 等，结合当前年份）
+        m = re.search(r'(?<![/\d])(\d{1,2})-(\d{1,2})(?![-\d])', context_text)
+        if m:
+            mm, dd = int(m.group(1)), int(m.group(2))
+            if 1 <= mm <= 12 and 1 <= dd <= 31:
+                year = now.year if now else datetime.now().year
+                return f"{year}-{mm:02d}-{dd:02d}"
+
+        # MM/DD（电气装备等，结合当前年份）
+        # 避免匹配 URL 路径中的数字，优先在紧邻的短文本中匹配
+        m = re.search(r'(?<![/\d])(\d{1,2})/(\d{1,2})(?![/\d])', context_text)
+        if m:
+            mm, dd = int(m.group(1)), int(m.group(2))
+            if 1 <= mm <= 12 and 1 <= dd <= 31:
+                year = now.year if now else datetime.now().year
+                return f"{year}-{mm:02d}-{dd:02d}"
+
+        # YYYY.MM.DD（哈电格式）
+        m = re.search(r'(20\d{2})\.(\d{1,2})\.(\d{1,2})', context_text)
+        if m:
+            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+
+        # 检验认证格式：DDYYYY.MM 或 DD YYYY.MM（如 "082026.05"）
+        m = re.search(r'(\d{2})(20\d{2})\.(\d{1,2})', context_text)
+        if m:
+            dd, year, mm = int(m.group(1)), m.group(2), int(m.group(3))
+            if 1 <= mm <= 12 and 1 <= dd <= 31:
+                return f"{year}-{mm:02d}-{dd:02d}"
 
     return None
 
@@ -495,10 +596,12 @@ def _scrape_one_site(
         if len(title) < 6:
             continue
 
-        # 提取发布日期：优先从 URL，其次从上下文文本
+        # 提取发布日期：优先从 URL，其次从上下文文本，再其次从原始链接文本
         pub_date = _extract_date_from_url(url)
         if not pub_date:
-            pub_date = _extract_date_from_context(a_tag)
+            pub_date = _extract_date_from_context(a_tag, now)
+        if not pub_date:
+            pub_date = extract_date(raw_text)
         if not pub_date:
             pub_date = extract_date(title)
 

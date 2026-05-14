@@ -145,6 +145,9 @@ _RE_CONTENT_URL = re.compile(
 _RE_GUANGXI_TRS = re.compile(r"/t\d{7,}\.shtml")
 
 # 年份目录 + 文章文件名（避免将 /YYYY/ 栏目页误判为新闻）
+# 文件名需满足其一：
+#   1) 含数字（常见 ID/序号）；
+#   2) UUID 风格（8+ 位十六进制或带短横线）。
 _RE_YEAR_DIR_ARTICLE = re.compile(
     r"/(20\d{2})/(?:[^/?#]+/)*(?:[^/?#]*\d[^/?#]*|[0-9a-f-]{8,})\.(?:s?html?)$"
 )
@@ -404,7 +407,7 @@ def _extract_date_from_context(a_tag, now: Optional[datetime] = None) -> Optiona
     _DATE_TAG_NAMES = ["span", "div", "em", "i", "time", "p", "h6", "td"]
     ref_now = now or datetime.now()
 
-    def _extract_date_by_text(text: str) -> Optional[str]:
+    def extract_date_by_text(text: str) -> Optional[str]:
         text = text.strip("[]【】")
         if not text:
             return None
@@ -435,13 +438,13 @@ def _extract_date_from_context(a_tag, now: Optional[datetime] = None) -> Optiona
         sibling = a_tag.find_next_sibling(tag_name)
         if sibling:
             text = sibling.get_text(" ", strip=True).strip("[]【】")
-            d = _extract_date_by_text(text)
+            d = extract_date_by_text(text)
             if d:
                 return d
         prev = a_tag.find_previous_sibling(tag_name)
         if prev:
             text = prev.get_text(" ", strip=True).strip("[]【】")
-            d = _extract_date_by_text(text)
+            d = extract_date_by_text(text)
             if d:
                 return d
 
@@ -454,7 +457,7 @@ def _extract_date_from_context(a_tag, now: Optional[datetime] = None) -> Optiona
         text = tag.get_text(" ", strip=True).strip("[]【】")
         if len(text) > 40:
             continue
-        d = _extract_date_by_text(text)
+        d = extract_date_by_text(text)
         if d:
             return d
 
@@ -463,7 +466,7 @@ def _extract_date_from_context(a_tag, now: Optional[datetime] = None) -> Optiona
         sib = parent.find_next_sibling(tag_name)
         if sib:
             text = sib.get_text(" ", strip=True).strip("[]【】")
-            d = _extract_date_by_text(text)
+            d = extract_date_by_text(text)
             if d:
                 return d
 
@@ -478,7 +481,7 @@ def _extract_date_from_context(a_tag, now: Optional[datetime] = None) -> Optiona
 
     # 5) 父元素全文（兜底）- 仅当父元素不是超大列表容器时
     if len(parent.find_all("a")) <= 5:
-        d = _extract_date_by_text(parent.get_text(" ", strip=True))
+        d = extract_date_by_text(parent.get_text(" ", strip=True))
         if d:
             return d
 
@@ -490,12 +493,12 @@ def _extract_date_from_context(a_tag, now: Optional[datetime] = None) -> Optiona
             text = tag.get_text(" ", strip=True).strip("[]【】")
             if len(text) > 40:
                 continue
-            d = _extract_date_by_text(text)
+            d = extract_date_by_text(text)
             if d:
                 return d
         # 祖父元素全文兜底 - 仅当不是超大列表容器时
         if len(grandparent.find_all("a")) <= 10:
-            d = _extract_date_by_text(grandparent.get_text(" ", strip=True))
+            d = extract_date_by_text(grandparent.get_text(" ", strip=True))
             if d:
                 return d
 
@@ -507,7 +510,7 @@ def _extract_date_from_context(a_tag, now: Optional[datetime] = None) -> Optiona
                 if cell is parent:
                     continue
                 text = cell.get_text(" ", strip=True).strip("[]【】")
-                d = _extract_date_by_text(text)
+                d = extract_date_by_text(text)
                 if d:
                     return d
 

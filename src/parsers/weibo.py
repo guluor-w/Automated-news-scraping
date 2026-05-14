@@ -276,6 +276,26 @@ def parse_weibo_time(time_str: str, now: Optional[datetime] = None) -> str:
         return time_str
 
 
+def _is_meaningless_title(title: str) -> bool:
+    """判断标题是否为无意义的占位文本（如"XXX的微博视频"）。"""
+    if not title:
+        return True
+    # 匹配 "XXX的微博视频"、"XXX的微博直播" 等模式
+    if re.search(r"^.+的(?:微博视频|微博直播|微博)$", title.strip()):
+        return True
+    return False
+
+
+def _clean_weibo_text_for_title(text: str) -> str:
+    """从微博正文中提取可用标题，去除末尾的视频/直播标识。"""
+    text = text.strip()
+    if not text:
+        return ""
+    # 去除末尾的 "XXX的微博视频"、"XXX的微博直播" 等
+    text = re.sub(r"\s+[^\s的]+的(?:微博视频|微博直播|微博)$", "", text)
+    return text.strip()
+
+
 def parse_mblog(mblog: dict) -> Optional[dict]:
     """解析单条微博数据，提取标题、链接等关键信息"""
     mid = str(mblog.get("mid", "") or mblog.get("id", ""))
@@ -296,21 +316,40 @@ def parse_mblog(mblog: dict) -> Optional[dict]:
         if page_type == "article":
             is_article = True
             article_url = page_info.get("page_url", "")
+            # 文章类型：content1 是真正的文章标题，page_title 通常是发布者名称
             article_title = (
-                page_info.get("page_title", "")
-                or page_info.get("content1", "")
+                page_info.get("content1", "")
+                or page_info.get("page_title", "")
             )
-        elif page_type in ("webpage", "video"):
+        elif page_type == "video":
+            article_url = page_info.get("page_url", "")
+            # 视频类型：优先使用 title 字段（真正的视频标题）
+            video_real_title = page_info.get("title", "")
+            if video_real_title and not _is_meaningless_title(video_real_title):
+                article_title = video_real_title
+            else:
+                # 回退到 content1 / page_title，但需过滤无意义文本
+                fallback = (
+                    page_info.get("content1", "")
+                    or page_info.get("page_title", "")
+                )
+                if not _is_meaningless_title(fallback):
+                    article_title = fallback
+        elif page_type == "webpage":
             article_url = page_info.get("page_url", "")
             article_title = (
                 page_info.get("page_title", "")
                 or page_info.get("content1", "")
             )
 
-    # 标题：优先文章标题，否则截取微博文本
-    title = article_title if article_title else clean_text[:80]
-    if len(clean_text) > 80 and not article_title:
-        title += "..."
+    # 标题：优先文章/视频标题，否则截取微博文本
+    if article_title:
+        title = article_title
+    else:
+        text_for_title = _clean_weibo_text_for_title(clean_text)
+        title = text_for_title[:80]
+        if len(text_for_title) > 80:
+            title += "..."
 
     return {
         "mid": mid,

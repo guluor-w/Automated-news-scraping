@@ -1152,7 +1152,143 @@ class TestSoeParser:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 10. 集成与回归测试
+# 10. 微博解析器测试
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestWeiboParser:
+    """测试微博解析器的标题提取逻辑。"""
+
+    def _make_mblog(self, text, page_info=None):
+        """构造简化的 mblog 字典。"""
+        d = {
+            "mid": "1234567890",
+            "text": text,
+            "created_at": "Thu May 14 10:00:00 +0800 2026",
+            "source": "微博 weibo.com",
+        }
+        if page_info:
+            d["page_info"] = page_info
+        return d
+
+    def test_video_with_real_title(self):
+        """视频类型应优先使用 page_info.title 作为标题。"""
+        from parsers.weibo import parse_mblog
+        mblog = self._make_mblog(
+            text='【#街头天降蜜汁竟是蚜虫排泄物#】近日，南京街边...',
+            page_info={
+                "type": "video",
+                "page_url": "https://video.weibo.com/show?fid=1034:xxx",
+                "page_title": "南京发布的微博视频",
+                "title": "街头天降蜜汁竟是蚜虫排泄物",
+                "content1": "南京发布的微博视频",
+            },
+        )
+        result = parse_mblog(mblog)
+        assert result is not None
+        assert result["title"] == "街头天降蜜汁竟是蚜虫排泄物"
+        assert "video.weibo.com" in result["article_url"]
+
+    def test_video_fallback_to_text_when_title_empty(self):
+        """视频类型 title 为空时应回退到微博正文，并去除末尾视频标识。"""
+        from parsers.weibo import parse_mblog
+        mblog = self._make_mblog(
+            text='2026重庆国际友好城市合作大会新闻发布会今日下午举行... 重庆发布的微博视频',
+            page_info={
+                "type": "video",
+                "page_url": "https://video.weibo.com/show?fid=1042211:yyy",
+                "page_title": "重庆发布的微博视频",
+                "title": "",
+                "content1": "重庆发布的微博视频",
+            },
+        )
+        result = parse_mblog(mblog)
+        assert result is not None
+        assert "重庆发布的微博视频" not in result["title"]
+        assert "新闻发布会" in result["title"]
+
+    def test_article_uses_content1_not_page_title(self):
+        """文章类型应优先使用 content1 而非 page_title（后者通常是发布者名称）。"""
+        from parsers.weibo import parse_mblog
+        mblog = self._make_mblog(
+            text='香蕉是全球最重要的经济作物之一... 香蕉采后病害发生机制研究取得进展',
+            page_info={
+                "type": "article",
+                "page_url": "https://weibo.com/ttarticle/p/show?id=230935xxx",
+                "page_title": "中科院之声",
+                "content1": "香蕉采后病害发生机制研究取得进展",
+            },
+        )
+        result = parse_mblog(mblog)
+        assert result is not None
+        assert result["title"] == "香蕉采后病害发生机制研究取得进展"
+        assert result["is_article"] is True
+
+    def test_article_fallback_to_page_title(self):
+        """文章类型 content1 为空时可回退到 page_title。"""
+        from parsers.weibo import parse_mblog
+        mblog = self._make_mblog(
+            text=' some text ',
+            page_info={
+                "type": "article",
+                "page_url": "https://weibo.com/ttarticle/p/show?id=230935xxx",
+                "page_title": "应急管理部",
+                "content1": "",
+            },
+        )
+        result = parse_mblog(mblog)
+        assert result is not None
+        assert result["title"] == "应急管理部"
+
+    def test_plain_weibo_no_page_info(self):
+        """普通微博（无 page_info）应截取正文作为标题。"""
+        from parsers.weibo import parse_mblog
+        mblog = self._make_mblog(
+            text='【15日起售！老年旅客可享淡季火车票优惠】为更好服务...'
+        )
+        result = parse_mblog(mblog)
+        assert result is not None
+        assert "火车票优惠" in result["title"]
+        assert result["article_url"] == ""
+        assert result["is_article"] is False
+
+    def test_video_meaningless_title_filtered(self):
+        """page_title 为无意义文本时应被过滤，回退到正文。"""
+        from parsers.weibo import parse_mblog
+        mblog = self._make_mblog(
+            text='#第18个全国防灾减灾日# 【人人讲安全 个个会应急】 @安徽 应急管理部的微博视频',
+            page_info={
+                "type": "video",
+                "page_url": "https://video.weibo.com/show?fid=1034:zzz",
+                "page_title": "应急管理部的微博视频",
+                "title": "",
+                "content1": "应急管理部的微博视频",
+            },
+        )
+        result = parse_mblog(mblog)
+        assert result is not None
+        assert result["title"] != "应急管理部的微博视频"
+        assert "应急管理部的微博视频" not in result["title"]
+        assert "防灾减灾" in result["title"]
+
+    def test_webpage_uses_page_title(self):
+        """网页类型应正常使用 page_title。"""
+        from parsers.weibo import parse_mblog
+        mblog = self._make_mblog(
+            text=' some text ',
+            page_info={
+                "type": "webpage",
+                "page_url": "https://example.com/article",
+                "page_title": "关于数字化转型的通知",
+                "content1": "",
+            },
+        )
+        result = parse_mblog(mblog)
+        assert result is not None
+        assert result["title"] == "关于数字化转型的通知"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 11. 集成与回归测试
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestIntegration:

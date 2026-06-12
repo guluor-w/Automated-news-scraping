@@ -129,7 +129,11 @@ def main() -> None:
     # ── 去重合并并写 CSV ──────────────────────────────────────────────────────
     out_csv = repo_root / config["output"]["csv_path"]
     existing = load_existing(str(out_csv))
-    merged, added = dedup_merge(existing, all_items)
+    merged, added = dedup_merge(
+        existing,
+        all_items,
+        publisher_alias=config.get("publisher_alias") or {},
+    )
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     merged.to_csv(str(out_csv), index=False, encoding="utf-8-sig")

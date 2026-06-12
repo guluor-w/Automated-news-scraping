@@ -77,7 +77,7 @@ def run_parse_weibo_with_mock(config, mock_results: dict):
     async def mock_fetch_weibo(accounts, max_pages):
         return weibo_results
 
-    async def mock_fetch_website(sources):
+    async def mock_fetch_website(sources, now=None):
         return website_results
 
     with patch("parsers.weibo._fetch_weibo_raw", mock_fetch_weibo), \

@@ -35,19 +35,24 @@ _TITLE_FINGERPRINT_STRIP = re.compile(
     r"[\s\u3000\W_]+", flags=re.UNICODE
 )
 
-# 来源权重：数值越高越优先保留（用于二级去重的择优）。
-# 官方/部委 > 央企/地方 > 微博/聚合搜索。
-_SOURCE_WEIGHTS = (
-    ("工业和信息化部", 100),
-    ("中国政府网", 95),
-    ("国务院国有资产监督管理委员会", 90),
-    ("国家数据局", 90),
-    ("国家发展和改革委员会", 90),
-    ("科学技术部", 85),
-    ("教育部", 85),
-    ("央企-", 70),
+# 发布单位权重：数值越高越优先保留（用于二级去重的择优）。
+# 优先级：部委/政府全名（精确匹配 publisher 字段） > 来源前缀（央企/地方/微博）。
+_PUBLISHER_WEIGHTS = {
+    "工业和信息化部": 100,
+    "中国政府网": 95,
+    "国务院国有资产监督管理委员会": 90,
+    "国家数据局": 90,
+    "国家发展和改革委员会": 90,
+    "科学技术部": 85,
+    "教育部": 85,
+}
+
+# 来源字段前缀权重（作用对象为 source 字段，按 startswith 匹配）。
+_SOURCE_PREFIX_WEIGHTS = (
+    ("央企-", 58),
     ("地方政府-", 60),
     ("地方工信-", 60),
+    ("官网-", 55),
     ("官网监控-", 55),
     ("腾讯新闻", 30),
     ("微博-", 20),
@@ -62,11 +67,18 @@ def _title_fingerprint(title: str) -> str:
     return _TITLE_FINGERPRINT_STRIP.sub("", t)
 
 
-def _source_weight(source: str) -> int:
-    """根据来源字符串给出权重；未命中映射时返回默认 50。"""
+def _source_weight(source: str, publisher: str = "") -> int:
+    """根据 publisher（优先）与 source（回退）给出权重；均未命中时返回默认 50。
+
+    - publisher 走精确匹配：避免子串歧义；
+    - source 走 startswith 前缀匹配，按 key 长度降序优先：覆盖央企/地方/微博等类目。
+    """
+    p = str(publisher or "").strip()
+    if p in _PUBLISHER_WEIGHTS:
+        return _PUBLISHER_WEIGHTS[p]
     s = str(source or "")
-    for prefix, w in _SOURCE_WEIGHTS:
-        if prefix in s:
+    for prefix, w in sorted(_SOURCE_PREFIX_WEIGHTS, key=lambda kv: -len(kv[0])):
+        if s.startswith(prefix):
             return w
     return 50
 
@@ -153,22 +165,27 @@ def dedup_merge(
                 new_df["发布日期"].fillna("").astype(str).apply(normalize_pub_date)
             )
         if "查询时间" in new_df.columns:
-            now = datetime.now(tz=SG_TZ)
+            # 不对历史空值用 now 回填，避免赋予未来时间破坏审计时间线；
+            # 仅对已有非空值做格式归一，空值保持空串。
             new_df["查询时间"] = (
                 new_df["查询时间"]
                 .fillna("")
                 .astype(str)
-                .apply(lambda v: normalize_fetched_at(v, fallback=now))
+                .apply(lambda v: normalize_fetched_at(v, fallback=None))
             )
 
     # ── 4. 二级去重：标题指纹 + 发布日期 相同时按来源权重择优
     if not new_df.empty:
         new_df["__fp"] = new_df["标题"].astype(str).apply(_title_fingerprint)
-        new_df["__weight"] = new_df["来源"].astype(str).apply(_source_weight)
-        # 保留指纹为空（无法生成签名）的行；其余按 (指纹, 发布日期) 分组取权重最高
-        mask_no_fp = new_df["__fp"] == ""
-        keepers = new_df[mask_no_fp]
-        candidates = new_df[~mask_no_fp]
+        new_df["__weight"] = new_df.apply(
+            lambda r: _source_weight(r.get("来源", ""), r.get("发布单位", "")),
+            axis=1,
+        )
+        # 仅对"标题指纹非空 且 发布日期非空"的行做合并；
+        # 二者任意为空都视为不可比较（避免跨年同名公告被误合并），原样保留。
+        mask_eligible = (new_df["__fp"] != "") & (new_df["发布日期"].astype(str) != "")
+        keepers = new_df[~mask_eligible]
+        candidates = new_df[mask_eligible]
         if not candidates.empty:
             candidates = candidates.sort_values(
                 by=["__weight", "查询时间"], ascending=[False, False]

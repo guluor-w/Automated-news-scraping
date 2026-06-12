@@ -17,9 +17,12 @@ from dateutil import parser as dtparser
 from models import DATE_PATTERNS, SG_TZ, USER_AGENT
 
 # URL 去重时应剥离的跟踪/会话类查询参数前缀或名称
-_TRACKING_PARAM_PREFIXES = ("utm_", "spm", "from_", "wt_")
+# 注：from_ 前缀容易误伤政府站点 from_id/from_year 等业务参数，
+#     此处改为显式列举已知的分享/会话参数名。
+_TRACKING_PARAM_PREFIXES = ("utm_", "spm", "wt_")
 _TRACKING_PARAM_NAMES = frozenset({
     "from", "spm", "share_source", "share_medium", "share_token", "share_from",
+    "from_source", "from_share", "from_spm", "from_uid",
     "luicode", "lfid", "launchid", "sourceType", "sudaref",
     "_t", "_r", "_", "timestamp",
 })

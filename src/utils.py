@@ -5,15 +5,38 @@
 供各解析器模块（parsers/）复用。
 """
 
+import posixpath
 import re
 from datetime import datetime, timedelta
 from typing import List, Optional
-from urllib.parse import urlsplit, urljoin, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urljoin, urlunsplit
 
 import requests
 from dateutil import parser as dtparser
 
 from models import DATE_PATTERNS, SG_TZ, USER_AGENT
+
+# URL 去重时应剥离的跟踪/会话类查询参数前缀或名称
+_TRACKING_PARAM_PREFIXES = ("utm_", "spm", "from_", "wt_")
+_TRACKING_PARAM_NAMES = frozenset({
+    "from", "spm", "share_source", "share_medium", "share_token", "share_from",
+    "luicode", "lfid", "launchid", "sourceType", "sudaref",
+    "_t", "_r", "_", "timestamp",
+})
+
+# 部分域名归一映射：value 为统一后的 netloc
+_DOMAIN_ALIAS = {
+    "m.weibo.cn": "weibo.com",
+    "weibo.cn": "weibo.com",
+    "www.weibo.com": "weibo.com",
+    "video.weibo.com": "weibo.com",
+    "live.media.weibo.com": "weibo.com",
+}
+
+# 标题中常见的零宽/格式控制字符
+_ZERO_WIDTH_CHARS = re.compile(r"[\u200b\u200c\u200d\u2060\ufeff]")
+# 末尾省略号（中英文）
+_TRAILING_ELLIPSIS = re.compile(r"[\s]*(\.{3,}|…+)\s*$")
 
 
 def sha1(s: str) -> str:
@@ -141,8 +164,52 @@ def http_get(url: str, timeout: int = 30) -> str:
     return resp.text
 
 
+def _strip_tracking_params(query: str) -> str:
+    """剥离跟踪/会话类查询参数，其余按字母序保留以保证稳定。"""
+    if not query:
+        return ""
+    pairs = parse_qsl(query, keep_blank_values=True)
+    kept = []
+    for k, v in pairs:
+        k_low = k.lower()
+        if k_low in _TRACKING_PARAM_NAMES:
+            continue
+        if any(k_low.startswith(p) for p in _TRACKING_PARAM_PREFIXES):
+            continue
+        kept.append((k, v))
+    if not kept:
+        return ""
+    kept.sort(key=lambda kv: kv[0])
+    return urlencode(kept, doseq=True)
+
+
+def _collapse_path(path: str) -> str:
+    """折叠 URL 路径中的 /./ 和 /../，并去除多余斜杠。"""
+    if not path:
+        return "/"
+    # posixpath.normpath 会把 // 折成 /，把 /./ 去掉，把 /a/b/../c 折成 /a/c
+    collapsed = posixpath.normpath(path)
+    # 保留以 / 开头
+    if not collapsed.startswith("/"):
+        collapsed = "/" + collapsed
+    # 保留原始尾部斜杠语义（normpath 会去掉尾部斜杠）
+    if path != "/" and path.endswith("/") and not collapsed.endswith("/"):
+        collapsed += "/"
+    return collapsed
+
+
 def canonicalize_url_for_dedup(url: str) -> str:
-    """规范化 URL 用于去重（去除协议、www 前缀和尾部斜杠）。"""
+    """规范化 URL 用于去重。
+
+    处理：
+    1. 补全协议、统一小写 scheme/host、去 www. 前缀；
+    2. 通过域名别名表统一同源站点（如微博的 m./www./video. 子域）；
+    3. 折叠路径中的 /./ 和 /../，去除重复斜杠与尾部斜杠；
+    4. 去除 fragment；
+    5. 剥离 utm_/spm/from 等跟踪参数，剩余 query 按字母序输出。
+    """
+    if not url:
+        return url
     try:
         u = url.strip()
         if u.startswith("//"):
@@ -151,14 +218,71 @@ def canonicalize_url_for_dedup(url: str) -> str:
         netloc = parts.netloc.lower()
         if netloc.startswith("www."):
             netloc = netloc[4:]
-        path = parts.path or "/"
+        netloc = _DOMAIN_ALIAS.get(netloc, netloc)
+        path = _collapse_path(parts.path or "/")
         if path != "/" and path.endswith("/"):
             path = path[:-1]
-        return urlunsplit(("", netloc, path, parts.query or "", ""))
+        query = _strip_tracking_params(parts.query or "")
+        return urlunsplit(("", netloc, path, query, ""))
     except Exception:
         return url
+
+
+def clean_title(title: str) -> str:
+    """清洗标题：去除零宽字符、首尾空白和末尾省略号。
+
+    用于入库前的统一处理，避免视觉相同但二进制不同的标题被判为不同。
+    """
+    if not title:
+        return ""
+    t = _ZERO_WIDTH_CHARS.sub("", str(title))
+    # 内部多余空白折叠为单个空格
+    t = re.sub(r"[\t\r\n\u00a0]+", " ", t)
+    t = re.sub(r" {2,}", " ", t)
+    t = t.strip()
+    # 去掉末尾省略号
+    t = _TRAILING_ELLIPSIS.sub("", t).strip()
+    return t
 
 
 def format_fetched_at(now: datetime) -> str:
     """将 datetime 格式化为查询时间字符串 YYYY-MM-DD HH:MM:SS（UTC+8）。"""
     return now.astimezone(SG_TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def normalize_fetched_at(value: str, fallback: Optional[datetime] = None) -> str:
+    """将任意"查询时间"字符串统一为 YYYY-MM-DD HH:MM:SS（UTC+8）。
+
+    - 空值/无法解析时返回 fallback 对应的字符串（若提供）或空串；
+    - 已经是该格式的输入会被原样返回。
+    """
+    s = (value or "").strip()
+    if s and s.lower() != "nan":
+        try:
+            dt = dtparser.parse(s)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=SG_TZ)
+            return dt.astimezone(SG_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            pass
+    if fallback is not None:
+        return format_fetched_at(fallback)
+    return ""
+
+
+def normalize_publisher(name: str, alias_map: Optional[dict] = None) -> str:
+    """根据 alias_map 把发布单位归一到标准名。
+
+    - 输入会先剥离零宽字符、合并空白；
+    - 命中映射时返回 alias_map[name]，否则返回清洗后的原值；
+    - alias_map 为空/None 时仅做基础清洗。
+    """
+    if not name:
+        return ""
+    # 复用 clean_title 的轻量清洗逻辑（去零宽 + 合并空白），但不去末尾省略号
+    s = _ZERO_WIDTH_CHARS.sub("", str(name))
+    s = re.sub(r"[\t\r\n\u00a0]+", " ", s)
+    s = re.sub(r" {2,}", " ", s).strip()
+    if alias_map:
+        return alias_map.get(s, s)
+    return s

@@ -8,20 +8,67 @@
 """
 
 import os
+import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 from dateutil import parser as dtparser
 
 from models import Item, SG_TZ
-from utils import canonicalize_url_for_dedup, normalize_pub_date
+from utils import (
+    canonicalize_url_for_dedup,
+    clean_title,
+    normalize_fetched_at,
+    normalize_pub_date,
+    normalize_publisher,
+)
 
 # GitHub Pages 发布地址（用于 RSS <link> 字段）
 _PAGES_URL = "https://guluor-w.github.io/Automated-news-scraping/"
 # 发布日期缺失时用于排序的哨兵值（使用 pandas 可表示范围内的时间戳）
 _DATE_SENTINEL = pd.Timestamp.min
+
+# 标题指纹归一化：去除标点/空白后用于二级去重比对
+_TITLE_FINGERPRINT_STRIP = re.compile(
+    r"[\s\u3000\W_]+", flags=re.UNICODE
+)
+
+# 来源权重：数值越高越优先保留（用于二级去重的择优）。
+# 官方/部委 > 央企/地方 > 微博/聚合搜索。
+_SOURCE_WEIGHTS = (
+    ("工业和信息化部", 100),
+    ("中国政府网", 95),
+    ("国务院国有资产监督管理委员会", 90),
+    ("国家数据局", 90),
+    ("国家发展和改革委员会", 90),
+    ("科学技术部", 85),
+    ("教育部", 85),
+    ("央企-", 70),
+    ("地方政府-", 60),
+    ("地方工信-", 60),
+    ("官网监控-", 55),
+    ("腾讯新闻", 30),
+    ("微博-", 20),
+)
+
+
+def _title_fingerprint(title: str) -> str:
+    """生成用于二级去重比对的标题指纹（去除标点、空白、大小写差异）。"""
+    if not title:
+        return ""
+    t = clean_title(title).lower()
+    return _TITLE_FINGERPRINT_STRIP.sub("", t)
+
+
+def _source_weight(source: str) -> int:
+    """根据来源字符串给出权重；未命中映射时返回默认 50。"""
+    s = str(source or "")
+    for prefix, w in _SOURCE_WEIGHTS:
+        if prefix in s:
+            return w
+    return 50
 
 
 def load_existing(csv_path: str) -> pd.DataFrame:
@@ -34,13 +81,31 @@ def load_existing(csv_path: str) -> pd.DataFrame:
     return df
 
 
-def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataFrame, int]:
+def dedup_merge(
+    existing: pd.DataFrame,
+    new_items: List[Item],
+    publisher_alias: Optional[Dict[str, str]] = None,
+) -> Tuple[pd.DataFrame, int]:
     """
     将 new_items 追加到 existing，按 URL 去重，并按发布日期降序排序。
+
+    去重策略：
+    1. 一级去重：以 canonicalize_url_for_dedup 的结果为键，URL 完全等价则丢弃后入；
+    2. 二级去重：在 URL 不同但标题指纹 + 发布日期相同的情况下，
+       按来源权重择优保留，其余记录丢弃。
+
+    Args:
+        existing:        既有 CSV 内容。
+        new_items:       本次抓取得到的 Item 列表。
+        publisher_alias: 发布单位别名映射，由调用方从 config.yaml 读取；
+                         为 None 时仅做轻量字符串清洗，不做归一替换。
 
     Returns:
         (merged_df, added_count) — 合并后的 DataFrame 以及本次新增条数。
     """
+    alias_map = publisher_alias or {}
+
+    # ── 1. 既有数据 URL 集合
     if existing.empty:
         existing_urls: set = set()
     else:
@@ -49,6 +114,7 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
             for u in existing["新闻URL"].astype(str).tolist()
         }
 
+    # ── 2. 一级 URL 去重：将新条目追加进 DataFrame
     rows = []
     added = 0
     for it in new_items:
@@ -56,8 +122,8 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
         if canonical in existing_urls:
             continue
         rows.append({
-            "标题": it.title,
-            "发布单位": it.publisher,
+            "标题": clean_title(it.title),
+            "发布单位": normalize_publisher(it.publisher, alias_map),
             "新闻URL": it.url,  # 保留原始 URL，不写入规范化结果
             "发布日期": it.pub_date or "",
             "来源": it.source,
@@ -71,7 +137,46 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
     else:
         new_df = existing.copy()
 
-    # 按发布日期（空值排后）和查询时间排序
+    # ── 3. 字段统一清洗（对全表执行，使历史脏数据也被回填）
+    if not new_df.empty:
+        if "标题" in new_df.columns:
+            new_df["标题"] = new_df["标题"].fillna("").astype(str).apply(clean_title)
+        if "发布单位" in new_df.columns:
+            new_df["发布单位"] = (
+                new_df["发布单位"]
+                .fillna("")
+                .astype(str)
+                .apply(lambda v: normalize_publisher(v, alias_map))
+            )
+        if "发布日期" in new_df.columns:
+            new_df["发布日期"] = (
+                new_df["发布日期"].fillna("").astype(str).apply(normalize_pub_date)
+            )
+        if "查询时间" in new_df.columns:
+            now = datetime.now(tz=SG_TZ)
+            new_df["查询时间"] = (
+                new_df["查询时间"]
+                .fillna("")
+                .astype(str)
+                .apply(lambda v: normalize_fetched_at(v, fallback=now))
+            )
+
+    # ── 4. 二级去重：标题指纹 + 发布日期 相同时按来源权重择优
+    if not new_df.empty:
+        new_df["__fp"] = new_df["标题"].astype(str).apply(_title_fingerprint)
+        new_df["__weight"] = new_df["来源"].astype(str).apply(_source_weight)
+        # 保留指纹为空（无法生成签名）的行；其余按 (指纹, 发布日期) 分组取权重最高
+        mask_no_fp = new_df["__fp"] == ""
+        keepers = new_df[mask_no_fp]
+        candidates = new_df[~mask_no_fp]
+        if not candidates.empty:
+            candidates = candidates.sort_values(
+                by=["__weight", "查询时间"], ascending=[False, False]
+            ).drop_duplicates(subset=["__fp", "发布日期"], keep="first")
+        new_df = pd.concat([keepers, candidates], ignore_index=True)
+        new_df = new_df.drop(columns=["__fp", "__weight"])
+
+    # ── 5. 按发布日期（空值排后）和查询时间排序
     def sort_key(row):
         d = row.get("发布日期", "")
         if not d:
@@ -86,10 +191,6 @@ def dedup_merge(existing: pd.DataFrame, new_items: List[Item]) -> Tuple[pd.DataF
         new_df = new_df.sort_values(
             by=["__sortdate", "查询时间"], ascending=[False, False]
         ).drop(columns=["__sortdate"])
-
-    # 统一发布日期格式为 YYYY-MM-DD；缺失值保留空字符串而非 nan
-    if not new_df.empty and "发布日期" in new_df.columns:
-        new_df["发布日期"] = new_df["发布日期"].fillna("").astype(str).apply(normalize_pub_date)
 
     return new_df, added
 

@@ -5,7 +5,35 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sat, 13 Jun 2026 16:54:24 +0800</lastBuildDate>
+    <lastBuildDate>Sun, 14 Jun 2026 03:12:37 +0800</lastBuildDate>
+    <item>
+      <title>一线调研丨算力网织就数字经济新底座</title>
+      <link>https://www.nda.gov.cn/sjj/swdt/mtsy/0613/20260613210316042596685_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/mtsy/0613/20260613210316042596685_pc.html</guid>
+      <pubDate>Sat, 13 Jun 2026 00:00:00 +0800</pubDate>
+      <description>国家数据局｜国家数据局-媒体声音</description>
+    </item>
+    <item>
+      <title>上影节开幕影片《第四幕》剧组和机器人相继亮相～</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5309459430572047&amp;luicode=10000011&amp;lfid=1005052539961154&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5309459430572047&amp;luicode=10000011&amp;lfid=1005052539961154&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sat, 13 Jun 2026 00:00:00 +0800</pubDate>
+      <description>上海发布｜微博-上海发布</description>
+    </item>
+    <item>
+      <title>【 #智能眼镜首次投入南通主场苏超安保# 】帅！无感筛查、实时比对、高效精准！智能眼镜首次投入南通主场苏超安保。这款“AI眼镜”能精准识别各类相关信息，比如有没</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5309428006846503&amp;luicode=10000011&amp;lfid=1005052784361770&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5309428006846503&amp;luicode=10000011&amp;lfid=1005052784361770&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sat, 13 Jun 2026 00:00:00 +0800</pubDate>
+      <description>微博江苏｜微博-微博江苏</description>
+    </item>
+    <item>
+      <title>【“雪山下的算力牧场”登上大舞台】 6月12日，第12届中国（上海）国际技术进出口交易会（以下简称“上交会”）青海主馆内依然热度不减，高新技术展区客商往来不断，</title>
+      <link>https://m.weibo.cn/detail/5309416967772419</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5309416967772419</guid>
+      <pubDate>Sat, 13 Jun 2026 00:00:00 +0800</pubDate>
+      <description>青海发布｜微博-青海发布</description>
+    </item>
     <item>
       <title>媒体报道 | 住建部：健全全链条数据治理和更新机制，为人工智能等新业态提供底层支撑</title>
       <link>https://www.nda.gov.cn/sjj/swdt/mtsy/0613/20260613131250106654402_pc.html</link>
@@ -147,18 +175,18 @@
       <description>山西发布｜微博-山西发布</description>
     </item>
     <item>
+      <title>北京市经济和信息化局关于开展2026年度人形机器人与具身智能实景实训专项行动申报材料征集工作的通知</title>
+      <link>https://www.beijing.gov.cn/./zhengce/zhengcefagui/202606/t20260612_4697522.html</link>
+      <guid isPermaLink="true">https://www.beijing.gov.cn/./zhengce/zhengcefagui/202606/t20260612_4697522.html</guid>
+      <pubDate>Fri, 12 Jun 2026 00:00:00 +0800</pubDate>
+      <description>北京市人民政府｜地方政府-北京</description>
+    </item>
+    <item>
       <title>专家解读 | 数据资源供给扩容提质 筑牢人工智能发展底座</title>
       <link>https://www.nda.gov.cn/sjj/zwgk/zjjd/0612/20260612223525385067656_pc.html</link>
       <guid isPermaLink="true">https://www.nda.gov.cn/sjj/zwgk/zjjd/0612/20260612223525385067656_pc.html</guid>
       <pubDate>Fri, 12 Jun 2026 00:00:00 +0800</pubDate>
       <description>国家数据局｜国家数据局-专家解读</description>
-    </item>
-    <item>
-      <title>北京市经济和信息化局关于开展2026年度人形机器人与具身智能实景实训专项行动申报材料征集工作的通知</title>
-      <link>https://jxj.beijing.gov.cn/zwgk/2024zcwj/202606/t20260612_4697128.html</link>
-      <guid isPermaLink="true">https://jxj.beijing.gov.cn/zwgk/2024zcwj/202606/t20260612_4697128.html</guid>
-      <pubDate>Fri, 12 Jun 2026 00:00:00 +0800</pubDate>
-      <description>北京市经济和信息化局｜地方工信-北京</description>
     </item>
     <item>
       <title>专家解读 | 推动行业高质量数据集建设，实现与</title>
@@ -386,10 +414,10 @@
     </item>
     <item>
       <title>国家数据局召开“完善数据相关规则 赋能人工智能创新发展”座谈会</title>
-      <link>https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0611/20260611190621450122505_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0611/20260611190621450122505_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/0611/20260611190621450122505_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/0611/20260611190621450122505_pc.html</guid>
       <pubDate>Thu, 11 Jun 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-领导活动</description>
+      <description>国家数据局｜国家数据局-司局动态</description>
     </item>
     <item>
       <title>【河北日报】京津冀安全应急装备集群产业规模稳步提升 推动七个国家级产业特色园区提档升级</title>
@@ -1177,10 +1205,10 @@
     </item>
     <item>
       <title>国家数据局关于印发《关于推进行业高质量数据集建设行动的实施方案》的通知</title>
-      <link>https://www.nda.gov.cn/sjj/zwgk/tzgg/0608/20260608172117399715004_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/zwgk/tzgg/0608/20260608172117399715004_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/zwgk/zcfb/0608/20260608172117399715004_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/zwgk/zcfb/0608/20260608172117399715004_pc.html</guid>
       <pubDate>Mon, 08 Jun 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-通知公告</description>
+      <description>国家数据局｜国家数据局-政策发布</description>
     </item>
     <item>
       <title>关于征集河北省“机器人+”应用需求的通知</title>
@@ -3088,10 +3116,10 @@
     </item>
     <item>
       <title>刘烈宏赴天津出席2026世界智能产业博览会并开展调研</title>
-      <link>https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0531/20260531115244522692216_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0531/20260531115244522692216_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/0531/20260531115244522692216_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/0531/20260531115244522692216_pc.html</guid>
       <pubDate>Sun, 31 May 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-领导活动</description>
+      <description>国家数据局｜国家数据局-司局动态</description>
     </item>
     <item>
       <title>习近平：前瞻布局和发展未来产业</title>
@@ -3242,10 +3270,10 @@
     </item>
     <item>
       <title>刘烈宏赴温州市、深圳市、东莞市调研数据要素市场化配置改革工作</title>
-      <link>https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0530/20260530101725420134579_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0530/20260530101725420134579_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/0530/20260530101725420134579_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/0530/20260530101725420134579_pc.html</guid>
       <pubDate>Sat, 30 May 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-领导活动</description>
+      <description>国家数据局｜国家数据局-司局动态</description>
     </item>
     <item>
       <title>“人工智能+制造”吹响冲锋号！13市入围山东首批先锋应用培育名单</title>

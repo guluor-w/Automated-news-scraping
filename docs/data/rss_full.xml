@@ -5,7 +5,14 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sun, 14 Jun 2026 17:24:59 +0800</lastBuildDate>
+    <lastBuildDate>Mon, 15 Jun 2026 03:17:03 +0800</lastBuildDate>
+    <item>
+      <title>【空箱满当当】近日，杭州海关所属舟山海关开展智慧空箱监管时，系统自动预警1个40尺集装箱数据及图像异常，现场关员对该箱实施掏箱检查。经确认，该箱内夹带汽车4辆。</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5309806895104050&amp;luicode=10000011&amp;lfid=1005055832321505&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5309806895104050&amp;luicode=10000011&amp;lfid=1005055832321505&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sun, 14 Jun 2026 00:00:00 +0800</pubDate>
+      <description>海关发布｜微博-海关发布</description>
+    </item>
     <item>
       <title>专家解读 | 深耕高质量数据集建设 激活人工智能发展新动能</title>
       <link>https://www.nda.gov.cn/sjj/zwgk/zjjd/0614/20260614131904807563400_pc.html</link>
@@ -266,18 +273,18 @@
       <description>山西发布｜微博-山西发布</description>
     </item>
     <item>
+      <title>北京市经济和信息化局关于开展2026年度人形机器人与具身智能实景实训专项行动申报材料征集工作的通知</title>
+      <link>https://www.beijing.gov.cn/./zhengce/zhengcefagui/202606/t20260612_4697522.html</link>
+      <guid isPermaLink="true">https://www.beijing.gov.cn/./zhengce/zhengcefagui/202606/t20260612_4697522.html</guid>
+      <pubDate>Fri, 12 Jun 2026 00:00:00 +0800</pubDate>
+      <description>北京市人民政府｜地方政府-北京</description>
+    </item>
+    <item>
       <title>专家解读 | 发挥工业数据“领头羊”作用 加快推动数据要素价值释放</title>
       <link>https://www.nda.gov.cn/sjj/zwgk/zjjd/0612/20260612223644037990529_pc.html</link>
       <guid isPermaLink="true">https://www.nda.gov.cn/sjj/zwgk/zjjd/0612/20260612223644037990529_pc.html</guid>
       <pubDate>Fri, 12 Jun 2026 00:00:00 +0800</pubDate>
       <description>国家数据局｜国家数据局-专家解读</description>
-    </item>
-    <item>
-      <title>北京市经济和信息化局关于开展2026年度人形机器人与具身智能实景实训专项行动申报材料征集工作的通知</title>
-      <link>https://jxj.beijing.gov.cn/zwgk/2024zcwj/202606/t20260612_4697128.html</link>
-      <guid isPermaLink="true">https://jxj.beijing.gov.cn/zwgk/2024zcwj/202606/t20260612_4697128.html</guid>
-      <pubDate>Fri, 12 Jun 2026 00:00:00 +0800</pubDate>
-      <description>北京市经济和信息化局｜地方工信-北京</description>
     </item>
     <item>
       <title>专家解读 | 数据资源供给扩容提质 筑牢人工智能发展底座</title>
@@ -512,10 +519,10 @@
     </item>
     <item>
       <title>国家数据局召开“完善数据相关规则 赋能人工智能创新发展”座谈会</title>
-      <link>https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0611/20260611190621450122505_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0611/20260611190621450122505_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/0611/20260611190621450122505_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/0611/20260611190621450122505_pc.html</guid>
       <pubDate>Thu, 11 Jun 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-领导活动</description>
+      <description>国家数据局｜国家数据局-司局动态</description>
     </item>
     <item>
       <title>【河北日报】京津冀安全应急装备集群产业规模稳步提升 推动七个国家级产业特色园区提档升级</title>
@@ -1303,10 +1310,10 @@
     </item>
     <item>
       <title>国家数据局关于印发《关于推进行业高质量数据集建设行动的实施方案》的通知</title>
-      <link>https://www.nda.gov.cn/sjj/zwgk/tzgg/0608/20260608172117399715004_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/zwgk/tzgg/0608/20260608172117399715004_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/zwgk/zcfb/0608/20260608172117399715004_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/zwgk/zcfb/0608/20260608172117399715004_pc.html</guid>
       <pubDate>Mon, 08 Jun 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-通知公告</description>
+      <description>国家数据局｜国家数据局-政策发布</description>
     </item>
     <item>
       <title>关于征集河北省“机器人+”应用需求的通知</title>
@@ -2933,6 +2940,13 @@
       <description>天津发布｜微博-天津发布</description>
     </item>
     <item>
+      <title>中国建筑“鲁班工匠计划-中国行”“海星工作坊”“青年吸引力工作室”启动暨《智慧建造》第二季发布会在京举行</title>
+      <link>http://www.cscec.com/./xwzx_new/gsyw_new/202606/3947464.html</link>
+      <guid isPermaLink="true">http://www.cscec.com/./xwzx_new/gsyw_new/202606/3947464.html</guid>
+      <pubDate>Mon, 01 Jun 2026 00:00:00 +0800</pubDate>
+      <description>中国建筑集团有限公司｜央企-中国建筑集团有限公司</description>
+    </item>
+    <item>
       <title>李乐成《人民日报》撰文：加快前瞻布局和发展未来产业</title>
       <link>http://www.miit.gov.cn/xwfb/bldhd/art/2026/art_5c1a96a6fc304444b9fd19c9f9ea9b35.html</link>
       <guid isPermaLink="true">http://www.miit.gov.cn/xwfb/bldhd/art/2026/art_5c1a96a6fc304444b9fd19c9f9ea9b35.html</guid>
@@ -3214,10 +3228,10 @@
     </item>
     <item>
       <title>刘烈宏赴天津出席2026世界智能产业博览会并开展调研</title>
-      <link>https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0531/20260531115244522692216_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0531/20260531115244522692216_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/0531/20260531115244522692216_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/0531/20260531115244522692216_pc.html</guid>
       <pubDate>Sun, 31 May 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-领导活动</description>
+      <description>国家数据局｜国家数据局-司局动态</description>
     </item>
     <item>
       <title>习近平：前瞻布局和发展未来产业</title>

@@ -34,14 +34,14 @@ from .miit import parse_miit_home
 from .ndrc import parse_ndrc_home
 from .most import parse_most_home
 from .moe import parse_moe_news
-from .miit_local import parse_miit_local
-from .gov_local import parse_gov_local
+from .miit_local import parse_miit_local, MIIT_LOCAL_SOURCES
+from .gov_local import parse_gov_local, GOV_LOCAL_SOURCES
 from .qqnews import parse_qqnews_search
 from .sasac import parse_sasac_home
 from .nda import parse_nda_home
-from .soe import parse_soe
+from .soe import parse_soe, SOE_SOURCES
 from .weibo import parse_weibo
-from .website_monitor import parse_website_monitor
+from .website_monitor import parse_website_monitor, WEBSITE_SOURCES
 
 from models import Item
 
@@ -73,6 +73,11 @@ __all__ = [
     "parse_soe",
     "parse_weibo",
     "parse_website_monitor",
+    # 多源信源的来源清单（供二次检验等使用）
+    "SOE_SOURCES",
+    "MIIT_LOCAL_SOURCES",
+    "GOV_LOCAL_SOURCES",
+    "WEBSITE_SOURCES",
     # 向后兼容
     "parse_weibo_monitor_sources",
 ]

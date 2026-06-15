@@ -218,6 +218,232 @@ def test_item_fields():
     print("✓ test_item_fields")
 
 
+# ─────────────── 二次检验（verify_offsite_redirect）测试 ───────────────
+
+from models import Item  # noqa: E402  （延后导入：与测试块靠近以便阅读）
+
+
+def _make_item(url: str, source: str, title: str = "测试新闻") -> Item:
+    """构造一个最小化的 Item 实例用于二次检验测试。"""
+    return Item(
+        title=title,
+        publisher="测试单位",
+        url=url,
+        pub_date="2026-06-15",
+        source=source,
+        fetched_at="2026-06-15 10:00:00",
+    )
+
+
+def _verify_config() -> dict:
+    """构造一份包含各信源 URL 的最小化 config，供二次检验测试使用。"""
+    return {
+        "sources": {
+            "miit_home":     {"url": "https://www.miit.gov.cn/"},
+            "gov_home":      {"url": "https://www.gov.cn/"},
+            "ndrc_home":     {"url": "https://www.ndrc.gov.cn/"},
+            "most_home":     {"url": "https://www.most.gov.cn/"},
+            "moe_news":      {"url": "http://www.moe.gov.cn/jyb_xwfb/"},
+            "sasac_home":    {"url": "http://www.sasac.gov.cn/"},
+            "nda_home":      {"url": "https://www.nda.gov.cn/sjj/index_pc.html"},
+            "qqnews_search": {"url": "https://i.news.qq.com/gw/pc_search/result"},
+        }
+    }
+
+
+def test_verify_drops_offsite_for_most():
+    """科技部"媒体聚焦"指向 people.com.cn 等外站时应被丢弃。"""
+    cfg = _verify_config()
+    items = [
+        _make_item("http://paper.people.com.cn/rmrb/html/2026-06/15/x.htm",
+                   "科技部官网-媒体聚焦"),
+        _make_item("https://www.most.gov.cn/kjbgz/202606/t20260615_xxx.html",
+                   "科技部官网-科技部工作"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    assert len(kept) == 1, f"期望 1 条（外站被丢弃），实际: {len(kept)}"
+    assert kept[0].source == "科技部官网-科技部工作"
+    print("✓ test_verify_drops_offsite_for_most")
+
+
+def test_verify_keeps_subdomain_of_same_registered_domain():
+    """同一注册域的子域（如 wap.miit.gov.cn）应保留。"""
+    cfg = _verify_config()
+    items = [
+        _make_item("https://wap.miit.gov.cn/jgsj/notice/art/2026/x.html",
+                   "工信部官网-时政要闻"),
+        _make_item("https://www.miit.gov.cn/zwgk/zcwj/wjfb/yj/x.html",
+                   "工信部官网-最新政策"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    assert len(kept) == 2, f"期望 2 条（同注册域均保留），实际: {len(kept)}"
+    print("✓ test_verify_keeps_subdomain_of_same_registered_domain")
+
+
+def test_verify_skips_weibo_source():
+    """微博渠道按用户要求跳过二次检验，即便 host 与任何配置不符也应保留。"""
+    cfg = _verify_config()
+    items = [
+        _make_item("https://m.weibo.cn/detail/123", "微博-工信微报"),
+        _make_item("https://example.com/article/1", "微博-工信微报"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    assert len(kept) == 2, f"期望 2 条（微博跳过检验），实际: {len(kept)}"
+    print("✓ test_verify_skips_weibo_source")
+
+
+def test_verify_soe_same_domain_kept_offsite_dropped():
+    """央企渠道：同域（含子域）保留，跳外站丢弃；按 source 标签精确反查。"""
+    cfg = _verify_config()
+    items = [
+        # 中国核工业集团（cnnc.com.cn）：同域保留 + 子域保留 + 外站丢弃
+        _make_item("http://www.cnnc.com.cn/cnnc/300557/news/x.html",
+                   "央企-中国核工业集团有限公司"),
+        _make_item("http://media.cnnc.com.cn/cnnc/zxbd/x.html",
+                   "央企-中国核工业集团有限公司"),
+        _make_item("https://example.com/redirected/article",
+                   "央企-中国核工业集团有限公司"),
+        # 华润集团（crc.com.hk）：注意华润 SOE 配置是 .com.hk
+        _make_item("http://www.crc.com.hk/news/1.html", "央企-华润（集团）有限公司"),
+        _make_item("https://news.qq.com/external/1", "央企-华润（集团）有限公司"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    kept_urls = [it.url for it in kept]
+    assert len(kept) == 3, f"期望 3 条（保留同域、丢弃外站），实际: {len(kept)}; kept={kept_urls}"
+    # 验证三条同域被保留
+    assert any("www.cnnc.com.cn" in u for u in kept_urls)
+    assert any("media.cnnc.com.cn" in u for u in kept_urls)
+    assert any("crc.com.hk" in u for u in kept_urls)
+    print("✓ test_verify_soe_same_domain_kept_offsite_dropped")
+
+
+def test_verify_miit_local_same_domain_kept_offsite_dropped():
+    """地方工信渠道：按 source=地方工信-<省> 反查省厅 URL 做白名单。"""
+    cfg = _verify_config()
+    items = [
+        # 广东工信厅 URL 为 gdii.gd.gov.cn → 注册域 gd.gov.cn
+        _make_item("https://gdii.gd.gov.cn/zwgk/tzgg/x.html", "地方工信-广东"),
+        _make_item("https://www.gd.gov.cn/some/x.html",       "地方工信-广东"),  # 同 gd.gov.cn 注册域
+        _make_item("https://gxt.fujian.gov.cn/x/y.html",      "地方工信-广东"),  # 福建域→外站
+        # 北京工信局 URL 为 jxj.beijing.gov.cn → 注册域 beijing.gov.cn
+        _make_item("https://jxj.beijing.gov.cn/jxdt/tzgg/x.html", "地方工信-北京"),
+        _make_item("https://news.sina.com.cn/外站/x.html",        "地方工信-北京"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    kept_urls = [it.url for it in kept]
+    assert len(kept) == 3, f"期望 3 条，实际: {len(kept)}; kept={kept_urls}"
+    assert any("gdii.gd.gov.cn" in u for u in kept_urls)
+    assert any("www.gd.gov.cn" in u for u in kept_urls)
+    assert any("jxj.beijing.gov.cn" in u for u in kept_urls)
+    print("✓ test_verify_miit_local_same_domain_kept_offsite_dropped")
+
+
+def test_verify_gov_local_same_domain_kept_offsite_dropped():
+    """地方政府渠道：按 source=地方政府-<省> 反查省政府 URL 做白名单。"""
+    cfg = _verify_config()
+    items = [
+        # 北京市政府 URL 为 beijing.gov.cn
+        _make_item("https://www.beijing.gov.cn/ywdt/x.html",       "地方政府-北京"),
+        _make_item("https://wb.beijing.gov.cn/sub/x.html",         "地方政府-北京"),
+        _make_item("https://www.shanghai.gov.cn/外省/x.html",       "地方政府-北京"),  # 外省→丢弃
+        # 广东省政府 URL 为 gd.gov.cn
+        _make_item("https://www.gd.gov.cn/gdywdt/gdyw/x.html",     "地方政府-广东"),
+        _make_item("https://www.example.org/外站/x",                "地方政府-广东"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    kept_urls = [it.url for it in kept]
+    assert len(kept) == 3, f"期望 3 条，实际: {len(kept)}; kept={kept_urls}"
+    assert any("www.beijing.gov.cn" in u for u in kept_urls)
+    assert any("wb.beijing.gov.cn" in u for u in kept_urls)
+    assert any("www.gd.gov.cn" in u for u in kept_urls)
+    print("✓ test_verify_gov_local_same_domain_kept_offsite_dropped")
+
+
+def test_verify_website_monitor_same_domain_kept_offsite_dropped():
+    """官网（website_monitor）渠道：按 source=官网-<名> 反查 WEBSITE_SOURCES 做白名单。"""
+    cfg = _verify_config()
+    items = [
+        # 财政部 mof.gov.cn → 同域保留
+        _make_item("https://www.mof.gov.cn/zhengwuxinxi/x.html",  "官网-财政部"),
+        # 财政部外站（被引用到人民日报）→ 丢弃
+        _make_item("http://paper.people.com.cn/x.htm",            "官网-财政部"),
+        # 国家信访局 gjxfj.gov.cn → 同域保留
+        _make_item("https://www.gjxfj.gov.cn/gjxfj/news/x.htm",   "官网-国家信访局"),
+        # 国家信访局外站
+        _make_item("https://www.xinhuanet.com/外站/x",            "官网-国家信访局"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    kept_urls = [it.url for it in kept]
+    assert len(kept) == 2, f"期望 2 条，实际: {len(kept)}; kept={kept_urls}"
+    assert any("www.mof.gov.cn" in u for u in kept_urls)
+    assert any("www.gjxfj.gov.cn" in u for u in kept_urls)
+    print("✓ test_verify_website_monitor_same_domain_kept_offsite_dropped")
+
+
+def test_verify_multi_source_unknown_identifier_kept():
+    """多源前缀但标识未登记（如新增源未重启）应保守保留，不静默丢弃。"""
+    cfg = _verify_config()
+    items = [
+        _make_item("https://random.example.org/x", "央企-不存在的公司"),
+        _make_item("https://random.example.org/y", "地方工信-不存在的省"),
+        _make_item("https://random.example.org/z", "官网-不存在的部门"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    assert len(kept) == 3, f"期望 3 条（未登记标识保留），实际: {len(kept)}"
+    print("✓ test_verify_multi_source_unknown_identifier_kept")
+
+
+def test_verify_keeps_when_host_unresolvable():
+    """URL 为空或异常无法解析 host 时应保守保留。"""
+    cfg = _verify_config()
+    items = [
+        _make_item("", "工信部官网-时政要闻"),
+        _make_item("not-a-url", "工信部官网-时政要闻"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    assert len(kept) == 2, f"期望 2 条（host 不可解析时保留），实际: {len(kept)}"
+    print("✓ test_verify_keeps_when_host_unresolvable")
+
+
+def test_verify_drops_qqnews_offsite():
+    """腾讯新闻条目若 surl 指向非 qq.com 域名（外站）应被丢弃。"""
+    cfg = _verify_config()
+    items = [
+        _make_item("https://news.qq.com/rain/a/20260615A0XYZ00", "腾讯新闻-工信微报"),
+        _make_item("https://mp.weixin.qq.com/s/abc",            "腾讯新闻-工信微报"),
+        _make_item("https://example.com/external/article",       "腾讯新闻-工信微报"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    kept_hosts = sorted(it.url for it in kept)
+    # qq.com 与 weixin.qq.com 都属于 qq.com 注册域 → 保留；example.com → 丢弃
+    assert len(kept) == 2, f"期望 2 条，实际: {len(kept)}; kept={kept_hosts}"
+    print("✓ test_verify_drops_qqnews_offsite")
+
+
+def test_verify_unknown_source_prefix_kept():
+    """未在映射表中的来源前缀应保守保留，避免新增 source 时静默丢弃。"""
+    cfg = _verify_config()
+    items = [
+        _make_item("https://random.example.org/x", "新来源-未配置"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    assert len(kept) == 1, f"期望 1 条（未知来源保留），实际: {len(kept)}"
+    print("✓ test_verify_unknown_source_prefix_kept")
+
+
+def test_verify_gov_rss_uses_gov_home_domain():
+    '''"GOV-" 前缀（来自 gov RSS）应使用 gov_home 的域名做白名单。'''
+    cfg = _verify_config()
+    items = [
+        _make_item("https://www.gov.cn/zhengce/zhengceku/x.htm", "GOV-最新政策-RSS"),
+        _make_item("https://rsshub.app/some/article",            "GOV-最新政策-RSS"),
+    ]
+    kept = collect.verify_offsite_redirect(items, cfg)
+    assert len(kept) == 1, f"期望 1 条（rsshub 域名被丢弃），实际: {len(kept)}"
+    assert "gov.cn" in kept[0].url
+    print("✓ test_verify_gov_rss_uses_gov_home_domain")
+
+
 # ─────────────── 运行所有测试 ───────────────
 
 if __name__ == "__main__":
@@ -234,6 +460,19 @@ if __name__ == "__main__":
         test_empty_title_filtered,
         test_mixed_sources,
         test_item_fields,
+        # 二次检验
+        test_verify_drops_offsite_for_most,
+        test_verify_keeps_subdomain_of_same_registered_domain,
+        test_verify_skips_weibo_source,
+        test_verify_soe_same_domain_kept_offsite_dropped,
+        test_verify_miit_local_same_domain_kept_offsite_dropped,
+        test_verify_gov_local_same_domain_kept_offsite_dropped,
+        test_verify_website_monitor_same_domain_kept_offsite_dropped,
+        test_verify_multi_source_unknown_identifier_kept,
+        test_verify_keeps_when_host_unresolvable,
+        test_verify_drops_qqnews_offsite,
+        test_verify_unknown_source_prefix_kept,
+        test_verify_gov_rss_uses_gov_home_domain,
     ]
 
     passed = 0

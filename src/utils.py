@@ -289,3 +289,90 @@ def normalize_publisher(name: str, alias_map: Optional[dict] = None) -> str:
     if alias_map:
         return alias_map.get(s, s)
     return s
+
+
+# ── URL 域名提取与白名单比对（用于二次检验：丢弃跳转到外站的新闻） ────────────
+
+# 常见的双段后缀（pseudo-eTLD），用于把 host 折叠到"注册域"（eTLD+1）层级。
+# 仅覆盖项目实际涉及的中国常见后缀；不在此表中的按 host 末两段处理。
+_MULTI_PART_TLDS = frozenset({
+    "gov.cn", "com.cn", "net.cn", "org.cn", "edu.cn", "ac.cn",
+    "com.hk", "org.hk", "gov.hk",
+    "com.mo", "gov.mo",
+    "com.tw", "org.tw",
+})
+
+
+def extract_host(url: str) -> str:
+    """从 URL 中提取小写 host（不含端口与 www. 前缀）；解析失败时返回空串。"""
+    if not url:
+        return ""
+    try:
+        u = str(url).strip()
+        if u.startswith("//"):
+            u = "https:" + u
+        host = urlsplit(u).netloc.lower()
+        if "@" in host:  # 去掉 userinfo
+            host = host.split("@", 1)[1]
+        if ":" in host:  # 去掉端口
+            host = host.split(":", 1)[0]
+        if host.startswith("www."):
+            host = host[4:]
+        return host
+    except Exception:
+        return ""
+
+
+def extract_registered_domain(url_or_host: str) -> str:
+    """提取"注册域"（eTLD+1）。
+
+    例：
+        www.miit.gov.cn → miit.gov.cn
+        wap.miit.gov.cn → miit.gov.cn
+        wap.gov.cn      → wap.gov.cn   （仅 3 段，已是 eTLD+1，按原值返回）
+        gov.cn          → gov.cn       （≤ 2 段，按 host 原样返回）
+        example.com     → example.com
+
+    注：双段后缀（如 ``gov.cn``）下，host 段数 < 3 时无法再向左折叠，
+    本函数保持 host 原样返回，避免把 ``*.gov.cn`` 这类域名全部塌缩到
+    ``gov.cn`` 而导致后续白名单比对过于宽松。无法识别则返回 host 本身
+    （保守处理）。
+    """
+    if not url_or_host:
+        return ""
+    s = str(url_or_host).strip().lower()
+    # 既支持完整 URL，也支持裸 host
+    host = extract_host(s) if ("://" in s or s.startswith("//") or "/" in s) else s
+    if not host:
+        return ""
+    parts = host.split(".")
+    if len(parts) <= 2:
+        return host
+    # 检测末两段是否为双段后缀（如 gov.cn）
+    tail2 = ".".join(parts[-2:])
+    if tail2 in _MULTI_PART_TLDS and len(parts) >= 3:
+        return ".".join(parts[-3:])
+    return tail2
+
+
+def host_matches_allowed(url: str, allowed_domains: List[str]) -> bool:
+    """判断 URL 的 host 是否落在允许域名清单内（根源包含匹配）。
+
+    匹配规则：
+    - 取 URL 的 host（已去 www.）；
+    - 若 host == allowed 或 host.endswith("." + allowed)，视为命中；
+    - allowed_domains 为空或 host 无法解析时，按调用方策略另行处理；
+      本函数仅返回布尔值，无法解析的 host 一律返回 False。
+    """
+    host = extract_host(url)
+    if not host:
+        return False
+    for raw in allowed_domains or []:
+        d = str(raw or "").strip().lower()
+        if d.startswith("www."):
+            d = d[4:]
+        if not d:
+            continue
+        if host == d or host.endswith("." + d):
+            return True
+    return False

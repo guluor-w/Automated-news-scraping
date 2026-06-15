@@ -118,9 +118,12 @@ def _print_summary(total: int, counter: Counter) -> None:
         "skip-no-rule-host",
         "skip-bad-url",
     ]
+    # 按各状态的最大计数归一化进度条，避免 total < 100 时分母塌缩到 1、
+    # 导致几乎每行都打印满条而失去可比性。
+    max_count = max((counter.get(k, 0) for k in order), default=0) or 1
     for key in order:
         n = counter.get(key, 0)
-        bar = "■" * min(50, n // max(1, total // 100 or 1))
+        bar = "■" * int(round(n / max_count * 50))
         print(f"  {label[key].ljust(width)} : {n:>6}  {bar}")
 
 

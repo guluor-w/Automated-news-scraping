@@ -131,15 +131,34 @@ _SOURCE_TAG_TO_CONFIG_KEYS = (
     ("发改委官网-",      ["ndrc_home"]),
     ("科技部官网-",      ["most_home"]),
     ("教育部官网-",      ["moe_news"]),
-    ("国资委官网",       ["sasac_home"]),
+    ("国资委官网-",      ["sasac_home"]),  # 详见下方 _SOURCE_TAG_EXACT_MATCH
     ("国家数据局-",      ["nda_home"]),
     ("腾讯新闻-",        ["qqnews_search"]),
 )
+
+# 模块加载时按前缀长度降序固化一次，避免每次 _allowed_domains_for_source 调用都重排。
+_SOURCE_TAG_TO_CONFIG_KEYS_SORTED = tuple(
+    sorted(_SOURCE_TAG_TO_CONFIG_KEYS, key=lambda kv: -len(kv[0]))
+)
+
+# 完整 source 字符串（精确匹配）→ config["sources"] 中的 key。
+# 用于来源 source 字段为固定字符串、不带"-子分类"后缀的信源（如国资委：source="国资委官网"）。
+_SOURCE_TAG_EXACT_MATCH = {
+    "国资委官网": ["sasac_home"],
+}
 
 # 不参与二次检验的来源前缀（按用户要求保留）。
 _SECONDARY_CHECK_SKIP_PREFIXES = (
     "微博-",       # 用户明确要求跳过
 )
+
+
+# 多源信源精确反查表：模块加载时不立刻构建，首次访问时通过
+# :func:`_get_multi_source_index` 惰性生成。这样像
+# ``verify_existing_csv.py`` 这类仅依赖 ``judge_offsite`` 字符串判定的脚本，
+# 即便其上层未真正运行各 parser，也能避免在 import 阶段就强制实例化全部
+# 多源索引（同时降低 import 副作用）。
+_MULTI_SOURCE_INDEX_CACHE: Optional[dict] = None
 
 
 def _build_multi_source_domain_index() -> dict:
@@ -195,8 +214,12 @@ def _build_multi_source_domain_index() -> dict:
     return index
 
 
-# 模块加载时一次性构建（常量集合静态不变，无需每条新闻重复构建）。
-_MULTI_SOURCE_INDEX = _build_multi_source_domain_index()
+def _get_multi_source_index() -> dict:
+    """首次调用时构建多源索引，后续调用复用同一字典。"""
+    global _MULTI_SOURCE_INDEX_CACHE
+    if _MULTI_SOURCE_INDEX_CACHE is None:
+        _MULTI_SOURCE_INDEX_CACHE = _build_multi_source_domain_index()
+    return _MULTI_SOURCE_INDEX_CACHE
 
 
 def _allowed_domains_for_source(source_tag: str, sources_cfg: dict) -> Optional[List[str]]:
@@ -217,15 +240,25 @@ def _allowed_domains_for_source(source_tag: str, sources_cfg: dict) -> Optional[
 
     # 2) 多源信源精确反查（央企/地方政府/地方工信/官网）
     #    使用完整 source 标签做 key，命中即返回该源的官方注册域。
-    if source_tag in _MULTI_SOURCE_INDEX:
-        return list(_MULTI_SOURCE_INDEX[source_tag])
+    multi_index = _get_multi_source_index()
+    if source_tag in multi_index:
+        return list(multi_index[source_tag])
 
-    # 3) 单一域信源：按前缀长度降序匹配，命中后从 config 中提取注册域
-    for prefix, cfg_keys in sorted(
-        _SOURCE_TAG_TO_CONFIG_KEYS, key=lambda kv: -len(kv[0])
-    ):
+    # 3) 完整字符串精确匹配（如"国资委官网"这类无"-子分类"后缀的固定 source）
+    if source_tag in _SOURCE_TAG_EXACT_MATCH:
+        domains: List[str] = []
+        for k in _SOURCE_TAG_EXACT_MATCH[source_tag]:
+            src = (sources_cfg or {}).get(k) or {}
+            url = src.get("url") or src.get("rss") or ""
+            d = extract_registered_domain(url)
+            if d:
+                domains.append(d)
+        return domains
+
+    # 4) 单一域信源：按已固化的前缀长度降序匹配，命中后从 config 中提取注册域
+    for prefix, cfg_keys in _SOURCE_TAG_TO_CONFIG_KEYS_SORTED:
         if source_tag.startswith(prefix):
-            domains: List[str] = []
+            domains = []
             for k in cfg_keys:
                 src = (sources_cfg or {}).get(k) or {}
                 url = src.get("url") or src.get("rss") or ""
@@ -234,7 +267,7 @@ def _allowed_domains_for_source(source_tag: str, sources_cfg: dict) -> Optional[
                     domains.append(d)
             return domains  # 即使为空也返回（语义上"找到了映射但取不到域"）
 
-    # 4) 未命中任何映射：默认不过滤（保守保留），避免新增 source 时静默丢弃
+    # 5) 未命中任何映射：默认不过滤（保守保留），避免新增 source 时静默丢弃
     #    注：对于已知前缀但具体标识未在索引中的多源（如 WEBSITE_SOURCES
     #    新增条目却未重启服务），此处也会保守保留。
     return None
@@ -280,11 +313,13 @@ def judge_offsite(source_tag: str, url: str, sources_cfg: dict) -> str:
 
 
 def verify_offsite_redirect(items: List[Item], config: dict) -> List[Item]:
-    """对非微博渠道的 items 执行二次检验，剔除跳转到外站的新闻。
+    """对所有 items 执行二次检验，剔除跳转到外站的新闻。
 
-    仅按 URL 域名做字符串比对（不发起任何网络请求）。对于无法判定的项（如
-    配置中找不到 allowed_domain、host 解析失败、属于跳过名单的来源等），
-    按保守保留原则不做删除。
+    实现上是把每条 item 直接送入 :func:`judge_offsite`，由其内部根据 source
+    标签决定具体行为：跳过名单内的来源（目前为微博 ``"微博-"`` 前缀）会被
+    原样保留，不在此处做前置过滤。仅按 URL 域名做字符串比对（不发起任何
+    网络请求）。对于无法判定的项（如配置中找不到 allowed_domain、host 解析
+    失败、属于跳过名单的来源等），按保守保留原则不做删除。
 
     Args:
         items:  各 parser 汇总后的 Item 列表。

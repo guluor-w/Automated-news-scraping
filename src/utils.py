@@ -326,8 +326,17 @@ def extract_host(url: str) -> str:
 def extract_registered_domain(url_or_host: str) -> str:
     """提取"注册域"（eTLD+1）。
 
-    例：www.miit.gov.cn → miit.gov.cn；wap.gov.cn → gov.cn；example.com → example.com。
-    无法识别则返回 host 本身（保守处理）。
+    例：
+        www.miit.gov.cn → miit.gov.cn
+        wap.miit.gov.cn → miit.gov.cn
+        wap.gov.cn      → wap.gov.cn   （仅 3 段，已是 eTLD+1，按原值返回）
+        gov.cn          → gov.cn       （≤ 2 段，按 host 原样返回）
+        example.com     → example.com
+
+    注：双段后缀（如 ``gov.cn``）下，host 段数 < 3 时无法再向左折叠，
+    本函数保持 host 原样返回，避免把 ``*.gov.cn`` 这类域名全部塌缩到
+    ``gov.cn`` 而导致后续白名单比对过于宽松。无法识别则返回 host 本身
+    （保守处理）。
     """
     if not url_or_host:
         return ""

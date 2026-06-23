@@ -65,13 +65,9 @@ GOV_LOCAL_SOURCES = [
     {"province": "内蒙古", "name": "内蒙古自治区人民政府", "url": "https://www.nmg.gov.cn/"},
     {"province": "辽宁", "name": "辽宁省人民政府",
      "urls": [
-         # 今日辽宁（文字消息）
+         # 今日辽宁（文字消息）- 省政府工作动态
          "https://www.ln.gov.cn/web/ywdt/jrln/wzxx2018/index.shtml",
-         # 中央媒体看辽宁
-         "https://www.ln.gov.cn/web/ywdt/zymtkln/index.shtml",
-         # 头条新闻
-         "https://www.ln.gov.cn/web/ywdt/jrln/ttxw/index.shtml",
-         # 图片新闻
+         # 图片新闻 - 省政府工作动态（许昆林等省领导活动）
          "https://www.ln.gov.cn/web/ywdt/jrln/tpxw/index.shtml",
      ],
      "url": "https://www.ln.gov.cn/"},
@@ -96,26 +92,18 @@ GOV_LOCAL_SOURCES = [
     {"province": "江西", "name": "江西省人民政府", "url": "https://www.jiangxi.gov.cn/"},
     {"province": "山东", "name": "山东省人民政府",
      "urls": [
-         # 今日关注
-         "https://www.shandong.gov.cn/col/col97560/index.html",
-         # 省内要闻
-         "https://www.shandong.gov.cn/col/col97564/index.html",
-         # 政务要闻
+         # 政务要闻 - 省委省政府工作动态（林武、周乃翔等省领导活动）
          "https://www.shandong.gov.cn/col/col97902/index.html",
-         # 媒体聚焦
-         "https://www.shandong.gov.cn/col/col97904/index.html",
      ],
      "url": "https://www.shandong.gov.cn/"},
     {"province": "河南", "name": "河南省人民政府", "url": "https://www.henan.gov.cn/"},
     {"province": "湖北", "name": "湖北省人民政府", "url": "https://www.hubei.gov.cn/"},
     {"province": "湖南", "name": "湖南省人民政府",
      "urls": [
-         # 湖南要闻
+         # 湖南要闻 - 省政府工作动态
          "https://www.hunan.gov.cn/hnszf/hnyw/sy/hnyw1/gl_fgsjpx.html",
          # 省政府会议
          "https://www.hunan.gov.cn/hnszf/szf/zfhyjtj/hyztrb.html",
-         # 要闻转载
-         "https://www.hunan.gov.cn/hnszf/hnyw/ywtj/gl_fgsjpx.html",
          # 通知公告
          "https://www.hunan.gov.cn/hnszf/xxgk/tzgg/index.html",
          # 文件库
@@ -127,14 +115,12 @@ GOV_LOCAL_SOURCES = [
     {"province": "海南", "name": "海南省人民政府", "url": "https://www.hainan.gov.cn/"},
     {"province": "重庆", "name": "重庆市人民政府",
      "urls": [
-         # 今日重庆
+         # 今日重庆 - 市政府工作动态
          "https://www.cq.gov.cn/ywdt/jrcq/",
          # 政务动态
          "https://www.cq.gov.cn/ywdt/zwhd/",
          # 通知公告
          "https://www.cq.gov.cn/ywdt/tzgg/",
-         # 重要信息转载
-         "https://www.cq.gov.cn/ywdt/zdzz/",
      ],
      "url": "https://www.cq.gov.cn/"},
     {"province": "四川", "name": "四川省人民政府", "url": "https://www.sc.gov.cn/"},

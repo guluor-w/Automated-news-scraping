@@ -49,6 +49,7 @@ from parsers.miit_local import (
     _extract_date_from_url,
     _extract_date_from_context,
     _clean_title,
+    _refine_title_by_detail,
     DEFAULT_TIMEOUT,
 )
 
@@ -62,26 +63,88 @@ GOV_LOCAL_SOURCES = [
     {"province": "河北", "name": "河北省人民政府", "url": "https://www.hebei.gov.cn/"},
     {"province": "山西", "name": "山西省人民政府", "url": "https://www.shanxi.gov.cn/"},
     {"province": "内蒙古", "name": "内蒙古自治区人民政府", "url": "https://www.nmg.gov.cn/"},
-    {"province": "辽宁", "name": "辽宁省人民政府", "url": "https://www.ln.gov.cn/"},
+    {"province": "辽宁", "name": "辽宁省人民政府",
+     "urls": [
+         # 今日辽宁（文字消息）
+         "https://www.ln.gov.cn/web/ywdt/jrln/wzxx2018/index.shtml",
+         # 中央媒体看辽宁
+         "https://www.ln.gov.cn/web/ywdt/zymtkln/index.shtml",
+         # 头条新闻
+         "https://www.ln.gov.cn/web/ywdt/jrln/ttxw/index.shtml",
+         # 图片新闻
+         "https://www.ln.gov.cn/web/ywdt/jrln/tpxw/index.shtml",
+     ],
+     "url": "https://www.ln.gov.cn/"},
     {"province": "吉林", "name": "吉林省人民政府", "url": "https://www.jl.gov.cn/"},
     {"province": "黑龙江", "name": "黑龙江省人民政府", "url": "https://www.hlj.gov.cn/"},
     {"province": "上海", "name": "上海市人民政府", "url": "https://www.shanghai.gov.cn/"},
     {"province": "江苏", "name": "江苏省人民政府", "url": "https://www.jiangsu.gov.cn/"},
     {"province": "浙江", "name": "浙江省人民政府", "url": "https://www.zj.gov.cn/"},
     {"province": "安徽", "name": "安徽省人民政府", "url": "https://www.ah.gov.cn/"},
-    {"province": "福建", "name": "福建省人民政府", "url": "https://www.fujian.gov.cn/"},
+    {"province": "福建", "name": "福建省人民政府",
+     "urls": [
+         # 福建要闻
+         "https://www.fujian.gov.cn/xwdt/fjyw/",
+         # 最新文件
+         "https://www.fujian.gov.cn/zwgk/zxwj/",
+         # 政策解读
+         "https://www.fujian.gov.cn/jdhy/zcjd/",
+         # 通知公告
+         "https://www.fujian.gov.cn/zwgk/tzgg/",
+     ],
+     "url": "https://www.fujian.gov.cn/"},
     {"province": "江西", "name": "江西省人民政府", "url": "https://www.jiangxi.gov.cn/"},
-    {"province": "山东", "name": "山东省人民政府", "url": "https://www.shandong.gov.cn/"},
+    {"province": "山东", "name": "山东省人民政府",
+     "urls": [
+         # 今日关注
+         "https://www.shandong.gov.cn/col/col97560/index.html",
+         # 省内要闻
+         "https://www.shandong.gov.cn/col/col97564/index.html",
+         # 政务要闻
+         "https://www.shandong.gov.cn/col/col97902/index.html",
+         # 媒体聚焦
+         "https://www.shandong.gov.cn/col/col97904/index.html",
+     ],
+     "url": "https://www.shandong.gov.cn/"},
     {"province": "河南", "name": "河南省人民政府", "url": "https://www.henan.gov.cn/"},
     {"province": "湖北", "name": "湖北省人民政府", "url": "https://www.hubei.gov.cn/"},
-    {"province": "湖南", "name": "湖南省人民政府", "url": "https://www.hunan.gov.cn/"},
+    {"province": "湖南", "name": "湖南省人民政府",
+     "urls": [
+         # 湖南要闻
+         "https://www.hunan.gov.cn/hnszf/hnyw/sy/hnyw1/gl_fgsjpx.html",
+         # 省政府会议
+         "https://www.hunan.gov.cn/hnszf/szf/zfhyjtj/hyztrb.html",
+         # 要闻转载
+         "https://www.hunan.gov.cn/hnszf/hnyw/ywtj/gl_fgsjpx.html",
+         # 通知公告
+         "https://www.hunan.gov.cn/hnszf/xxgk/tzgg/index.html",
+         # 文件库
+         "https://www.hunan.gov.cn/hnszf/xxgk/wjk/szfwj/wjk_glrb.html",
+     ],
+     "url": "https://www.hunan.gov.cn/"},
     {"province": "广东", "name": "广东省人民政府", "url": "https://www.gd.gov.cn/"},
     {"province": "广西", "name": "广西壮族自治区人民政府", "url": "https://www.gxzf.gov.cn/"},
     {"province": "海南", "name": "海南省人民政府", "url": "https://www.hainan.gov.cn/"},
-    {"province": "重庆", "name": "重庆市人民政府", "url": "https://www.cq.gov.cn/"},
+    {"province": "重庆", "name": "重庆市人民政府",
+     "urls": [
+         # 今日重庆
+         "https://www.cq.gov.cn/ywdt/jrcq/",
+         # 政务动态
+         "https://www.cq.gov.cn/ywdt/zwhd/",
+         # 通知公告
+         "https://www.cq.gov.cn/ywdt/tzgg/",
+         # 重要信息转载
+         "https://www.cq.gov.cn/ywdt/zdzz/",
+     ],
+     "url": "https://www.cq.gov.cn/"},
     {"province": "四川", "name": "四川省人民政府", "url": "https://www.sc.gov.cn/"},
     {"province": "贵州", "name": "贵州省人民政府", "url": "https://www.guizhou.gov.cn/"},
-    {"province": "云南", "name": "云南省人民政府", "url": "https://www.yn.gov.cn/"},
+    {"province": "云南", "name": "云南省人民政府",
+     "urls": [
+         # 云南要闻
+         "https://www.yn.gov.cn/ywdt/ynyw/",
+     ],
+     "url": "https://www.yn.gov.cn/"},
     {"province": "西藏", "name": "西藏自治区人民政府", "url": "https://www.xizang.gov.cn/"},
     {"province": "陕西", "name": "陕西省人民政府", "url": "https://www.shaanxi.gov.cn/"},
     {"province": "甘肃", "name": "甘肃省人民政府", "url": "https://www.gansu.gov.cn/"},
@@ -120,68 +183,84 @@ def _scrape_one_gov_site(
     """
     province = source["province"]
     gov_name = source["name"]
-    base_url = source["url"]
     source_tag = f"地方政府-{province}"
 
-    html = http_get(base_url, timeout=timeout)
-    soup = BeautifulSoup(html, "lxml")
+    # 兼容旧的单 url 配置与新的 urls 列表配置（每个省份可配置多个新闻栏目入口）
+    entry_urls: List[str] = []
+    if source.get("urls"):
+        entry_urls = list(source["urls"])
+    if source.get("url"):
+        entry_urls.append(source["url"])
+    seen_entry = set()
+    entry_urls = [u for u in entry_urls if not (u in seen_entry or seen_entry.add(u))]
 
     items: List[Item] = []
 
-    for a_tag in soup.find_all("a", href=True):
-        href = (a_tag.get("href") or "").strip()
-
-        # 跳过空链接和锚点（在提取标题前先过滤，节省 clean_title 调用）
-        if not href or href.startswith("#") or href.startswith("javascript"):
+    for base_url in entry_urls:
+        try:
+            html = http_get(base_url, timeout=timeout)
+        except Exception:
+            logger.warning("地方政府-%s: 入口抓取失败 %s", province, base_url, exc_info=True)
             continue
+        soup = BeautifulSoup(html, "lxml")
 
-        # 先用 get_text 做快速导航/长度预过滤，再用 _clean_title 清洗
-        raw_text = a_tag.get_text(" ", strip=True)
+        for a_tag in soup.find_all("a", href=True):
+            href = (a_tag.get("href") or "").strip()
 
-        # 跳过导航性文字
-        if _is_nav_text(raw_text):
-            continue
+            # 跳过空链接和锚点（在提取标题前先过滤，节省 clean_title 调用）
+            if not href or href.startswith("#") or href.startswith("javascript"):
+                continue
 
-        # 跳过标题过短的链接（至少 6 个字符）
-        if len(raw_text) < 6:
-            continue
+            # 先用 get_text 做快速导航/长度预过滤，再用 _clean_title 清洗
+            raw_text = a_tag.get_text(" ", strip=True)
 
-        url = normalize_url(base_url, href)
+            # 跳过导航性文字
+            if _is_nav_text(raw_text):
+                continue
 
-        # 仅保留看起来像新闻文章的链接
-        if not _is_news_like_url(url):
-            continue
+            # 跳过标题过短的链接（至少 6 个字符）
+            if len(raw_text) < 6:
+                continue
 
-        # 清洗标题：优先使用 title 属性，去除首尾日期，截断过长文本
-        title = _clean_title(a_tag, raw_text)
-        if len(title) < 6:
-            continue
+            url = normalize_url(base_url, href)
 
-        # 提取发布日期：优先从 URL，其次从上下文文本，再其次从原始链接文本
-        pub_date = _extract_date_from_url(url)
-        if not pub_date:
-            pub_date = _extract_date_from_context(a_tag, now)
-        if not pub_date:
-            pub_date = extract_date(raw_text)
-        if not pub_date:
-            pub_date = extract_date(title)
+            # 仅保留看起来像新闻文章的链接
+            if not _is_news_like_url(url):
+                continue
 
-        # 关键词过滤
-        if not keyword_hit(title, keywords):
-            continue
+            # 清洗标题：优先使用 title 属性，去除首尾日期，截断过长文本
+            title = _clean_title(a_tag, raw_text)
+            if len(title) < 6:
+                continue
 
-        # 时间窗口过滤
-        if not within_window(pub_date, now, window_days, hard_cap_days):
-            continue
+            # 提取发布日期：优先从 URL，其次从上下文文本，再其次从原始链接文本
+            pub_date = _extract_date_from_url(url)
+            if not pub_date:
+                pub_date = _extract_date_from_context(a_tag, now)
+            if not pub_date:
+                pub_date = extract_date(raw_text)
+            if not pub_date:
+                pub_date = extract_date(title)
 
-        items.append(Item(
-            title=title,
-            publisher=gov_name,
-            url=url,
-            pub_date=pub_date,
-            source=source_tag,
-            fetched_at=fetched_at,
-        ))
+            # 关键词过滤
+            if not keyword_hit(title, keywords):
+                continue
+
+            # 时间窗口过滤
+            if not within_window(pub_date, now, window_days, hard_cap_days):
+                continue
+
+            # 详情页标题二次确认（按需）：仅对通过过滤的可疑长标题回源
+            title = _refine_title_by_detail(title, url, timeout=timeout)
+
+            items.append(Item(
+                title=title,
+                publisher=gov_name,
+                url=url,
+                pub_date=pub_date,
+                source=source_tag,
+                fetched_at=fetched_at,
+            ))
 
     return items
 

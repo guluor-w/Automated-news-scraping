@@ -16,10 +16,12 @@
 │   ├── added_count.txt          # 最近一次新增条数（供 CI 判断是否提交）
 │   ├── rss_full.xml             # 全量 RSS 2.0
 │   └── rss_miit.xml             # 来源名称包含"工信"的子集 RSS 2.0
+├── .cache/                      # 本地缓存目录（已在 .gitignore 中排除）
+│   └── detail_titles.json       # 详情页标题二次确认结果缓存
 └── src/
     ├── collect.py               # 主入口：加载配置、调用各 parser、二次检验、去重、写 CSV/RSS
     ├── models.py                # 数据模型（Item）和公共常量（SG_TZ 等）
-    ├── utils.py                 # 通用工具（日期解析、关键词匹配、HTTP、域名比对等）
+    ├── utils.py                 # 通用工具（日期解析、关键词匹配、HTTP、域名比对、详情页标题提取等）
     ├── storage.py               # 持久化：CSV 读写 + RSS 生成 + 去重合并
     ├── test_collect.py          # collect/storage 相关单元测试
     ├── test_parsers.py          # 各 parser 单元测试
@@ -63,6 +65,72 @@
 | `parsers/qqnews.py` | 新闻平台搜索 API | `sources.qqnews_search` |
 | `parsers/weibo.py` | 微博账号（需 Playwright） | `weibo_monitor` |
 | `parsers/website_monitor.py` | 多官网轮询（需 Playwright） | `weibo_monitor` |
+
+---
+
+## 标题质量保障
+
+部分政务/央企门户在列表页同时渲染"标题 + 摘要片段 + 日期后缀"，直接取链接文本会得到混合串。本项目通过**三层机制**逐级净化，确保入库标题尽量接近源站官方标题。
+
+### 第一层：列表页结构识别（多源入口）
+
+`parsers/miit_local.py`、`parsers/soe.py`、`parsers/gov_local.py` 的源定义支持 `urls` 列表与 `exclude_paths` 字段：
+
+```python
+{
+  "name": "示例机构",
+  "urls": [
+    "https://example.com/news/",          # 新闻动态
+    "https://example.com/notice/",        # 通知公告
+  ],
+  "exclude_paths": ["/gzwdt/", "/sasac.gov.cn/"],  # 过滤上级单位等无关板块
+}
+```
+
+对应解析函数（如 `_scrape_soe_site`）会逐 URL 抓取并合并；遇到字符串型 `url` 字段自动兼容旧配置。
+
+**入口筛选原则**：仅保留该机构**本单位首发**或**本单位工作动态**类栏目。明确属于以下两类的栏目应排除，避免混入非本单位内容：
+
+- **上级单位/平级转载**：栏目名或内容明确为上级机关、其他部委信息的转载汇编，如政府门户的"重要信息转载"、"要闻转载"，或央企站点的"国资委动态"等。
+- **外部媒体汇编**：栏目内容为外部媒体涉本单位的报道聚合，如"中央媒体看XX"、"媒体聚焦"、"涉省报道"等。
+
+新增二级入口时，建议先访问该栏目实页核实前 1–2 屏条目的发布主体；若混合本单位与转载内容，倾向**不予收录**，转而寻找更纯净的子栏目（如"政务要闻"、"今日XX"等）。
+
+### 第二层：文本清洗（`_clean_title`）
+
+`parsers/miit_local.py` 中的 `_clean_title` / `_strip_date_affixes` / `_post_process_title` 负责：
+
+- 剥离末尾日期后缀（`YYYY-MM-DD` / `MM-DD` / `[YYYY年MM月DD日]` 等多种格式，支持可选空格）
+- 去除 `[详细]` `[更多]` 等多余标记
+- 识别正文摘要起始点（`……当一位` `。一是` `，背景是` 等连接词），截取摘要前的标题主体
+- 拒绝纯导航文本（`_is_nav_text`）
+
+### 第三层：详情页按需二次确认（新）
+
+对于经第二层清洗后仍"可疑"的标题（典型场景：列表页 `<a>` 同时承载标题与摘要片段，结构上无法分离），按需访问详情页提取规范标题。
+
+**判定条件**（`_is_suspicious_title`，位于 `parsers/miit_local.py`）：
+
+- 长度 ≥ 60 字（普通新闻标题极少超过此长度）
+- 中部出现典型摘要标志：标点后跟 ≥15 字连续叙述、`……`、`...`、`一是/二是` 等枚举
+
+**字段提取优先级**（`_extract_title_from_html`，位于 `utils.py`）：
+
+1. `<meta name="ArticleTitle">`（国内政务站普遍遵循 GB/T 23287）
+2. `<h1>`
+3. `<h2>`（部分央企/省厅站用作主标题）
+4. `<title>`（自动反复剥离末尾的 `- 站名` / `_ 站名` 后缀）
+
+**安全兜底**（`_refine_title_by_detail`）：
+
+- 详情页请求失败、解析失败、或返回长度 ≥ 列表页清洗结果时 → 保留原标题
+- 同一 URL 请求结果（含失败）写入 `.cache/detail_titles.json`，进程内单例 + 跨次复用，避免请求风暴
+
+**调用位置**：三个解析器（`miit_local.py` / `soe.py` / `gov_local.py`）的主循环中，**在关键词与时间窗口过滤通过之后、`items.append` 之前**调用，确保被丢弃的条目不产生额外请求。
+
+### HTTP 容错（`http_get`）
+
+`utils.py:http_get` 在遇到 HTTPS 握手失败（部分省厅站证书链不全/SSL 协议过旧）时自动降级为 HTTP 重试一次，保障可达性。
 
 ---
 

@@ -60,6 +60,7 @@ from parsers.miit_local import (
     _extract_date_from_url,
     _is_nav_text,
     _is_news_like_url,
+    _refine_title_by_detail,
     DEFAULT_TIMEOUT,
 )
 
@@ -347,65 +348,85 @@ def _scrape_soe_site(
     hard_cap_days: int,
     timeout: int,
 ) -> List[Item]:
-    """抓取单个央企官网并返回符合条件的 Item 列表。"""
+    """抓取单个央企官网并返回符合条件的 Item 列表。
+
+    支持单一 url 字段（兼容旧配置）以及 urls 列表（每个信源多个新闻栏目入口）。
+    """
     name = source["name"]
-    base_url = source["url"]
     source_tag = f"央企-{name}"
 
-    html = http_get(base_url, timeout=timeout)
-    soup = BeautifulSoup(html, "lxml")
+    # 兼容旧的单 url 配置与新的 urls 列表配置
+    entry_urls: List[str] = []
+    if source.get("urls"):
+        entry_urls = list(source["urls"])
+    if source.get("url"):
+        entry_urls.append(source["url"])
+    # 去重并保留顺序
+    seen_entry = set()
+    entry_urls = [u for u in entry_urls if not (u in seen_entry or seen_entry.add(u))]
 
     items: List[Item] = []
+    exclude_paths = source.get("exclude_paths", [])
 
-    for a_tag in soup.find_all("a", href=True):
-        href = (a_tag.get("href") or "").strip()
-        if not href or href.startswith("#") or href.startswith("javascript"):
+    for base_url in entry_urls:
+        try:
+            html = http_get(base_url, timeout=timeout)
+        except Exception:
+            logger.warning("央企-%s: 入口抓取失败 %s", name, base_url, exc_info=True)
             continue
+        soup = BeautifulSoup(html, "lxml")
 
-        raw_text = a_tag.get_text(" ", strip=True)
-        if _is_nav_text(raw_text):
-            continue
-        if len(raw_text) < 6:
-            continue
+        for a_tag in soup.find_all("a", href=True):
+            href = (a_tag.get("href") or "").strip()
+            if not href or href.startswith("#") or href.startswith("javascript"):
+                continue
 
-        url = normalize_url(base_url, href)
+            raw_text = a_tag.get_text(" ", strip=True)
+            if _is_nav_text(raw_text):
+                continue
+            if len(raw_text) < 6:
+                continue
 
-        # 仅保留新闻文章链接
-        if not _is_soe_news_url(url):
-            continue
+            url = normalize_url(base_url, href)
 
-        # 跳过各站点明确配置的非新闻栏目路径（如业务领域、服务目录等）
-        exclude_paths = source.get("exclude_paths", [])
-        if any(ep in url for ep in exclude_paths):
-            continue
+            # 仅保留新闻文章链接
+            if not _is_soe_news_url(url):
+                continue
 
-        title = _clean_title(a_tag, raw_text)
-        if len(title) < 6:
-            continue
+            # 跳过各站点明确配置的非新闻栏目路径（如业务领域、服务目录等）
+            if any(ep in url for ep in exclude_paths):
+                continue
 
-        # 日期提取
-        pub_date = _extract_soe_date(a_tag, url, now, timeout=min(timeout, 5))
-        if not pub_date:
-            pub_date = extract_date(raw_text)
-        if not pub_date:
-            pub_date = extract_date(title)
+            title = _clean_title(a_tag, raw_text)
+            if len(title) < 6:
+                continue
 
-        # 关键词过滤
-        if not keyword_hit(title, keywords):
-            continue
+            # 日期提取
+            pub_date = _extract_soe_date(a_tag, url, now, timeout=min(timeout, 5))
+            if not pub_date:
+                pub_date = extract_date(raw_text)
+            if not pub_date:
+                pub_date = extract_date(title)
 
-        # 时间窗口过滤
-        if not within_window(pub_date, now, window_days, hard_cap_days):
-            continue
+            # 关键词过滤
+            if not keyword_hit(title, keywords):
+                continue
 
-        items.append(Item(
-            title=title,
-            publisher=name,
-            url=url,
-            pub_date=pub_date,
-            source=source_tag,
-            fetched_at=fetched_at,
-        ))
+            # 时间窗口过滤
+            if not within_window(pub_date, now, window_days, hard_cap_days):
+                continue
+
+            # 详情页标题二次确认（按需）：仅对通过过滤的可疑长标题回源
+            title = _refine_title_by_detail(title, url, timeout=timeout)
+
+            items.append(Item(
+                title=title,
+                publisher=name,
+                url=url,
+                pub_date=pub_date,
+                source=source_tag,
+                fetched_at=fetched_at,
+            ))
 
     return items
 
@@ -493,9 +514,29 @@ SOE_SOURCES = [
     {"name": "中国南方电网有限责任公司", "url": "http://www.csg.cn/"},
     {"name": "中国华能集团有限公司", "url": "http://www.chng.com.cn/"},
     {"name": "中国大唐集团有限公司", "url": "http://www.china-cdt.com/"},
-    {"name": "中国华电集团有限公司", "url": "http://www.chd.com.cn/"},
+    {"name": "中国华电集团有限公司",
+     "urls": [
+         # 集团要闻
+         "https://www.chd.com.cn/webfront/webpage/web/contentList/channelId/5b05a07f75a0401fa659a2e2959c4916/pageNo/1",
+         # 媒体聚焦
+         "https://www.chd.com.cn/webfront/webpage/web/contentList/channelId/7b5f070c254d449d88befe3f971da864/pageNo/1",
+     ],
+     "url": "http://www.chd.com.cn/"},
     {"name": "国家电力投资集团有限公司", "url": "http://www.spic.com.cn/"},
-    {"name": "中国长江三峡集团有限公司", "url": "http://www.ctg.com.cn/"},
+    {"name": "中国长江三峡集团有限公司",
+     "urls": [
+         # 头条新闻
+         "https://www.ctg.com.cn/sxjt/xwzx55/ttxw15/index.html",
+         # 集团要闻
+         "https://www.ctg.com.cn/sxjt/xwzx55/jtyw44/index.html",
+         # 综合新闻
+         "https://www.ctg.com.cn/sxjt/xwzx55/zhxw23/index.html",
+         # 三峡热评
+         "https://www.ctg.com.cn/sxjt/xwzx55/sxrp/index.html",
+         # 专题新闻
+         "https://www.ctg.com.cn/sxjt/xwzx55/ztbd68/index.html",
+     ],
+     "url": "http://www.ctg.com.cn/"},
     {"name": "国家能源投资集团有限责任公司", "url": "http://www.ceic.com/"},
     {"name": "中国电信集团有限公司", "url": "http://www.chinatelecom.com.cn/"},
     {"name": "中国联合网络通信集团有限公司", "url": "http://www.chinaunicom.com.cn/"},
@@ -529,7 +570,13 @@ SOE_SOURCES = [
     {"name": "中国建筑集团有限公司", "url": "http://www.cscec.com/"},
     {"name": "中国储备粮管理集团有限公司", "url": "https://www.sinograin.com.cn/"},
     {"name": "国家开发投资集团有限公司", "url": "http://www.sdic.com.cn/"},
-    {"name": "招商局集团有限公司", "url": "https://www.cmhk.com/main/"},
+    {"name": "招商局集团有限公司",
+     # 招商局 cmhk.com 的 /main/xwzx/jtyw/index.html 等列表页是 SPA 容器，
+     # 服务端 HTML 中并无新闻链接；其首页 /main/ 反而内联了集团要闻 5 条。
+     # 因此入口保留首页；通过 exclude_paths 过滤"国资委动态"（属于上级部门
+     # 国资委新闻，非招商局自身动态，用户明确要求排除）。
+     "url": "https://www.cmhk.com/main/",
+     "exclude_paths": ["/gzwdt/", "/sasac.gov.cn/"]},
     {"name": "华润（集团）有限公司", "url": "http://www.crc.com.hk/"},
     {"name": "中国旅游集团有限公司", "url": "https://www.ctg.cn/"},
     {"name": "中国商用飞机有限责任公司", "url": "http://www.comac.cc/"},

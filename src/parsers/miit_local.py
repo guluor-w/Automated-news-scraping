@@ -40,6 +40,7 @@ from models import Item, MIIT_ONLY_KEYWORDS
 from utils import (
     canonicalize_url_for_dedup,
     extract_date,
+    fetch_detail_title,
     format_fetched_at,
     http_get,
     keyword_hit,
@@ -206,28 +207,62 @@ _RE_TITLE_LEADING_DATE = re.compile(
 )
 
 # 后缀日期（三种格式，方括号可选、内外空格可选）：
-#   " 2026-04-17"  或  " [ 2026-04-17 ]"
+#   " 2026-04-17"  或  " [ 2026-04-17 ]"  或  紧贴的 "...举办2026-06-05"（山东工信厅 title 属性）
 #   " 04-16"       或  " [ 04-16 ]"
 #   " 04/16 2026"  或  " 04/16"（招商局格式，斜杠分隔）
+# 注意：YYYY-MM-DD / MM-DD 允许零空白前缀（\s*），覆盖山东工信厅
+#       <a title="...举办2026-06-05"> 这类标题与日期直接拼接的情况；
+#       完整 YYYY-MM-DD / MM-DD 结构本身具足够区分度，不会误伤正文。
 _RE_TITLE_TRAILING_DATE = re.compile(
     r"(?:"
-    r"\s+\[?\s*20\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\s*\]?"  # YYYY-MM-DD
-    r"|\s+\[?\s*(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\s*\]?"          # MM-DD
-    r"|\s+(?:0[1-9]|1[0-2])/(?:0[1-9]|[12]\d|3[01])(?:\s+20\d{2})?"       # MM/DD 或 MM/DD YYYY
+    r"\s*\[?\s*20\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\s*\]?"  # YYYY-MM-DD（允许零空白）
+    r"|\s*\[?\s*(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\s*\]?"          # MM-DD（允许零空白）
+    r"|\s+(?:0[1-9]|1[0-2])/(?:0[1-9]|[12]\d|3[01])(?:\s+20\d{2})?"       # MM/DD 或 MM/DD YYYY（保留 \s+，避免误伤）
     r")\s*$"
 )
 
-# 正文摘要起始标志：中文日期（N月N日，）出现在非标题开头位置
+# 正文摘要起始标志：中文日期（N月N日 + 连接符）出现在非标题开头位置
 # 用于识别新闻卡片中标题后紧跟的正文摘要（如招商局集团网站格式）
-# 示例："灵卫·智能巡检机器人亮相香港国际创科展 4月13日，招商局狮子山..."
-#        ────────────── 标题 ─────────────────── ↑摘要起始
-_RE_EXCERPT_START = re.compile(r"(?<=\S)\s+\d{1,2}月\d{1,2}日[，,、。 ]")
+# 示例：
+#   "灵卫·智能巡检机器人亮相香港国际创科展 4月13日，招商局狮子山..."
+#   "招商局狮子山人工智能实验室亮相2026全球人工智能终端展 5月14日至16日，..."
+#   "石岱带队拜会四川省领导并开展业务调研 6月3日至4日，..."
+#   "李强主持...的座谈会 5月19日上午..."
+# 「日」后允许的连接符扩展为：标点（，,、。）、空格、"至/到/-/—/~/～/上午/下午/晚"
+_RE_EXCERPT_START = re.compile(
+    r"(?<=\S)\s+\d{1,2}月\d{1,2}日"
+    r"(?:[，,、。 至到\-—~～]|上午|下午|晚|凌晨)"
+)
 
 # 触发摘要截断所需的最小标题前置长度（确保截断点之前有足够的标题内容）
 _MIN_TITLE_CHARS_BEFORE_EXCERPT = 5
 
 # 标题最大保留长度（中文标题通常 ≤ 80 字，超出视为正文混入）
 _TITLE_MAX_LEN = 120
+
+# 正文起始关键词：当 <a> 标签同时含标题与正文时，正文常以这些词起头
+# （主要见于央企，如三峡集团 "本网讯（XXX）近日，..."）
+# 命中后视为整个文本就是正文摘要而无独立标题，返回空串让上层兜底（如 title 属性）。
+_RE_BODY_LEAD_AT_START = re.compile(
+    r"^(?:本网讯|本报讯|本报记者|新华社|中新社|中新网|【.*?讯】)"
+)
+
+# 正文起始关键词出现在文本中部时：截断为前缀部分作为标题
+# 用于"标题  本网讯..."同 <a> 的少见情形
+_RE_BODY_LEAD_IN_MIDDLE = re.compile(
+    r"\s+(?:本网讯|本报讯|本报记者)[\s（(]"
+)
+
+# 截断标志后缀（华电等使用，标题被列表 CSS 截断并在末尾追加跳转按钮文本）
+_RE_TRAIL_DETAIL = re.compile(r"\s*[\.…]+\s*\[?详细\]?\s*$")
+
+# 多重摘要分隔符（湖南/福建政府首页将"会议强调"等多个段落用 " | " 分隔后塞入 <a>）
+# 仅当文本中包含 2 个及以上 " | " 分隔符，且包含中文逗号/句号（句子级文本）时，
+# 才判定为"摘要片段集合"。
+# 注意：很多源站采用"分类 | 标题"的单一 " | " 前缀形式（如
+# "媒体报道 | 国家数据局明确算力基建四大方向"、
+# "政策一点通 | 辽宁24项举措..."），这类是正常标题，需保留。
+_RE_BAR_SEPARATED_FRAGMENTS = re.compile(r"\s\|\s.+\s\|\s")
 
 
 # ── 辅助函数 ────────────────────────────────────────────────────────────────────
@@ -296,26 +331,68 @@ def _clean_title(a_tag, raw_text: Optional[str] = None) -> str:
          可避免以下两类问题：
            - 显示文字被 CSS 截断（含 "..."）；
            - <a> 内嵌正文摘要导致 get_text() 带入正文内容。
+         同时对 title 属性做与正文同样的清洗（去除尾部 "[详细]"、首尾日期、
+         "本网讯/本报讯" 类正文起始词等），避免把"半成品"标题直接返回。
       2. get_text() 可见文字（兜底），同时：
            - 去除首尾日期标注（date span 混入 get_text 的情况）；
+           - 截断尾部 "...[详细]" 类跳转按钮文字（华电等）；
            - 在「标题 + N月N日，摘要…」模式下截断至摘要起始处
              （用于招商局等将标题、摘要和日期封装在同一 <a> 内的 CMS）；
+           - 在「标题  本网讯/本报讯…」模式下截断至正文起始处
+             （用于三峡集团等列表 <a> 内嵌正文的 CMS）；
+           - 若文本本身以「本网讯/本报讯/本报记者」开头，视为整个文本都是
+             正文摘要而无独立标题，返回空串触发上层（如详情页 <title>）兜底；
+           - 含 " | " 分隔的多片段（湖南/福建政府等"会议强调 | 深入挖掘…"）
+             同样视为非标题，返回空串；
            - 截断至 _TITLE_MAX_LEN，防止正文内容被误识为标题。
 
     可选参数 raw_text 允许调用方传入已计算的 get_text() 结果，避免重复解析。
     """
     # 1) title 属性优先
     attr_title = (a_tag.get("title") or "").strip()
-    if attr_title and len(attr_title) >= 6:
-        return _strip_date_affixes(attr_title)
+    cleaned_attr = _post_process_title(attr_title)
+    if cleaned_attr and len(cleaned_attr) >= 6:
+        return cleaned_attr
 
     # 2) 可见文字兜底（复用调用方已计算的值，避免重复 get_text）
     text = raw_text if raw_text is not None else a_tag.get_text(" ", strip=True)
+    return _post_process_title(text)
+
+
+def _post_process_title(text: str) -> str:
+    """对一段候选标题字符串做统一清洗（剥日期 / 截摘要 / 去[详细] / 限长等）。"""
+    if not text:
+        return ""
+    text = text.strip()
     text = _strip_date_affixes(text)
 
-    # 2.5) 检测「标题 + 正文摘要」混合文本：若存在「空格 + N月N日，」模式，
-    #      则截断至摘要起始，仅保留前面的标题部分。
+    # 2.0) 全文以"本网讯/本报讯/本报记者…"等正文标志开头：保留首句作为标题
+    #      （配合二级新闻栏目页配置后，绝大多数列表页本身就是干净标题，
+    #      该兜底仅在偶发的首页 <a> 内嵌正文场景下生效）
+    if _RE_BODY_LEAD_AT_START.match(text):
+        # 尝试取首个中文句号/全角问号/感叹号之前的部分作为标题
+        m = re.search(r"[。！？!?]", text)
+        if m and 6 <= m.start() <= _TITLE_MAX_LEN:
+            text = text[: m.start()]
+        # 若未命中句号，直接保留原文（让后续长度截断兜底）
+
+    # 2.1) 含 " | " 分隔的多个片段（湖南/福建政府"会议强调 | 深入挖掘…"型）：
+    #      视为摘要拼接而非标题
+    if _RE_BAR_SEPARATED_FRAGMENTS.search(text):
+        return ""
+
+    # 2.2) 尾部 "...[详细]" 截断（华电等）：去掉跳转按钮文字后保留前缀作为标题，
+    #      不再返回空串（配合 chd 二级列表页后，可拿到完整标题；
+    #      此规则仅清洗少量未覆盖站点的跳转按钮残留）
+    text = _RE_TRAIL_DETAIL.sub("", text).strip()
+
+    # 2.3) 「标题 + N月N日，摘要…」截断：仅保留标题部分
     m = _RE_EXCERPT_START.search(text)
+    if m and m.start() > _MIN_TITLE_CHARS_BEFORE_EXCERPT:
+        text = text[:m.start()]
+
+    # 2.4) 「标题  本网讯/本报讯…」中部出现正文起始：截断至正文起始
+    m = _RE_BODY_LEAD_IN_MIDDLE.search(text)
     if m and m.start() > _MIN_TITLE_CHARS_BEFORE_EXCERPT:
         text = text[:m.start()]
 
@@ -324,6 +401,58 @@ def _clean_title(a_tag, raw_text: Optional[str] = None) -> str:
         text = text[:_TITLE_MAX_LEN]
 
     return text.strip()
+
+
+# ── 详情页二次确认：可疑标题判定与按需回源 ────────────────────────────────────
+#
+# 列表页清洗只能处理结构化日期、N月N日，等显式锚点；对于"标题+长摘要"
+# 但摘要中无日期锚点的情况（如招商局首页"新华社 | 标题 摘要…"型），
+# 仅能依赖详情页结构化字段（<meta name="ArticleTitle">、<h1>、<h2>）。
+#
+# 为降低请求量，仅在标题命中"可疑特征"且已通过关键词+时间窗口过滤后
+# 才回源详情页。判定不命中时直接保留列表页清洗结果。
+
+# 可疑特征 1：长度过长（典型新闻标题 ≤ 50 字，超 60 字基本含摘要）
+_DETAIL_REFINE_LENGTH_THRESHOLD = 60
+
+# 可疑特征 2：含明显摘要语义标志（"……当一位"、"。一是"、"，背景是"等连接词后跟正文）
+_RE_SUSPICIOUS_EXCERPT_MARK = re.compile(
+    r"(?:[，。、][^，。、]{15,})|(?:\.\.\.+)|(?:……)|(?: [一二三四五六七八九十]是)"
+)
+
+
+def _is_suspicious_title(title: str) -> bool:
+    """判定列表页清洗后的标题是否仍可能含正文摘要，需要回源详情页二次确认。"""
+    if not title:
+        return False
+    if len(title) >= _DETAIL_REFINE_LENGTH_THRESHOLD:
+        return True
+    # 长度尚可但中部出现典型摘要标志
+    if _RE_SUSPICIOUS_EXCERPT_MARK.search(title):
+        return True
+    return False
+
+
+def _refine_title_by_detail(list_title: str, url: str, timeout: int = 15) -> str:
+    """对可疑标题访问详情页二次确认；失败时回退列表页清洗结果。
+
+    返回值：详情页提取的权威标题（若可用且更短/更纯净），否则返回原 ``list_title``。
+    """
+    if not url or not _is_suspicious_title(list_title):
+        return list_title
+
+    detail = fetch_detail_title(url, timeout=timeout)
+    if not detail:
+        return list_title
+
+    # 详情页标题需经同样的轻量清洗（剥日期后缀、去 [详细]）
+    detail_clean = _post_process_title(detail)
+    if not detail_clean or len(detail_clean) < 6:
+        return list_title
+
+    # 若详情页标题明显更短（剥离了摘要），采用详情页结果
+    # 若详情页标题反而更长，说明列表页标题已是子集，保留较短者
+    return detail_clean if len(detail_clean) < len(list_title) else list_title
 
 
 def _extract_date_from_url(url: str) -> Optional[str]:
@@ -640,6 +769,10 @@ def _scrape_one_site(
         # 时间窗口过滤
         if not within_window(pub_date, now, window_days, hard_cap_days):
             continue
+
+        # 详情页标题二次确认（按需）：仅对通过过滤的条目，且标题命中
+        # "可疑特征"时才回源详情页，避免请求风暴。
+        title = _refine_title_by_detail(title, url, timeout=timeout)
 
         items.append(Item(
             title=title,

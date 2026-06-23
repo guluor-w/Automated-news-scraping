@@ -419,6 +419,85 @@ class TestCleanTitle:
         assert _clean_title(a) == title
 
 
+# ─── 新增：详情页标题二次确认测试 ─────────────────────────────────────────────
+
+class TestDetailTitleRefine:
+    """测试 _is_suspicious_title / _refine_title_by_detail / _extract_title_from_html。"""
+
+    def test_suspicious_long_title(self):
+        from parsers.miit_local import _is_suspicious_title
+        long_title = "新华社 | 五载深耕，数智破局——招商银行金融科技创新观察 当一位普通用户通过语音指令完成转账，当一家中小企业的贷款申请在几分钟内获批"
+        assert _is_suspicious_title(long_title)
+
+    def test_suspicious_excerpt_mark(self):
+        from parsers.miit_local import _is_suspicious_title
+        # 中部含 15 字以上连续叙述性内容（标点后跟长正文）
+        assert _is_suspicious_title("某某调研，深入挖掘数字化转型的最新进展并强调要点")
+
+    def test_not_suspicious_normal_title(self):
+        from parsers.miit_local import _is_suspicious_title
+        assert not _is_suspicious_title("工信部召开人工智能发展座谈会")
+        assert not _is_suspicious_title("2026年化工产业数字化转型提升培训班成功举办")
+
+    def test_extract_title_article_meta(self):
+        from utils import _extract_title_from_html
+        html = """
+        <html><head>
+        <meta name="ArticleTitle" content="20个平台入选2026年山东省级制造业中试平台">
+        <title>山东省工业和信息化厅 媒体聚焦 20个平台入选2026年山东省级制造业中试平台</title>
+        </head><body><h2>20个平台入选2026年山东省级制造业中试平台</h2></body></html>
+        """
+        assert _extract_title_from_html(html) == "20个平台入选2026年山东省级制造业中试平台"
+
+    def test_extract_title_h1_fallback(self):
+        from utils import _extract_title_from_html
+        html = "<html><body><h1>中国华电召开人工智能创新发展大会</h1></body></html>"
+        assert _extract_title_from_html(html) == "中国华电召开人工智能创新发展大会"
+
+    def test_extract_title_h2_fallback(self):
+        from utils import _extract_title_from_html
+        html = """
+        <html><head><title>正文标题-招商局集团</title></head>
+        <body><h2>新华社 | 五载深耕，数智破局——招商银行金融科技创新观察</h2></body></html>
+        """
+        assert _extract_title_from_html(html) == "新华社 | 五载深耕，数智破局——招商银行金融科技创新观察"
+
+    def test_extract_title_strips_site_suffix(self):
+        from utils import _extract_title_from_html
+        html = "<html><head><title>某政策标题 - 工业和信息化部</title></head></html>"
+        result = _extract_title_from_html(html)
+        assert result == "某政策标题"
+
+    def test_refine_short_title_no_request(self):
+        """标题不可疑时不应触发任何 HTTP 请求。"""
+        from unittest.mock import patch
+        from parsers.miit_local import _refine_title_by_detail
+        with patch("parsers.miit_local.fetch_detail_title") as mock_fetch:
+            out = _refine_title_by_detail("工信部召开座谈会", "http://example.com/a.html")
+            assert out == "工信部召开座谈会"
+            mock_fetch.assert_not_called()
+
+    def test_refine_long_title_triggers_fetch(self):
+        """标题可疑时应触发详情页请求并采用其结果。"""
+        from unittest.mock import patch
+        from parsers.miit_local import _refine_title_by_detail
+        long_title = "新华社 | 五载深耕，数智破局——招商银行金融科技创新观察 当一位普通用户通过语音指令完成转账"
+        clean = "新华社 | 五载深耕，数智破局——招商银行金融科技创新观察"
+        with patch("parsers.miit_local.fetch_detail_title", return_value=clean) as mock_fetch:
+            out = _refine_title_by_detail(long_title, "http://example.com/a.html")
+            assert out == clean
+            mock_fetch.assert_called_once()
+
+    def test_refine_detail_fail_keeps_original(self):
+        """详情页提取失败时应保留列表页清洗结果。"""
+        from unittest.mock import patch
+        from parsers.miit_local import _refine_title_by_detail
+        long_title = "新华社 | 五载深耕，数智破局——招商银行金融科技创新观察 当一位普通用户通过语音指令完成转账"
+        with patch("parsers.miit_local.fetch_detail_title", return_value=None):
+            out = _refine_title_by_detail(long_title, "http://example.com/a.html")
+            assert out == long_title
+
+
 # ─── 新增：_extract_date_from_context 扩展测试 ─────────────────────────────────
 
 class TestExtractDateFromContext:

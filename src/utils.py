@@ -160,11 +160,164 @@ def within_window(pub_date: Optional[str], now: datetime, window_days: int, hard
 
 
 def http_get(url: str, timeout: int = 30) -> str:
-    """发起 GET 请求并返回响应文本，自动处理编码。"""
-    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=timeout)
+    """发起 GET 请求并返回响应文本，自动处理编码。
+
+    针对部分政府站点存在的老旧 SSL 套件（如山东省政府站
+    SSLV3_ALERT_HANDSHAKE_FAILURE、湖南省政府站 BAD_ECPOINT，这些
+    握手错误在新版 OpenSSL 中无法通过放宽 cipher 绕过），在首次 HTTPS
+    握手失败时，自动降级到同域名的 ``http://`` 重试一次，确保解析
+    流程不会被 SSL 兼容性问题阻塞。
+    """
+    headers = {"User-Agent": USER_AGENT}
+    try:
+        resp = requests.get(url, headers=headers, timeout=timeout)
+    except requests.exceptions.SSLError:
+        # SSL 握手失败：尝试同域名的 http:// 明文协议
+        if url.startswith("https://"):
+            http_url = "http://" + url[len("https://"):]
+            resp = requests.get(http_url, headers=headers, timeout=timeout)
+        else:
+            raise
     resp.raise_for_status()
     resp.encoding = resp.apparent_encoding or "utf-8"
     return resp.text
+
+
+# ---------------------------------------------------------------------------
+# 详情页标题二次确认
+# ---------------------------------------------------------------------------
+#
+# 背景：部分信源列表页的 <a> 标签把"标题 + 摘要 + 日期"拼在一起（如招商局
+# 集团首页），或在 title 属性末尾紧贴日期（如山东工信厅），仅靠列表页清洗
+# 规则难以完美还原标题。本工具在列表层判定"可疑"后，回源详情页用结构化
+# 元数据字段提取权威标题。
+#
+# 字段优先级（基于对央企/政府站的实际探测结果）：
+#   1. <meta name="ArticleTitle" content="..."> —— 国内政务/央企站普遍遵循，最纯净
+#   2. <h1>                                       —— 标准主标题
+#   3. <h2>                                       —— 招商局/山东工信厅等用作主标题
+#   4. <title>                                    —— 末尾常含"- 站名"，需剥后缀
+#
+# 注：og:title / twitter:title 在国内政府/央企站普遍缺失，不作为主优先级。
+
+import json
+from pathlib import Path
+
+# 详情页标题本地缓存：避免重复请求同一详情页
+_DETAIL_TITLE_CACHE_PATH = Path(".cache") / "detail_titles.json"
+_DETAIL_TITLE_CACHE: Optional[dict] = None  # 进程内单例
+
+# 详情页 <title> 标签常见的"- 站名 / _ 站名"后缀分隔符
+_RE_SITE_NAME_SUFFIX = re.compile(
+    r"\s*[-_|–—]\s*[^-_|–—]{2,20}\s*$"
+)
+
+
+def _load_detail_title_cache() -> dict:
+    """惰性加载详情页标题缓存（首次访问时读盘）。"""
+    global _DETAIL_TITLE_CACHE
+    if _DETAIL_TITLE_CACHE is not None:
+        return _DETAIL_TITLE_CACHE
+    try:
+        if _DETAIL_TITLE_CACHE_PATH.exists():
+            with _DETAIL_TITLE_CACHE_PATH.open("r", encoding="utf-8") as f:
+                _DETAIL_TITLE_CACHE = json.load(f)
+        else:
+            _DETAIL_TITLE_CACHE = {}
+    except Exception:
+        _DETAIL_TITLE_CACHE = {}
+    return _DETAIL_TITLE_CACHE
+
+
+def _save_detail_title_cache() -> None:
+    """将详情页标题缓存写盘。"""
+    if _DETAIL_TITLE_CACHE is None:
+        return
+    try:
+        _DETAIL_TITLE_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _DETAIL_TITLE_CACHE_PATH.open("w", encoding="utf-8") as f:
+            json.dump(_DETAIL_TITLE_CACHE, f, ensure_ascii=False, indent=2)
+    except Exception:
+        # 缓存写入失败不影响主流程
+        pass
+
+
+def _extract_title_from_html(html: str) -> Optional[str]:
+    """从详情页 HTML 中按字段优先级提取标题，提取不到返回 None。"""
+    if not html:
+        return None
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return None
+    soup = BeautifulSoup(html, "html.parser")
+
+    # 优先级 1: <meta name="ArticleTitle">（国内政务站普遍遵循 GB/T 23287）
+    for attr_name in ("ArticleTitle", "articletitle", "article:title", "article_title"):
+        m = soup.find("meta", attrs={"name": attr_name})
+        if m and m.get("content"):
+            val = m.get("content").strip()
+            if val:
+                return val
+
+    # 优先级 2: <h1>
+    h1 = soup.find("h1")
+    if h1:
+        val = re.sub(r"\s+", " ", h1.get_text(strip=True))
+        if val and 4 <= len(val) <= 120:
+            return val
+
+    # 优先级 3: <h2>（招商局、山东工信厅等用作主标题）
+    h2 = soup.find("h2")
+    if h2:
+        val = re.sub(r"\s+", " ", h2.get_text(strip=True))
+        if val and 4 <= len(val) <= 120:
+            return val
+
+    # 优先级 4: <title>，剥末尾"- 站名"后缀
+    ttl = soup.find("title")
+    if ttl:
+        val = re.sub(r"\s+", " ", ttl.get_text(strip=True))
+        # 反复剥末尾的"- 站名"段，直到稳定
+        for _ in range(3):
+            stripped = _RE_SITE_NAME_SUFFIX.sub("", val).strip()
+            if stripped == val or len(stripped) < 4:
+                break
+            val = stripped
+        if val and 4 <= len(val) <= 120:
+            return val
+
+    return None
+
+
+def fetch_detail_title(url: str, timeout: int = 15) -> Optional[str]:
+    """访问详情页，返回结构化字段提取的标题；带文件缓存与多重兜底。
+
+    用法：仅在列表页标题"可疑"时调用，避免每条都回源造成请求风暴。
+
+    返回 ``None`` 表示提取失败（HTTP 失败 / 无可用字段 / 长度异常），
+    调用方应回退到列表页清洗后的标题。
+    """
+    if not url or not isinstance(url, str):
+        return None
+
+    cache = _load_detail_title_cache()
+    if url in cache:
+        val = cache[url]
+        return val if val else None  # 缓存的失败结果（None / "")也会命中，避免重试
+
+    title: Optional[str] = None
+    try:
+        html = http_get(url, timeout=timeout)
+        title = _extract_title_from_html(html)
+    except Exception:
+        title = None
+
+    # 写缓存（无论成功失败都缓存，失败缓存可避免反复请求异常页）
+    cache[url] = title or ""
+    _save_detail_title_cache()
+
+    return title
 
 
 def _strip_tracking_params(query: str) -> str:

@@ -5,7 +5,28 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>来源包含&quot;工信&quot;的新闻 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Thu, 02 Jul 2026 16:45:28 +0800</lastBuildDate>
+    <lastBuildDate>Fri, 03 Jul 2026 03:32:17 +0800</lastBuildDate>
+    <item>
+      <title>一图读懂强制性国家标准GB 47955—2026《智能网联汽车 组合驾驶辅助系统安全要求》</title>
+      <link>https://www.miit.gov.cn/zwgk/zcjd/art/2026/art_43dcb370f6a4459cb6dea8cfe5564abf.html</link>
+      <guid isPermaLink="true">https://www.miit.gov.cn/zwgk/zcjd/art/2026/art_43dcb370f6a4459cb6dea8cfe5564abf.html</guid>
+      <pubDate>Thu, 02 Jul 2026 00:00:00 +0800</pubDate>
+      <description>工业和信息化部｜工信部官网-政策解读</description>
+    </item>
+    <item>
+      <title>关于组织开展2026年首台（套）重大技术装备保险补偿项目申报的通知</title>
+      <link>http://jxt.hubei.gov.cn/./fbjd/zc/qtzdgkwj/gwfb/202607/t20260702_5969647.shtml</link>
+      <guid isPermaLink="true">http://jxt.hubei.gov.cn/./fbjd/zc/qtzdgkwj/gwfb/202607/t20260702_5969647.shtml</guid>
+      <pubDate>Thu, 02 Jul 2026 00:00:00 +0800</pubDate>
+      <description>湖北省经济和信息化厅｜地方工信-湖北</description>
+    </item>
+    <item>
+      <title>重庆市工程技术智能网联新能源汽车专业中、初级职称首批认定结果公示</title>
+      <link>http://jjxxw.cq.gov.cn/./zwgk_213/gsgg/202607/t20260702_15795281.html</link>
+      <guid isPermaLink="true">http://jjxxw.cq.gov.cn/./zwgk_213/gsgg/202607/t20260702_15795281.html</guid>
+      <pubDate>Thu, 02 Jul 2026 00:00:00 +0800</pubDate>
+      <description>重庆市经济和信息化委员会｜地方工信-重庆</description>
+    </item>
     <item>
       <title>《智能网联汽车 组合驾驶辅助系统安全要求》强制性国家标准正式发布</title>
       <link>https://www.miit.gov.cn/xwfb/gxdt/sjdt/art/2026/art_e28beb9f8fe94a92ba0a3a67c39eea20.html</link>
@@ -19,6 +40,20 @@
       <guid isPermaLink="true">http://gxt.shandong.gov.cn/art/2026/7/2/art_15171_10357936.html</guid>
       <pubDate>Thu, 02 Jul 2026 00:00:00 +0800</pubDate>
       <description>山东省工业和信息化厅｜地方工信-山东</description>
+    </item>
+    <item>
+      <title>湖南省算力调度平台：以“算力原生”为设计理念，以AI模型训推及行业应用驱动算力调度</title>
+      <link>http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/jxyw/202607/t20260701_34018025.html</link>
+      <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/jxyw/202607/t20260701_34018025.html</guid>
+      <pubDate>Wed, 01 Jul 2026 00:00:00 +0800</pubDate>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
+    </item>
+    <item>
+      <title>关于印发《湖南省算力调度平台算力资源并网规范》的通知</title>
+      <link>http://gxt.hunan.gov.cn/gxt/xxgk_71033/tzgg/202607/t20260701_34017927.html</link>
+      <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/xxgk_71033/tzgg/202607/t20260701_34017927.html</guid>
+      <pubDate>Wed, 01 Jul 2026 00:00:00 +0800</pubDate>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
     </item>
     <item>
       <title>两部委关于开展农业领域机器人典型应用场景遴选工作的通知</title>
@@ -82,6 +117,13 @@
       <guid isPermaLink="true">http://jxt.hubei.gov.cn/./bmdt/rdjj/202607/t20260701_5968194.shtml</guid>
       <pubDate>Wed, 01 Jul 2026 00:00:00 +0800</pubDate>
       <description>湖北省经济和信息化厅｜地方工信-湖北</description>
+    </item>
+    <item>
+      <title>李强主持召开国务院常务会议 听取人工智能发展情况汇报等</title>
+      <link>https://www.hunan.gov.cn/hnszf/hnyw/ywtj/202606/t20260630_34015908.html</link>
+      <guid isPermaLink="true">https://www.hunan.gov.cn/hnszf/hnyw/ywtj/202606/t20260630_34015908.html</guid>
+      <pubDate>Tue, 30 Jun 2026 00:00:00 +0800</pubDate>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
     </item>
     <item>
       <title>221个！山东公布2026年首批先进级智能工厂名单</title>
@@ -322,18 +364,18 @@
       <description>新疆生产建设兵团工业和信息化局｜地方工信-新疆兵团</description>
     </item>
     <item>
+      <title>习近平在山东德州考察时强调 以扎实举措推进农业农村现代化 用勤劳和智慧创造更加美好生活</title>
+      <link>http://gxt.fujian.gov.cn/./zwgk/xw/gjdt/202606/t20260625_7167989.htm</link>
+      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./zwgk/xw/gjdt/202606/t20260625_7167989.htm</guid>
+      <pubDate>Thu, 25 Jun 2026 00:00:00 +0800</pubDate>
+      <description>福建省工业和信息化厅｜地方工信-福建</description>
+    </item>
+    <item>
       <title>广东省工业和信息化厅关于组织开展2027年人工智能与机器人产业创新发展资金开源相关项目入库工作的通知</title>
       <link>https://gdii.gd.gov.cn/zwgk/tzgg1011/content/post_4919212.html</link>
       <guid isPermaLink="true">https://gdii.gd.gov.cn/zwgk/tzgg1011/content/post_4919212.html</guid>
       <pubDate>Thu, 25 Jun 2026 00:00:00 +0800</pubDate>
       <description>广东省工业和信息化厅｜地方工信-广东</description>
-    </item>
-    <item>
-      <title>习近平在山东德州考察时强调 以扎实举措推进农业农村现代化 用勤劳和智慧创造更加美好生活</title>
-      <link>http://btgxj.xjbt.gov.cn/c/2026-06-25/8490663.shtml</link>
-      <guid isPermaLink="true">http://btgxj.xjbt.gov.cn/c/2026-06-25/8490663.shtml</guid>
-      <pubDate>Thu, 25 Jun 2026 00:00:00 +0800</pubDate>
-      <description>新疆生产建设兵团工业和信息化局｜地方工信-新疆兵团</description>
     </item>
     <item>
       <title>广东省工业和信息化厅关于开展2027年度支持推动人工智能赋能新型工业化标杆项目入库的通知</title>
@@ -400,8 +442,8 @@
     </item>
     <item>
       <title>未来产业，传统制造业城市怎么接</title>
-      <link>http://gxt.fujian.gov.cn/./zwgk/xw/jxyw/202606/t20260624_7167186.htm</link>
-      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./zwgk/xw/jxyw/202606/t20260624_7167186.htm</guid>
+      <link>http://gxt.fujian.gov.cn/./jdhy/gxsth/t/202606/t20260624_7167186.htm</link>
+      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./jdhy/gxsth/t/202606/t20260624_7167186.htm</guid>
       <pubDate>Wed, 24 Jun 2026 00:00:00 +0800</pubDate>
       <description>福建省工业和信息化厅｜地方工信-福建</description>
     </item>

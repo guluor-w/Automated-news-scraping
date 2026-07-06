@@ -5,7 +5,49 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>来源包含&quot;工信&quot;的新闻 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Mon, 06 Jul 2026 03:13:07 +0800</lastBuildDate>
+    <lastBuildDate>Mon, 06 Jul 2026 17:27:13 +0800</lastBuildDate>
+    <item>
+      <title>吉林市获批国家制造业新型技术改造城市试点</title>
+      <link>http://gxt.jl.gov.cn/./gxdt/gxyw/202607/t20260706_3647190.html</link>
+      <guid isPermaLink="true">http://gxt.jl.gov.cn/./gxdt/gxyw/202607/t20260706_3647190.html</guid>
+      <pubDate>Mon, 06 Jul 2026 00:00:00 +0800</pubDate>
+      <description>吉林省工业和信息化厅｜地方工信-吉林</description>
+    </item>
+    <item>
+      <title>省工信厅组织产业协会、联盟赴中科院工业人工智能研究所开展世界模型研学交流</title>
+      <link>http://gxt.jiangsu.gov.cn/art/2026/7/6/art_6282_11799507.html</link>
+      <guid isPermaLink="true">http://gxt.jiangsu.gov.cn/art/2026/7/6/art_6282_11799507.html</guid>
+      <pubDate>Mon, 06 Jul 2026 00:00:00 +0800</pubDate>
+      <description>江苏省工业和信息化厅｜地方工信-江苏</description>
+    </item>
+    <item>
+      <title>江苏省工业领域网络和数据安全“强链行”——钢铁行业人工智能应用安全专场活动顺利举办</title>
+      <link>http://gxt.jiangsu.gov.cn/art/2026/7/6/art_6282_11799499.html</link>
+      <guid isPermaLink="true">http://gxt.jiangsu.gov.cn/art/2026/7/6/art_6282_11799499.html</guid>
+      <pubDate>Mon, 06 Jul 2026 00:00:00 +0800</pubDate>
+      <description>江苏省工业和信息化厅｜地方工信-江苏</description>
+    </item>
+    <item>
+      <title>视频解读“AI”看工信：《福建省全面推进工业数智化赋能九条措施》</title>
+      <link>http://gxt.fujian.gov.cn/./jdhy/gxsth/s/stzc/202607/t20260706_7172602.htm</link>
+      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./jdhy/gxsth/s/stzc/202607/t20260706_7172602.htm</guid>
+      <pubDate>Mon, 06 Jul 2026 00:00:00 +0800</pubDate>
+      <description>福建省工业和信息化厅｜地方工信-福建</description>
+    </item>
+    <item>
+      <title>打造全球“智慧大脑” ！迈睿达供应链总部研发及生产基地投用</title>
+      <link>http://jxt.hubei.gov.cn/./bmdt/rdjj/202607/t20260706_5971064.shtml</link>
+      <guid isPermaLink="true">http://jxt.hubei.gov.cn/./bmdt/rdjj/202607/t20260706_5971064.shtml</guid>
+      <pubDate>Mon, 06 Jul 2026 00:00:00 +0800</pubDate>
+      <description>湖北省经济和信息化厅｜地方工信-湖北</description>
+    </item>
+    <item>
+      <title>经济日报：下好未来产业“地方特色棋”</title>
+      <link>https://view.inews.qq.com/a/20260706A02FBG00</link>
+      <guid isPermaLink="true">https://view.inews.qq.com/a/20260706A02FBG00</guid>
+      <pubDate>Mon, 06 Jul 2026 00:00:00 +0800</pubDate>
+      <description>工信微报｜腾讯新闻-工信微报</description>
+    </item>
     <item>
       <title>2030年我国工业互联网核心产业增加值将突破2.5万亿元</title>
       <link>https://view.inews.qq.com/a/20260705A02ZOA00</link>
@@ -14,9 +56,16 @@
       <description>工信微报｜腾讯新闻-工信微报</description>
     </item>
     <item>
+      <title>我省低空装备产业链重点产品和典型应用场景发布</title>
+      <link>http://gxt.shandong.gov.cn/art/2026/7/4/art_15171_10357966.html</link>
+      <guid isPermaLink="true">http://gxt.shandong.gov.cn/art/2026/7/4/art_15171_10357966.html</guid>
+      <pubDate>Sat, 04 Jul 2026 00:00:00 +0800</pubDate>
+      <description>山东省工业和信息化厅｜地方工信-山东</description>
+    </item>
+    <item>
       <title>山东省低空装备产业链高质量发展推介活动成功举办</title>
-      <link>http://gxt.shandong.gov.cn/art/2026/7/3/art_299273_10357955.html</link>
-      <guid isPermaLink="true">http://gxt.shandong.gov.cn/art/2026/7/3/art_299273_10357955.html</guid>
+      <link>http://gxt.shandong.gov.cn/art/2026/7/3/art_318412_10357956.html</link>
+      <guid isPermaLink="true">http://gxt.shandong.gov.cn/art/2026/7/3/art_318412_10357956.html</guid>
       <pubDate>Fri, 03 Jul 2026 00:00:00 +0800</pubDate>
       <description>山东省工业和信息化厅｜地方工信-山东</description>
     </item>
@@ -187,13 +236,6 @@
       <guid isPermaLink="true">http://jxt.hubei.gov.cn/./bmdt/rdjj/202607/t20260701_5968194.shtml</guid>
       <pubDate>Wed, 01 Jul 2026 00:00:00 +0800</pubDate>
       <description>湖北省经济和信息化厅｜地方工信-湖北</description>
-    </item>
-    <item>
-      <title>李强主持召开国务院常务会议 听取人工智能发展情况汇报等</title>
-      <link>https://www.hunan.gov.cn/hnszf/hnyw/ywtj/202606/t20260630_34015908.html</link>
-      <guid isPermaLink="true">https://www.hunan.gov.cn/hnszf/hnyw/ywtj/202606/t20260630_34015908.html</guid>
-      <pubDate>Tue, 30 Jun 2026 00:00:00 +0800</pubDate>
-      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
     </item>
     <item>
       <title>2026年1—5月电子信息制造业运行情况</title>
@@ -519,8 +561,8 @@
     </item>
     <item>
       <title>未来产业，传统制造业城市怎么接</title>
-      <link>http://gxt.fujian.gov.cn/./jdhy/gxsth/t/202606/t20260624_7167186.htm</link>
-      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./jdhy/gxsth/t/202606/t20260624_7167186.htm</guid>
+      <link>http://gxt.fujian.gov.cn/./zwgk/xw/jxyw/202606/t20260624_7167186.htm</link>
+      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./zwgk/xw/jxyw/202606/t20260624_7167186.htm</guid>
       <pubDate>Wed, 24 Jun 2026 00:00:00 +0800</pubDate>
       <description>福建省工业和信息化厅｜地方工信-福建</description>
     </item>

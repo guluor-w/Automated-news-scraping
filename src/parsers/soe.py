@@ -38,13 +38,14 @@ import re
 from collections import OrderedDict
 from datetime import datetime
 from typing import Dict, List, Optional
+from urllib.parse import urlparse
 
+import requests
 from bs4 import BeautifulSoup
-from dateutil import parser as dtparser
 
 from models import Item, MIIT_ONLY_KEYWORDS, SOE_EXCLUDED_KEYWORDS
 from utils import (
-    canonicalize_url_for_dedup,
+    dedup_items_keep_best,
     extract_date,
     format_fetched_at,
     http_get,
@@ -292,6 +293,129 @@ def _fetch_detail_date(url: str, timeout: int = 5) -> Optional[str]:
         return None
 
 
+# ── 外部跳转检测（如中国电子 /N.html 实际跳转到 sasac.gov.cn / 新华网等） ─────
+
+# 央企站点常见的"链接跳转"中间页特征
+_EXTERNAL_REDIRECT_TITLE_MARKERS = (
+    "链接跳转",
+    "外链跳转",
+    "即将离开",
+    "页面跳转",
+)
+
+# 匹配 location.href / window.location 中的跳转目标 URL
+_RE_JS_REDIRECT = re.compile(
+    r"""(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']""",
+    re.IGNORECASE,
+)
+
+# 缓存外部跳转判定结果，避免重复请求详情页
+_external_redirect_cache: "OrderedDict[str, bool]" = OrderedDict()
+
+
+def _cache_external_redirect(url: str, value: bool) -> None:
+    existed = url in _external_redirect_cache
+    _external_redirect_cache[url] = value
+    if existed:
+        _external_redirect_cache.move_to_end(url)
+    while len(_external_redirect_cache) > _DETAIL_DATE_CACHE_MAXSIZE:
+        _external_redirect_cache.popitem(last=False)
+
+
+def _is_external_redirect_page(url: str, source_host: str, timeout: int = 5) -> bool:
+    """
+    判断 url 指向的页面是否实际是跳转到外部域名的中间页（如中国电子的 /N.html）。
+
+    检测特征（满足任一即视为外部跳转，不予收录）:
+      1. HTTP 重定向后的最终 URL 域名与源站域名不同。
+      2. 页面 <title> 含有"链接跳转""即将离开"等中间页标识字样。
+      3. 页面包含 JS `location.href = "http(s)://外部域名/..."` 且目标域名与源站不同。
+
+    Parameters
+    ----------
+    url : 待检测的详情页 URL
+    source_host : 信源域名（如 "www.cec.com.cn"），用于判定是否外部跳转
+    """
+    cached = _external_redirect_cache.get(url)
+    if cached is not None:
+        _external_redirect_cache.move_to_end(url)
+        return cached
+
+    try:
+        resp = requests.get(url, timeout=timeout, allow_redirects=True, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        # 1) HTTP 层重定向到了外部域名
+        final_host = urlparse(resp.url).hostname or ""
+        if final_host and source_host and not _same_site(final_host, source_host):
+            _cache_external_redirect(url, True)
+            return True
+
+        if not resp.encoding or resp.encoding.lower() == "iso-8859-1":
+            resp.encoding = resp.apparent_encoding or resp.encoding
+        html = resp.text or ""
+
+        # 2) 标题中含"链接跳转"等中间页标识
+        soup = BeautifulSoup(html, "lxml")
+        title_tag = soup.find("title")
+        if title_tag:
+            title_text = title_tag.get_text(strip=True)
+            for marker in _EXTERNAL_REDIRECT_TITLE_MARKERS:
+                if marker in title_text:
+                    # 进一步确认页面里有指向外部域名的 location.href 才判定为外跳
+                    for m in _RE_JS_REDIRECT.finditer(html):
+                        target = m.group(1).strip()
+                        target_host = urlparse(target).hostname or ""
+                        if target_host and not _same_site(target_host, source_host):
+                            _cache_external_redirect(url, True)
+                            return True
+                    # 标题命中且无明确外链时，保守判定为外跳中间页
+                    _cache_external_redirect(url, True)
+                    return True
+
+        # 3) JS 显式跳转到外部域名
+        for m in _RE_JS_REDIRECT.finditer(html):
+            target = m.group(1).strip()
+            target_host = urlparse(target).hostname or ""
+            if target_host and not _same_site(target_host, source_host):
+                _cache_external_redirect(url, True)
+                return True
+
+        _cache_external_redirect(url, False)
+        return False
+    except Exception:
+        # 网络异常时保守不判定为外跳，避免误删正常新闻
+        _cache_external_redirect(url, False)
+        return False
+
+
+def _same_site(host_a: str, host_b: str) -> bool:
+    """
+    判断两个域名是否属于同一站点。
+    
+    采用自适应判定策略：
+    - 直接相等（含 www. 前缀去除后）视为同一站点；
+    - 三级及以上域名比较末三段（如 news.cec.com.cn 与 www.cec.com.cn）；
+    - 二级域名比较末两段（如 cec.com.cn 与 www.cec.com.cn）。
+    """
+    if not host_a or not host_b:
+        return False
+    host_a = host_a.lower()
+    host_b = host_b.lower()
+    if host_a.startswith("www."):
+        host_a = host_a[4:]
+    if host_b.startswith("www."):
+        host_b = host_b[4:]
+    if host_a == host_b:
+        return True
+    a_parts = host_a.split(".")
+    b_parts = host_b.split(".")
+    # 末三段相同视为同一站点（如 news.cec.com.cn 与 www.cec.com.cn）
+    if len(a_parts) >= 3 and len(b_parts) >= 3:
+        return a_parts[-3:] == b_parts[-3:]
+    return a_parts[-2:] == b_parts[-2:]
+
+
 def _extract_soe_date(a_tag, url: str, now: datetime, timeout: int = 5) -> Optional[str]:
     """
     从央企新闻链接中提取发布日期。
@@ -367,6 +491,17 @@ def _scrape_soe_site(
 
     items: List[Item] = []
     exclude_paths = source.get("exclude_paths", [])
+    # 是否对详情页做"外部跳转"检测（如中国电子 /N.html 实际跳转到 sasac.gov.cn）
+    check_external_redirect = source.get("check_external_redirect", False)
+    # 信源域名（用于 _is_external_redirect_page 判断是否跨域名）
+    from urllib.parse import urlparse as _urlparse
+    source_host = ""
+    if check_external_redirect:
+        for u in entry_urls:
+            h = _urlparse(u).hostname
+            if h:
+                source_host = h
+                break
 
     for base_url in entry_urls:
         try:
@@ -415,6 +550,14 @@ def _scrape_soe_site(
             # 时间窗口过滤
             if not within_window(pub_date, now, window_days, hard_cap_days):
                 continue
+
+            # 外部跳转检测：如配置了 check_external_redirect，则在收录前
+            # 校验该详情页是否实际跳转到其它域名（如新华网、国资委）。
+            # 这类页面属于"转发外部新闻的中间页"，按需求不予收录。
+            if check_external_redirect and source_host:
+                if _is_external_redirect_page(url, source_host, timeout=min(timeout, 5)):
+                    logger.debug("央企-%s: 跳过外部跳转链接 %s", name, url)
+                    continue
 
             # 详情页标题二次确认（按需）：仅对通过过滤的可疑长标题回源
             title = _refine_title_by_detail(title, url, timeout=timeout)
@@ -470,23 +613,9 @@ def parse_soe(config: dict, now: datetime) -> List[Item]:
             continue
 
     # ── 去重 ──────────────────────────────────────────────────────────────────
-    uniq: Dict[str, Item] = {}
-    for it in all_items:
-        key = canonicalize_url_for_dedup(it.url)
-        if key not in uniq:
-            uniq[key] = it
-        else:
-            old = uniq[key]
-            if (not old.pub_date) and it.pub_date:
-                uniq[key] = it
-            elif old.pub_date and it.pub_date:
-                try:
-                    if dtparser.parse(it.pub_date) > dtparser.parse(old.pub_date):
-                        uniq[key] = it
-                except Exception:
-                    pass
-
-    result = list(uniq.values())
+    # 两级去重：先按规范化 URL，再在同一发布单位内按标题指纹合并主页/二级页同新闻
+    # （以能正确采集标题和发布日期的为准）。
+    result = dedup_items_keep_best(all_items)
     logger.info("央企汇总: %d 条（去重后）", len(result))
     return result
 
@@ -501,9 +630,22 @@ SOE_SOURCES = [
     {"name": "中国船舶集团有限公司", "url": "http://www.csic.com.cn/"},
     {"name": "中国兵器工业集团有限公司", "url": "http://www.norincogroup.com.cn/"},
     {"name": "中国兵器装备集团有限公司", "url": "https://www.csgc.com.cn/"},
-    {"name": "中国电子科技集团有限公司", "url": "http://www.cetc.com.cn/zgdk/1592571/index.html",
+    {"name": "中国电子科技集团有限公司",
+     "urls": [
+         # 集团要闻 - 中国电科本身机构新闻
+         "http://www.cetc.com.cn/zgdk/1592571/1592492/index.html",
+         # 媒体聚焦 - 主流媒体对中国电科的报道
+         "http://www.cetc.com.cn/zgdk/1592571/1593500/index.html",
+         # 经营管理 - 中国电科及成员单位经营动态
+         "http://www.cetc.com.cn/zgdk/1592571/jygl/index.html",
+         # 央地合作 - 中国电科与地方政府合作动态
+         "http://www.cetc.com.cn/zgdk/1592571/1646502/index.html",
+     ],
+     "url": "http://www.cetc.com.cn/zgdk/1592571/index.html",
      # /zgdk/1592960/1592986/ 为"业务领域"栏目，链接均为行业介绍，不是新闻
-     "exclude_paths": ["/1592960/1592986/"]},
+     # /zgdk/1592571/1646500/ 为"时政要闻"栏目，多为转发其它单位新闻
+     # /zgdk/1592571/1592909/ 为"国资动态"栏目，转发国资委等上级新闻
+     "exclude_paths": ["/1592960/1592986/", "/1646500/", "/1592909/"]},
     {"name": "中国航空发动机集团有限公司", "url": "http://www.aecc.cn/"},
     {"name": "中国融通资产管理集团有限公司", "url": "https://www.crtamg.com.cn/"},
     {"name": "中国石油天然气集团有限公司", "url": "http://www.cnpc.com.cn/"},
@@ -541,7 +683,17 @@ SOE_SOURCES = [
     {"name": "中国电信集团有限公司", "url": "http://www.chinatelecom.com.cn/"},
     {"name": "中国联合网络通信集团有限公司", "url": "http://www.chinaunicom.com.cn/"},
     {"name": "中国移动通信集团有限公司", "url": "http://www.10086.cn/"},
-    {"name": "中国电子信息产业集团有限公司", "url": "http://www.cec.com.cn/"},
+    {"name": "中国电子信息产业集团有限公司",
+     "urls": [
+         # 集团新闻 - CEC 本身机构新闻（中文 slug 已被 URL 编码）
+         "https://www.cec.com.cn/%e9%9b%86%e5%9b%a2%e6%96%b0%e9%97%bb",
+         # 新闻聚焦 - CEC 主流媒体报道汇总（多为本身新闻的二次发布）
+         "https://www.cec.com.cn/%e6%96%b0%e9%97%bb%e8%81%9a%e7%84%a6",
+     ],
+     "url": "http://www.cec.com.cn/",
+     # /N.html 文章页存在大量"链接跳转"中间页（实际指向 sasac/新华网等外部域名），
+     # 开启外部跳转检测以排除这些转载新闻。
+     "check_external_redirect": True},
     {"name": "中国第一汽车集团有限公司", "url": "http://www.faw.com.cn/"},
     {"name": "东风汽车集团有限公司", "url": "http://www.dfmc.com.cn/"},
     {"name": "中国一重集团有限公司", "url": "http://www.cfhi.com/"},
@@ -556,7 +708,15 @@ SOE_SOURCES = [
     {"name": "中国东方航空集团有限公司", "url": "http://www.ceairgroup.com/"},
     {"name": "中国南方航空集团有限公司", "url": "https://www.csairgroup.cn/cn/"},
     {"name": "中国中车集团有限公司", "url": "http://www.crrcgc.cc/"},
-    {"name": "中国铁路通信信号集团有限公司", "url": "http://www.crsc.cn/"},
+    {"name": "中国铁路通信信号集团有限公司",
+     "urls": [
+         # 通号动态 - CRSC 本身机构新闻列表（带日期）
+         "http://www.crsc.cn/g1097/m13322.aspx",
+     ],
+     "url": "http://www.crsc.cn/",
+     # /6926.html 等为"核心技术/产品"等静态栏目页，非新闻
+     # /1153.html 为"国资动态"栏目，转发国资委新闻
+     "exclude_paths": ["/6926.html", "/1153.html"]},
     {"name": "中国铁路工程集团有限公司", "url": "http://www.crecg.com/"},
     {"name": "中国铁道建筑集团有限公司", "url": "http://www.crcc.cn/"},
     {"name": "中国交通建设集团有限公司", "url": "http://www.ccccltd.cn/"},

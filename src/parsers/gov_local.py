@@ -29,11 +29,10 @@ from datetime import datetime
 from typing import Dict, List
 
 from bs4 import BeautifulSoup
-from dateutil import parser as dtparser
 
 from models import Item, MIIT_ONLY_KEYWORDS
 from utils import (
-    canonicalize_url_for_dedup,
+    dedup_items_keep_best,
     extract_date,
     format_fetched_at,
     http_get,
@@ -110,7 +109,14 @@ GOV_LOCAL_SOURCES = [
          "https://www.hunan.gov.cn/hnszf/xxgk/wjk/szfwj/wjk_glrb.html",
      ],
      "url": "https://www.hunan.gov.cn/"},
-    {"province": "广东", "name": "广东省人民政府", "url": "https://www.gd.gov.cn/"},
+    {"province": "广东", "name": "广东省人民政府",
+     "urls": [
+         # 要闻 - 省委省政府工作动态
+         "https://www.gd.gov.cn/gdywdt/gdyw/",
+         # 地市动态 - 省内各市动态
+         "https://www.gd.gov.cn/gdywdt/dsdt/",
+     ],
+     "url": "https://www.gd.gov.cn/"},
     {"province": "广西", "name": "广西壮族自治区人民政府", "url": "https://www.gxzf.gov.cn/"},
     {"province": "海南", "name": "海南省人民政府", "url": "https://www.hainan.gov.cn/"},
     {"province": "重庆", "name": "重庆市人民政府",
@@ -300,23 +306,9 @@ def parse_gov_local(config: dict, now: datetime) -> List[Item]:
             logger.warning("地方政府-%s: 抓取失败", province, exc_info=True)
             continue
 
-    # ── 去重（URL 规范化） ──────────────────────────────────────────────────────
-    uniq: Dict[str, Item] = {}
-    for it in all_items:
-        key = canonicalize_url_for_dedup(it.url)
-        if key not in uniq:
-            uniq[key] = it
-        else:
-            old = uniq[key]
-            if (not old.pub_date) and it.pub_date:
-                uniq[key] = it
-            elif old.pub_date and it.pub_date:
-                try:
-                    if dtparser.parse(it.pub_date) > dtparser.parse(old.pub_date):
-                        uniq[key] = it
-                except Exception:
-                    pass
-
-    result = list(uniq.values())
+    # ── 去重 ──────────────────────────────────────────────────────────────────
+    # 两级去重：先按规范化 URL，再在同一发布单位内按标题指纹合并主页/二级页同新闻
+    # （以能正确采集标题和发布日期的为准）。
+    result = dedup_items_keep_best(all_items)
     logger.info("地方政府汇总: %d 条（去重后）", len(result))
     return result

@@ -384,6 +384,108 @@ def canonicalize_url_for_dedup(url: str) -> str:
         return url
 
 
+# 标题指纹归一化：去除标点/空白/大小写差异后用于跨页同新闻识别。
+_TITLE_FP_STRIP = re.compile(r"[\s\u3000\W_]+", flags=re.UNICODE)
+
+
+def title_fingerprint(title: str) -> str:
+    """生成用于跨入口去重比对的标题指纹（去除标点、空白、大小写差异）。
+
+    主要用于：同一个信源的主页与二级新闻栏目同时收录同一篇新闻，
+    但 URL 形式不同时（如相对路径 vs 绝对路径、列表页摘要链接 vs 详情页链接），
+    通过标题指纹识别它们指向同一篇新闻。
+    """
+    if not title:
+        return ""
+    t = clean_title(title).lower()
+    return _TITLE_FP_STRIP.sub("", t)
+
+
+def _item_quality_score(item) -> int:
+    """给 Item 打分以择优：发布日期和有效标题都非空的更优。
+
+    用于"同一信源主页与二级页同时存在某新闻"的择优场景：
+    以能正确采集标题和发布日期的为准。
+    """
+    score = 0
+    if getattr(item, "pub_date", None):
+        score += 10
+    title = getattr(item, "title", "") or ""
+    if title.strip():
+        score += 1
+        # 标题越完整（未被列表页截断）越好，但封顶避免长杂讯标题得高分
+        score += min(len(title), 60) // 10
+    return score
+
+
+def dedup_items_keep_best(items):
+    """对同一信源/同一解析器内的 Item 列表做两级去重，择优保留。
+
+    去重策略（按用户需求："以能正确采集标题和发布日期等信息的为准"）：
+
+    1. **一级 URL 去重**：按 ``canonicalize_url_for_dedup(item.url)`` 归一后比对，
+       URL 等价者择优保留（先比较是否有 ``pub_date``，再比较 ``pub_date`` 较新者）。
+    2. **二级标题去重**：在同一 ``publisher`` 内按 ``title_fingerprint(title)``
+       归一后比对（用于主页/二级栏目页同时收录同一新闻但 URL 不同的场景），
+       以 ``_item_quality_score`` 较高者（即标题+日期更完整者）为准。
+
+    Args:
+        items: Item 列表（需具备 ``url``、``title``、``publisher``、``pub_date`` 属性）。
+
+    Returns:
+        去重并择优后的 Item 列表，相对顺序保留首次出现位置。
+    """
+    if not items:
+        return []
+
+    # ── 1. 一级 URL 去重（保留首次出现顺序）
+    url_index: dict = {}
+    ordered: List = []
+    for it in items:
+        key = canonicalize_url_for_dedup(getattr(it, "url", "") or "")
+        if not key:
+            ordered.append(it)
+            continue
+        if key not in url_index:
+            url_index[key] = len(ordered)
+            ordered.append(it)
+        else:
+            idx = url_index[key]
+            old = ordered[idx]
+            # 优先选择有 pub_date 的；若都有，选 pub_date 较新的
+            if (not getattr(old, "pub_date", None)) and getattr(it, "pub_date", None):
+                ordered[idx] = it
+            elif getattr(old, "pub_date", None) and getattr(it, "pub_date", None):
+                try:
+                    if dtparser.parse(it.pub_date) > dtparser.parse(old.pub_date):
+                        ordered[idx] = it
+                except (ValueError, TypeError):
+                    pass
+
+    # ── 2. 二级标题指纹去重（同一发布单位内）
+    # 仅当标题指纹非空时合并，避免空标题误合并；
+    # 跨 publisher 的同名新闻不在此处合并（交由 storage.dedup_merge 处理）。
+    fp_index: dict = {}
+    result: List = []
+    for it in ordered:
+        publisher = getattr(it, "publisher", "") or ""
+        fp = title_fingerprint(getattr(it, "title", "") or "")
+        if not fp or not publisher:
+            result.append(it)
+            continue
+        composite_key = (publisher, fp)
+        if composite_key not in fp_index:
+            fp_index[composite_key] = len(result)
+            result.append(it)
+        else:
+            idx = fp_index[composite_key]
+            old = result[idx]
+            if _item_quality_score(it) > _item_quality_score(old):
+                result[idx] = it
+
+    return result
+
+
 def clean_title(title: str) -> str:
     """清洗标题：去除零宽字符、首尾空白和末尾省略号。
 

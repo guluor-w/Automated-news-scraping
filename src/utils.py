@@ -384,6 +384,23 @@ def canonicalize_url_for_dedup(url: str) -> str:
         return url
 
 
+def clean_title(title: str) -> str:
+    """清洗标题：去除零宽字符、首尾空白和末尾省略号。
+
+    用于入库前的统一处理，避免视觉相同但二进制不同的标题被判为不同。
+    """
+    if not title:
+        return ""
+    t = _ZERO_WIDTH_CHARS.sub("", str(title))
+    # 内部多余空白折叠为单个空格
+    t = re.sub(r"[\t\r\n\u00a0]+", " ", t)
+    t = re.sub(r" {2,}", " ", t)
+    t = t.strip()
+    # 去掉末尾省略号
+    t = _TRAILING_ELLIPSIS.sub("", t).strip()
+    return t
+
+
 # 标题指纹归一化：去除标点/空白/大小写差异后用于跨页同新闻识别。
 _TITLE_FP_STRIP = re.compile(r"[\s\u3000\W_]+", flags=re.UNICODE)
 
@@ -397,7 +414,8 @@ def title_fingerprint(title: str) -> str:
     """
     if not title:
         return ""
-    t = clean_title(title).lower()
+    # 对极长标题进行截断，避免正则处理性能问题
+    t = clean_title(title)[:200].lower()
     return _TITLE_FP_STRIP.sub("", t)
 
 
@@ -484,23 +502,6 @@ def dedup_items_keep_best(items):
                 result[idx] = it
 
     return result
-
-
-def clean_title(title: str) -> str:
-    """清洗标题：去除零宽字符、首尾空白和末尾省略号。
-
-    用于入库前的统一处理，避免视觉相同但二进制不同的标题被判为不同。
-    """
-    if not title:
-        return ""
-    t = _ZERO_WIDTH_CHARS.sub("", str(title))
-    # 内部多余空白折叠为单个空格
-    t = re.sub(r"[\t\r\n\u00a0]+", " ", t)
-    t = re.sub(r" {2,}", " ", t)
-    t = t.strip()
-    # 去掉末尾省略号
-    t = _TRAILING_ELLIPSIS.sub("", t).strip()
-    return t
 
 
 def format_fetched_at(now: datetime) -> str:

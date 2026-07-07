@@ -38,7 +38,9 @@ import re
 from collections import OrderedDict
 from datetime import datetime
 from typing import Dict, List, Optional
+from urllib.parse import urlparse
 
+import requests
 from bs4 import BeautifulSoup
 
 from models import Item, MIIT_ONLY_KEYWORDS, SOE_EXCLUDED_KEYWORDS
@@ -340,9 +342,6 @@ def _is_external_redirect_page(url: str, source_host: str, timeout: int = 5) -> 
         return cached
 
     try:
-        import requests
-        from urllib.parse import urlparse
-
         resp = requests.get(url, timeout=timeout, allow_redirects=True, headers={
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         })
@@ -393,7 +392,11 @@ def _is_external_redirect_page(url: str, source_host: str, timeout: int = 5) -> 
 def _same_site(host_a: str, host_b: str) -> bool:
     """
     判断两个域名是否属于同一站点。
-    采用末两段判定（如 cec.com.cn vs www.cec.com.cn 视为同一站点）。
+    
+    采用自适应判定策略：
+    - 直接相等（含 www. 前缀去除后）视为同一站点；
+    - 三级及以上域名比较末三段（如 news.cec.com.cn 与 www.cec.com.cn）；
+    - 二级域名比较末两段（如 cec.com.cn 与 www.cec.com.cn）。
     """
     if not host_a or not host_b:
         return False

@@ -34,11 +34,10 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from bs4 import BeautifulSoup
-from dateutil import parser as dtparser
 
 from models import Item, MIIT_ONLY_KEYWORDS
 from utils import (
-    canonicalize_url_for_dedup,
+    dedup_items_keep_best,
     extract_date,
     fetch_detail_title,
     format_fetched_at,
@@ -835,23 +834,9 @@ def parse_miit_local(config: dict, now: datetime) -> List[Item]:
             logger.warning("地方工信-%s: 抓取失败", province, exc_info=True)
             continue
 
-    # ── 去重（URL 规范化） ──────────────────────────────────────────────────────
-    uniq: Dict[str, Item] = {}
-    for it in all_items:
-        key = canonicalize_url_for_dedup(it.url)
-        if key not in uniq:
-            uniq[key] = it
-        else:
-            old = uniq[key]
-            if (not old.pub_date) and it.pub_date:
-                uniq[key] = it
-            elif old.pub_date and it.pub_date:
-                try:
-                    if dtparser.parse(it.pub_date) > dtparser.parse(old.pub_date):
-                        uniq[key] = it
-                except Exception:
-                    pass
-
-    result = list(uniq.values())
+    # ── 去重 ──────────────────────────────────────────────────────────────────
+    # 两级去重：先按规范化 URL，再在同一发布单位内按标题指纹合并主页/二级页同新闻
+    # （以能正确采集标题和发布日期的为准）。
+    result = dedup_items_keep_best(all_items)
     logger.info("地方工信汇总: %d 条（去重后）", len(result))
     return result

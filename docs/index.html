@@ -271,6 +271,7 @@
       <div class="section-header">
         <span class="section-title">新闻趋势</span>
         <button id="chartModeBtn" class="btn" type="button">切换为按周</button>
+        <button id="chartRangeBtn" class="btn" type="button">显示全部时间</button>
       </div>
       <div class="chart-container">
         <canvas id="trendChart"></canvas>
@@ -403,6 +404,7 @@
     let tableMedia = null;
     let trendChart = null;
     let chartMode = "day"; // "day" | "week"
+    let chartRange = "90d"; // "90d" | "all"
     let allRowsData = [];
 
     function escapeHtml(s) {
@@ -496,10 +498,24 @@
     }
 
     function buildTrendData(rows, mode) {
+      // 根据 chartRange 决定是否仅统计近 90 天
+      let cutoff = null;
+      let today = null;
+      if (chartRange === "90d") {
+        today = new Date();
+        today.setHours(0, 0, 0, 0);
+        cutoff = new Date(today);
+        cutoff.setDate(cutoff.getDate() - 89); // 近 90 天（含今日）
+      }
+
       const counts = {};
       for (const row of rows) {
         const dateStr = row.pubDate ? String(row.pubDate).slice(0, 10) : null;
         if (!dateStr || dateStr.length < 10) continue;
+        if (cutoff) {
+          const d = parseLocalDateOnly(dateStr);
+          if (!d || d < cutoff || d > today) continue;
+        }
         const key = mode === "week" ? getWeekLabel(dateStr) : dateStr;
         if (!key) continue;
         counts[key] = (counts[key] || 0) + 1;
@@ -535,7 +551,7 @@
             tooltip: { mode: "index", intersect: false }
           },
           scales: {
-            x: { ticks: { maxRotation: 45, font: { size: 11 } } },
+            x: { ticks: { maxRotation: 45, font: { size: 11 }, autoSkip: true, maxTicksLimit: 20 } },
             y: { beginAtZero: true, ticks: { precision: 0, font: { size: 11 } } }
           }
         }
@@ -595,6 +611,7 @@
       const updatedAtEl = document.getElementById("updatedAt");
       const miitFilterBtn = document.getElementById("miitFilterBtn");
       const chartModeBtn = document.getElementById("chartModeBtn");
+      const chartRangeBtn = document.getElementById("chartRangeBtn");
 
       // ── DataTables custom filters ─────────────────────────────────────────
       $.fn.dataTable.ext.search.push(function(settings, data, rowIdx, rowData) {
@@ -623,6 +640,14 @@
       chartModeBtn.addEventListener("click", function() {
         chartMode = chartMode === "day" ? "week" : "day";
         chartModeBtn.textContent = chartMode === "day" ? "切换为按周" : "切换为按天";
+        renderTrendChart(allRowsData, chartMode);
+      });
+
+      chartRangeBtn.addEventListener("click", function() {
+        chartRange = chartRange === "90d" ? "all" : "90d";
+        const showingAll = chartRange === "all";
+        chartRangeBtn.classList.toggle("active", showingAll);
+        chartRangeBtn.textContent = showingAll ? "仅看近 90 天" : "显示全部时间";
         renderTrendChart(allRowsData, chartMode);
       });
 

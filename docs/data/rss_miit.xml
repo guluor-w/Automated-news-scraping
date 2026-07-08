@@ -5,7 +5,42 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>来源包含&quot;工信&quot;的新闻 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Wed, 08 Jul 2026 15:40:53 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 09 Jul 2026 03:27:11 +0800</lastBuildDate>
+    <item>
+      <title>2026世界机器人大会新闻发布会在京召开</title>
+      <link>https://www.miit.gov.cn/xwfb/gxdt/bsdt/art/2026/art_e3f88291a28f436eab461fb1e1ac76c9.html</link>
+      <guid isPermaLink="true">https://www.miit.gov.cn/xwfb/gxdt/bsdt/art/2026/art_e3f88291a28f436eab461fb1e1ac76c9.html</guid>
+      <pubDate>Wed, 08 Jul 2026 00:00:00 +0800</pubDate>
+      <description>工业和信息化部｜工信部官网-部属动态</description>
+    </item>
+    <item>
+      <title>关于举办第二届山东省低空装备产业链创新创业大赛的通知</title>
+      <link>http://gxt.shandong.gov.cn/art/2026/7/8/art_15201_10358039.html</link>
+      <guid isPermaLink="true">http://gxt.shandong.gov.cn/art/2026/7/8/art_15201_10358039.html</guid>
+      <pubDate>Wed, 08 Jul 2026 00:00:00 +0800</pubDate>
+      <description>山东省工业和信息化厅｜地方工信-山东</description>
+    </item>
+    <item>
+      <title>朱万奎赴工业互联网标识解析国家顶级节点（武汉）调研</title>
+      <link>http://jxt.hubei.gov.cn/./bmdt/jxtyw/202607/t20260708_5973179.shtml</link>
+      <guid isPermaLink="true">http://jxt.hubei.gov.cn/./bmdt/jxtyw/202607/t20260708_5973179.shtml</guid>
+      <pubDate>Wed, 08 Jul 2026 00:00:00 +0800</pubDate>
+      <description>湖北省经济和信息化厅｜地方工信-湖北</description>
+    </item>
+    <item>
+      <title>自治区工业和信息化厅关于印发《首台(套) 重大技术装备推广应用指导目录 (2026年版)》的通知</title>
+      <link>http://gxt.nx.gov.cn/./zwgk/fdzdgknr/glfw/gsgg/202607/t20260708_5284608.html</link>
+      <guid isPermaLink="true">http://gxt.nx.gov.cn/./zwgk/fdzdgknr/glfw/gsgg/202607/t20260708_5284608.html</guid>
+      <pubDate>Wed, 08 Jul 2026 00:00:00 +0800</pubDate>
+      <description>宁夏回族自治区工业和信息化厅｜地方工信-宁夏</description>
+    </item>
+    <item>
+      <title>国新办就“勇担时代重任，做新型工业化事业的建设者和追梦人”举行中外记者见面会</title>
+      <link>https://view.inews.qq.com/a/20260708A0A0XK00</link>
+      <guid isPermaLink="true">https://view.inews.qq.com/a/20260708A0A0XK00</guid>
+      <pubDate>Wed, 08 Jul 2026 00:00:00 +0800</pubDate>
+      <description>工信微报｜腾讯新闻-工信微报</description>
+    </item>
     <item>
       <title>北京市经济和信息化局关于开展2026年度农业领域机器人典型应用场景申报材料征集工作的通知</title>
       <link>https://jxj.beijing.gov.cn/zwgk/2024zcwj/202607/t20260708_4751793.html</link>
@@ -343,6 +378,13 @@
       <description>新疆生产建设兵团工业和信息化局｜地方工信-新疆兵团</description>
     </item>
     <item>
+      <title>李强主持召开国务院常务会议 听取人工智能发展情况汇报等</title>
+      <link>https://www.hunan.gov.cn/hnszf/hnyw/ywtj/202606/t20260630_34015908.html</link>
+      <guid isPermaLink="true">https://www.hunan.gov.cn/hnszf/hnyw/ywtj/202606/t20260630_34015908.html</guid>
+      <pubDate>Tue, 30 Jun 2026 00:00:00 +0800</pubDate>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
+    </item>
+    <item>
       <title>2026 APEC数字和人工智能部长会议境外媒体注册开启</title>
       <link>https://www.miit.gov.cn/xwfb/gxdt/art/2026/art_9b5792e2e8d14eb3beb5fbb8f5ff63fa.html</link>
       <guid isPermaLink="true">https://www.miit.gov.cn/xwfb/gxdt/art/2026/art_9b5792e2e8d14eb3beb5fbb8f5ff63fa.html</guid>
@@ -453,6 +495,13 @@
       <guid isPermaLink="true">http://btgxj.xjbt.gov.cn/c/2026-06-26/8490728.shtml</guid>
       <pubDate>Fri, 26 Jun 2026 00:00:00 +0800</pubDate>
       <description>新疆生产建设兵团工业和信息化局｜地方工信-新疆兵团</description>
+    </item>
+    <item>
+      <title>工信部等三部门组织实施2026年首台（套）重大技术装备保险补偿政策</title>
+      <link>https://view.inews.qq.com/a/20260625A04I9C00</link>
+      <guid isPermaLink="true">https://view.inews.qq.com/a/20260625A04I9C00</guid>
+      <pubDate>Thu, 25 Jun 2026 00:00:00 +0800</pubDate>
+      <description>工信微报｜腾讯新闻-工信微报</description>
     </item>
     <item>
       <title>两部门关于印发2023年度智能制造系统解决方案“揭榜挂帅”验收通过项目名单的通知</title>

@@ -5,14 +5,7 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>来源包含&quot;工信&quot;的新闻 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sun, 12 Jul 2026 15:38:56 +0800</lastBuildDate>
-    <item>
-      <title>“齐鲁制造会客厅”智能终端专场举办</title>
-      <link>http://gxt.shandong.gov.cn/art/2026/7/11/art_15171_10358110.html</link>
-      <guid isPermaLink="true">http://gxt.shandong.gov.cn/art/2026/7/11/art_15171_10358110.html</guid>
-      <pubDate>Sat, 11 Jul 2026 00:00:00 +0800</pubDate>
-      <description>山东省工业和信息化厅｜地方工信-山东</description>
-    </item>
+    <lastBuildDate>Mon, 13 Jul 2026 02:59:55 +0800</lastBuildDate>
     <item>
       <title>前5个月山东工业机器人产量同比增长近八成</title>
       <link>http://gxt.shandong.gov.cn/art/2026/7/11/art_15171_10358107.html</link>
@@ -600,6 +593,13 @@
       <guid isPermaLink="true">http://btgxj.xjbt.gov.cn/c/2026-07-01/8491710.shtml</guid>
       <pubDate>Wed, 01 Jul 2026 00:00:00 +0800</pubDate>
       <description>新疆生产建设兵团工业和信息化局｜地方工信-新疆兵团</description>
+    </item>
+    <item>
+      <title>李强主持召开国务院常务会议 听取人工智能发展情况汇报等</title>
+      <link>https://www.hunan.gov.cn/hnszf/hnyw/ywtj/202606/t20260630_34015908.html</link>
+      <guid isPermaLink="true">https://www.hunan.gov.cn/hnszf/hnyw/ywtj/202606/t20260630_34015908.html</guid>
+      <pubDate>Tue, 30 Jun 2026 00:00:00 +0800</pubDate>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
     </item>
     <item>
       <title>2026 APEC数字和人工智能部长会议境外媒体注册开启</title>

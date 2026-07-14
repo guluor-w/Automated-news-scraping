@@ -5,20 +5,146 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Tue, 14 Jul 2026 15:18:52 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 15 Jul 2026 03:08:32 +0800</lastBuildDate>
+    <item>
+      <title>习近平将出席2026世界人工智能大会暨人工智能全球治理高级别会议开幕式并发表主旨讲话</title>
+      <link>http://gxt.fujian.gov.cn/./gnllm/tt/202607/t20260714_7177883.htm</link>
+      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./gnllm/tt/202607/t20260714_7177883.htm</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>福建省工业和信息化厅｜地方工信-福建</description>
+    </item>
+    <item>
+      <title>打通产学研协同堵点　解码智能机器人关键材料产业化新路径</title>
+      <link>http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/rdjj/202607/t20260714_34026329.html</link>
+      <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/rdjj/202607/t20260714_34026329.html</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
+    </item>
+    <item>
+      <title>共同推动人工智能服务全球发展、增进人类福祉</title>
+      <link>http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/rdjj/202607/t20260714_34026320.html</link>
+      <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/rdjj/202607/t20260714_34026320.html</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
+    </item>
+    <item>
+      <title>关于印发《重庆市首台（套）重大技术装备推广应用目录（2026年版）》的通知</title>
+      <link>http://jjxxw.cq.gov.cn/./zwgk_213/zcwj/qtwj/202607/t20260714_15821879.html</link>
+      <guid isPermaLink="true">http://jjxxw.cq.gov.cn/./zwgk_213/zcwj/qtwj/202607/t20260714_15821879.html</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>重庆市经济和信息化委员会｜地方工信-重庆</description>
+    </item>
+    <item>
+      <title>北京电力具身智能机器人中试验证平台正式对外服务！</title>
+      <link>https://www.beijing.gov.cn/fuwu/lqfw/gggs/202607/t20260714_4761361.html</link>
+      <guid isPermaLink="true">https://www.beijing.gov.cn/fuwu/lqfw/gggs/202607/t20260714_4761361.html</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>北京市人民政府｜地方政府-北京</description>
+    </item>
+    <item>
+      <title>机器人产业专利导航成果发布 为产业发展绘制创新路线图</title>
+      <link>https://www.tj.gov.cn/./sy/zwdt/bmdt/202607/t20260714_7335289.html</link>
+      <guid isPermaLink="true">https://www.tj.gov.cn/./sy/zwdt/bmdt/202607/t20260714_7335289.html</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>天津市人民政府｜地方政府-天津</description>
+    </item>
+    <item>
+      <title>我省出台人工智能终端奖补政策</title>
+      <link>http://www.shandong.gov.cn/art/2026/7/14/art_97560_732811.html</link>
+      <guid isPermaLink="true">http://www.shandong.gov.cn/art/2026/7/14/art_97560_732811.html</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>山东省人民政府｜地方政府-山东</description>
+    </item>
+    <item>
+      <title>孟凡利在部分高校和科研院所走访调研时强调 充分发挥大学和科研院所在构建以先进制造业为骨干的现代化产业体系中的重要作用</title>
+      <link>https://www.gd.gov.cn/gdywdt/gdyw/content/post_4924793.html</link>
+      <guid isPermaLink="true">https://www.gd.gov.cn/gdywdt/gdyw/content/post_4924793.html</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>广东省人民政府｜地方政府-广东</description>
+    </item>
+    <item>
+      <title>孟凡利在韶关调研时强调 让丹山碧水和强大算力在高质量发展中发挥更大作用</title>
+      <link>https://www.gd.gov.cn/gdywdt/gdyw/content/post_4924316.html</link>
+      <guid isPermaLink="true">https://www.gd.gov.cn/gdywdt/gdyw/content/post_4924316.html</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>广东省人民政府｜地方政府-广东</description>
+    </item>
+    <item>
+      <title>世界首台（套）500兆瓦冲击式水轮发电机组是如何炼成的？</title>
+      <link>https://weibo.com/ttarticle/p/show?id=2309405320519686946998&amp;luicode=10000011&amp;lfid=1005052752396553&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://weibo.com/ttarticle/p/show?id=2309405320519686946998&amp;luicode=10000011&amp;lfid=1005052752396553&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>国资小新｜微博-国资小新</description>
+    </item>
+    <item>
+      <title>#视听里的中国# 【新思想引领新征程】人工智能蓬勃兴起 锻造高质量发展新引擎（央视新闻） #视听学习时#</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5320618242146332&amp;luicode=10000011&amp;lfid=1005057408066931&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5320618242146332&amp;luicode=10000011&amp;lfid=1005057408066931&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>视听中国｜微博-视听中国</description>
+    </item>
+    <item>
+      <title>【广东发布工业机器人全链条可靠性管控团体标准】13日，广东省标准化协会发布《工业机器人产业链可靠性控制与质量提升指南》团体标准，填补了国内工业机器人全链条可靠性</title>
+      <link>https://m.weibo.cn/detail/5320611095382367</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5320611095382367</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>广东发布｜微博-广东发布</description>
+    </item>
+    <item>
+      <title>【 #吴中冲刺全国机器人产业集群第一区# 】苏州吴中区冲刺&quot;全国机器人产业集群第一区&quot;，集聚相关企业超1600家。其中，龙头企业汇川技术落地吴中18年，产值从几</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5320622331592806&amp;luicode=10000011&amp;lfid=1005052784361770&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5320622331592806&amp;luicode=10000011&amp;lfid=1005052784361770&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>微博江苏｜微博-微博江苏</description>
+    </item>
+    <item>
+      <title>【张红霞：魏桥推动传统产业迈向“智能智造”】今天上午，山东省人民政府新闻办公室举行“奋进‘十五五’ 民企勇担当”民营企业家系列记者见面会第一场，邀请三位企业家代</title>
+      <link>https://m.weibo.cn/detail/5320641278116802</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5320641278116802</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>山东发布｜微博-山东发布</description>
+    </item>
+    <item>
+      <title>2026世界人工智能大会，看中国AI硬核实力</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5320641226932272&amp;luicode=10000011&amp;lfid=1005052339634231&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5320641226932272&amp;luicode=10000011&amp;lfid=1005052339634231&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>河南政府网｜微博-河南政府网</description>
+    </item>
+    <item>
+      <title>中国制造与全球需求精准适配 外贸“含智量”“含绿量”持续提升</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5320641461813458&amp;luicode=10000011&amp;lfid=1005052339634231&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5320641461813458&amp;luicode=10000011&amp;lfid=1005052339634231&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>河南政府网｜微博-河南政府网</description>
+    </item>
+    <item>
+      <title>【7月14日， #中国一汽博物馆对外开放# 董宇辉：老车模型载满工业奋斗史】展馆坐落于长春市东风大街一汽厂区1号门内，由1953年始建的一汽原厂工具厂房改造而成</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5320646935380202&amp;luicode=10000011&amp;lfid=1005053229450293&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5320646935380202&amp;luicode=10000011&amp;lfid=1005053229450293&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>吉林发布｜微博-吉林发布</description>
+    </item>
+    <item>
+      <title>【满都拉口岸智慧监管畅通中蒙通道】上半年，满都拉口岸累计监管进出境货运车辆12.94万辆，同比增长191.68%，其中6月23日单日监管进出境货运车辆达1327</title>
+      <link>https://m.weibo.cn/detail/5320648844118170</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5320648844118170</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>活力内蒙古｜微博-活力内蒙古</description>
+    </item>
+    <item>
+      <title>中国机器人全球热销</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5320606275797086&amp;luicode=10000011&amp;lfid=1005052489610225&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5320606275797086&amp;luicode=10000011&amp;lfid=1005052489610225&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
+      <description>天津发布｜微博-天津发布</description>
+    </item>
     <item>
       <title>黑龙江省新产投集团聚焦“科技、智能、绿色”推动传统产业转型升级</title>
       <link>http://www.sasac.gov.cn/n2588025/n2588129/c35600125/content.html</link>
       <guid isPermaLink="true">http://www.sasac.gov.cn/n2588025/n2588129/c35600125/content.html</guid>
       <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
       <description>国务院国有资产监督管理委员会｜国资委官网</description>
-    </item>
-    <item>
-      <title>打通产学研协同堵点　解码智能机器人关键材料产业化新路径</title>
-      <link>http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/rdjj/202607/t20260714_34025899.html</link>
-      <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/rdjj/202607/t20260714_34025899.html</guid>
-      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
-      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
     </item>
     <item>
       <title>织就算力经纬 赋能未来发展——“十五五”开局之年推进算力网建设观察</title>
@@ -33,13 +159,6 @@
       <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/xintszs/202607/t20260714_34025886.html</guid>
       <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
       <description>湖南省工业和信息化厅｜地方工信-湖南</description>
-    </item>
-    <item>
-      <title>习近平将出席2026世界人工智能大会暨人工智能全球治理高级别会议开幕式并发表主旨讲话</title>
-      <link>https://www.beijing.gov.cn/ywdt/dzyjs/202607/t20260714_4760941.html</link>
-      <guid isPermaLink="true">https://www.beijing.gov.cn/ywdt/dzyjs/202607/t20260714_4760941.html</guid>
-      <pubDate>Tue, 14 Jul 2026 00:00:00 +0800</pubDate>
-      <description>北京市人民政府｜地方政府-北京</description>
     </item>
     <item>
       <title>加强人工智能全栈生态建设 推动人工智能产业高质量发展</title>
@@ -127,10 +246,10 @@
     </item>
     <item>
       <title>习近平将出席2026世界人工智能大会暨人工智能全球治理高级别会议开幕式并发表主旨讲话</title>
-      <link>https://www.fujian.gov.cn/sylm/szyw/202607/t20260713_7177558.htm</link>
-      <guid isPermaLink="true">https://www.fujian.gov.cn/sylm/szyw/202607/t20260713_7177558.htm</guid>
+      <link>http://www.hunan.gov.cn/hnyw/sy/tt1/202607/t20260713_34025463.html</link>
+      <guid isPermaLink="true">http://www.hunan.gov.cn/hnyw/sy/tt1/202607/t20260713_34025463.html</guid>
       <pubDate>Mon, 13 Jul 2026 00:00:00 +0800</pubDate>
-      <description>福建省人民政府｜地方政府-福建</description>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
     </item>
     <item>
       <title>【习近平将出席2026世界人工智能大会暨人工智能全球治理高级别会议开幕式并发表主旨讲话】 网页链接</title>
@@ -1015,6 +1134,13 @@
       <description>山西发布｜微博-山西发布</description>
     </item>
     <item>
+      <title>广东省工业和信息化厅 广东省农业农村厅关于开展农业领域机器人典型应用场景申报工作的通知</title>
+      <link>https://gdii.gd.gov.cn/zwgk/tzgg1011/content/post_4924467.html</link>
+      <guid isPermaLink="true">https://gdii.gd.gov.cn/zwgk/tzgg1011/content/post_4924467.html</guid>
+      <pubDate>Wed, 08 Jul 2026 00:00:00 +0800</pubDate>
+      <description>广东省工业和信息化厅｜地方工信-广东</description>
+    </item>
+    <item>
       <title>广东省工业和信息化厅 广东省发展和改革委员会 广东省市场监督管理局关于公布2026年广东省先进级智能工厂名单的通知</title>
       <link>https://gdii.gd.gov.cn/zwgk/tzgg1011/content/post_4923460.html</link>
       <guid isPermaLink="true">https://gdii.gd.gov.cn/zwgk/tzgg1011/content/post_4923460.html</guid>
@@ -1548,10 +1674,10 @@
     </item>
     <item>
       <title>国家数据要素综合试验区医疗数据流通利用专题现场会在北京召开</title>
-      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/0706/20260706114019419701529_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/0706/20260706114019419701529_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0706/20260706114019419701529_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/0706/20260706114019419701529_pc.html</guid>
       <pubDate>Mon, 06 Jul 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-司局动态</description>
+      <description>国家数据局｜国家数据局-领导活动</description>
     </item>
     <item>
       <title>走进国家卓越级智能工厂｜槐坎南方水泥厂里的“AI大脑”</title>
@@ -17582,6 +17708,12 @@
       <guid isPermaLink="true">https://view.inews.qq.com/a/20251227A03HGL00</guid>
       <pubDate>Sat, 27 Dec 2025 00:00:00 +0800</pubDate>
       <description>工信微报｜腾讯新闻-工信微报</description>
+    </item>
+    <item>
+      <title>广东发布工业机器人全链条可靠性管控团体标准</title>
+      <link>https://www.gd.gov.cn/gdywdt/bmdt/content/post_4924416.html</link>
+      <guid isPermaLink="true">https://www.gd.gov.cn/gdywdt/bmdt/content/post_4924416.html</guid>
+      <description>广东省人民政府｜地方政府-广东</description>
     </item>
     <item>
       <title>中国电气装备集团数字科技有限公司</title>

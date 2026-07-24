@@ -5,7 +5,63 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>来源包含&quot;工信&quot;的新闻 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Fri, 24 Jul 2026 15:35:09 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 25 Jul 2026 03:19:57 +0800</lastBuildDate>
+    <item>
+      <title>贵州省级工业互联网安全态势感知平台持续扩容 织密全省工业企业安全防护网</title>
+      <link>https://www.miit.gov.cn/xwfb/gxdt/dfdt/art/2026/art_7668f9fc616c40a5a7e0d50dc09b7219.html</link>
+      <guid isPermaLink="true">https://www.miit.gov.cn/xwfb/gxdt/dfdt/art/2026/art_7668f9fc616c40a5a7e0d50dc09b7219.html</guid>
+      <pubDate>Fri, 24 Jul 2026 00:00:00 +0800</pubDate>
+      <description>工业和信息化部｜工信部官网-地方动态</description>
+    </item>
+    <item>
+      <title>福建省工业和信息化厅 福建省农业农村厅关于组织征集农业领域机器人典型应用场景的通知</title>
+      <link>http://gxt.fujian.gov.cn/./zwgk/zfxxgk/fdzdgknr/gzdt/202607/t20260724_7191928.htm</link>
+      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./zwgk/zfxxgk/fdzdgknr/gzdt/202607/t20260724_7191928.htm</guid>
+      <pubDate>Fri, 24 Jul 2026 00:00:00 +0800</pubDate>
+      <description>福建省工业和信息化厅｜地方工信-福建</description>
+    </item>
+    <item>
+      <title>“材料强基·制造强省”高端装备专场对接交流活动在济南举办</title>
+      <link>http://gxt.shandong.gov.cn/art/2026/7/24/art_15165_10358362.html</link>
+      <guid isPermaLink="true">http://gxt.shandong.gov.cn/art/2026/7/24/art_15165_10358362.html</guid>
+      <pubDate>Fri, 24 Jul 2026 00:00:00 +0800</pubDate>
+      <description>山东省工业和信息化厅｜地方工信-山东</description>
+    </item>
+    <item>
+      <title>世界首次！湖北造装备在世界最长海底高铁隧道完成大规模换刀</title>
+      <link>http://jxt.hubei.gov.cn/./bmdt/rdjj/202607/t20260724_5983349.shtml</link>
+      <guid isPermaLink="true">http://jxt.hubei.gov.cn/./bmdt/rdjj/202607/t20260724_5983349.shtml</guid>
+      <pubDate>Fri, 24 Jul 2026 00:00:00 +0800</pubDate>
+      <description>湖北省经济和信息化厅｜地方工信-湖北</description>
+    </item>
+    <item>
+      <title>工信部启动国家级零碳工厂、零碳算力设施建设工作</title>
+      <link>http://jxt.hubei.gov.cn/./bmdt/rdjj/202607/t20260724_5983317.shtml</link>
+      <guid isPermaLink="true">http://jxt.hubei.gov.cn/./bmdt/rdjj/202607/t20260724_5983317.shtml</guid>
+      <pubDate>Fri, 24 Jul 2026 00:00:00 +0800</pubDate>
+      <description>湖北省经济和信息化厅｜地方工信-湖北</description>
+    </item>
+    <item>
+      <title>成都大力推进制造业“智改数转”</title>
+      <link>http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/xintszs/202607/t20260724_34033240.html</link>
+      <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/xintszs/202607/t20260724_34033240.html</guid>
+      <pubDate>Fri, 24 Jul 2026 00:00:00 +0800</pubDate>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
+    </item>
+    <item>
+      <title>工信部装备工业一司赴有关汽车生产企业开展监督检查</title>
+      <link>https://view.inews.qq.com/a/20260724A0B4BC00</link>
+      <guid isPermaLink="true">https://view.inews.qq.com/a/20260724A0B4BC00</guid>
+      <pubDate>Fri, 24 Jul 2026 00:00:00 +0800</pubDate>
+      <description>工信微报｜腾讯新闻-工信微报</description>
+    </item>
+    <item>
+      <title>2026年度国家工业节能监察任务清单印发，涉及3874家企业</title>
+      <link>https://view.inews.qq.com/a/20260724A09D8500</link>
+      <guid isPermaLink="true">https://view.inews.qq.com/a/20260724A09D8500</guid>
+      <pubDate>Fri, 24 Jul 2026 00:00:00 +0800</pubDate>
+      <description>工信微报｜腾讯新闻-工信微报</description>
+    </item>
     <item>
       <title>山东16个案例入选工信部人工智能应用典型案例</title>
       <link>http://gxt.shandong.gov.cn/art/2026/7/24/art_15171_10358350.html</link>
@@ -56,11 +112,11 @@
       <description>工信微报｜腾讯新闻-工信微报</description>
     </item>
     <item>
-      <title>北京市经济和信息化局关于开展2026年度智能工厂梯度培育行动的通知</title>
-      <link>https://jxj.beijing.gov.cn/zwgk/2024zcwj/202607/t20260723_4780394.html</link>
-      <guid isPermaLink="true">https://jxj.beijing.gov.cn/zwgk/2024zcwj/202607/t20260723_4780394.html</guid>
+      <title>自治区工业和信息化厅关于拟认定自治区2026年度先进级智能工厂暨推荐申报2026年度卓越级、领航级智能工厂项目公示</title>
+      <link>http://gxt.nx.gov.cn/./zwgk/fdzdgknr/glfw/gsgg/202607/t20260723_5297047.html</link>
+      <guid isPermaLink="true">http://gxt.nx.gov.cn/./zwgk/fdzdgknr/glfw/gsgg/202607/t20260723_5297047.html</guid>
       <pubDate>Thu, 23 Jul 2026 00:00:00 +0800</pubDate>
-      <description>北京市经济和信息化局｜地方工信-北京</description>
+      <description>宁夏回族自治区工业和信息化厅｜地方工信-宁夏</description>
     </item>
     <item>
       <title>山东省工业和信息化厅关于2025年度山东省工业领域先进适用绿色低碳技术装备名单的公示</title>
@@ -336,6 +392,20 @@
       <description>工信微报｜腾讯新闻-工信微报</description>
     </item>
     <item>
+      <title>聚力供需对接 筑牢智安防线——自治区重点行业“人工智能+安全生产”供需对接活动成功举办</title>
+      <link>http://gxt.nx.gov.cn/./xwzx/gzdt/202607/t20260720_5292589.html</link>
+      <guid isPermaLink="true">http://gxt.nx.gov.cn/./xwzx/gzdt/202607/t20260720_5292589.html</guid>
+      <pubDate>Mon, 20 Jul 2026 00:00:00 +0800</pubDate>
+      <description>宁夏回族自治区工业和信息化厅｜地方工信-宁夏</description>
+    </item>
+    <item>
+      <title>筑基数转 育才强企——我区以人才能力提升赋能中小企业数字化转型提质增效</title>
+      <link>http://gxt.nx.gov.cn/./xwzx/gzdt/202607/t20260720_5292566.html</link>
+      <guid isPermaLink="true">http://gxt.nx.gov.cn/./xwzx/gzdt/202607/t20260720_5292566.html</guid>
+      <pubDate>Mon, 20 Jul 2026 00:00:00 +0800</pubDate>
+      <description>宁夏回族自治区工业和信息化厅｜地方工信-宁夏</description>
+    </item>
+    <item>
       <title>才聚工信 智兴潇湘 2026年“湘工信杯”人形机器人大赛正式启动</title>
       <link>http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/gzdt_3/202607/t20260720_34030313.html</link>
       <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/gzdt_3/202607/t20260720_34030313.html</guid>
@@ -410,13 +480,6 @@
       <link>http://gxt.shandong.gov.cn/art/2026/7/19/art_15164_10358245.html</link>
       <guid isPermaLink="true">http://gxt.shandong.gov.cn/art/2026/7/19/art_15164_10358245.html</guid>
       <pubDate>Sun, 19 Jul 2026 00:00:00 +0800</pubDate>
-      <description>山东省工业和信息化厅｜地方工信-山东</description>
-    </item>
-    <item>
-      <title>习近平出席2026世界人工智能大会暨人工智能全球治理高级别会议开幕式并发表主旨讲话</title>
-      <link>http://gxt.shandong.gov.cn/art/2026/7/18/art_318412_10358265.html</link>
-      <guid isPermaLink="true">http://gxt.shandong.gov.cn/art/2026/7/18/art_318412_10358265.html</guid>
-      <pubDate>Sat, 18 Jul 2026 00:00:00 +0800</pubDate>
       <description>山东省工业和信息化厅｜地方工信-山东</description>
     </item>
     <item>

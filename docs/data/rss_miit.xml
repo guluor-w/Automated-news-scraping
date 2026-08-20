@@ -5,7 +5,21 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>来源包含&quot;工信&quot;的新闻 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Thu, 20 Aug 2026 02:32:46 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 20 Aug 2026 13:39:18 +0800</lastBuildDate>
+    <item>
+      <title>“一人公司”重在造血</title>
+      <link>http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/rdjj/202608/t20260820_34047981.html</link>
+      <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/rdjj/202608/t20260820_34047981.html</guid>
+      <pubDate>Thu, 20 Aug 2026 00:00:00 +0800</pubDate>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
+    </item>
+    <item>
+      <title>超70家训练场建成启用 具身智能加速产业落地</title>
+      <link>https://view.inews.qq.com/a/20260820A03IEE00</link>
+      <guid isPermaLink="true">https://view.inews.qq.com/a/20260820A03IEE00</guid>
+      <pubDate>Thu, 20 Aug 2026 00:00:00 +0800</pubDate>
+      <description>工信微报｜腾讯新闻-工信微报</description>
+    </item>
     <item>
       <title>2026世界机器人大会在京开幕</title>
       <link>http://www.miit.gov.cn/xwfb/bldhd/art/2026/art_18a2e30182d44a4ea7c2c1295704dfee.html</link>
@@ -532,6 +546,13 @@
       <description>湖南省工业和信息化厅｜地方工信-湖南</description>
     </item>
     <item>
+      <title>福建构建“369”新兴产业和未来产业体系</title>
+      <link>http://gxt.fujian.gov.cn/./jdhy/gxsth/t/202608/t20260810_7198075.htm</link>
+      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./jdhy/gxsth/t/202608/t20260810_7198075.htm</guid>
+      <pubDate>Mon, 10 Aug 2026 00:00:00 +0800</pubDate>
+      <description>福建省工业和信息化厅｜地方工信-福建</description>
+    </item>
+    <item>
       <title>我省智能装备和人形机器人产业研究项目结题</title>
       <link>http://gxt.fujian.gov.cn/./zwgk/xw/jxyw/202608/t20260810_7198070.htm</link>
       <guid isPermaLink="true">http://gxt.fujian.gov.cn/./zwgk/xw/jxyw/202608/t20260810_7198070.htm</guid>
@@ -544,13 +565,6 @@
       <guid isPermaLink="true">http://gxt.ln.gov.cn/gxt/mtgz/2026081013500165602/index.shtml</guid>
       <pubDate>Mon, 10 Aug 2026 00:00:00 +0800</pubDate>
       <description>辽宁省工业和信息化厅｜地方工信-辽宁</description>
-    </item>
-    <item>
-      <title>福建构建“369”新兴产业和未来产业体系</title>
-      <link>http://gxt.fujian.gov.cn/./zwgk/xw/jxyw/202608/t20260810_7198075.htm</link>
-      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./zwgk/xw/jxyw/202608/t20260810_7198075.htm</guid>
-      <pubDate>Mon, 10 Aug 2026 00:00:00 +0800</pubDate>
-      <description>福建省工业和信息化厅｜地方工信-福建</description>
     </item>
     <item>
       <title>湖南聚力攻坚，挺进芯片上游“无人区”</title>

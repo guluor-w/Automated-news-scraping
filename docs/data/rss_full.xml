@@ -5,13 +5,125 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Tue, 20 Oct 2026 18:24:43 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 21 Oct 2026 05:19:34 +0800</lastBuildDate>
+    <item>
+      <title>航天科技七院航天长征数字化转型侧记</title>
+      <link>http://www.spacechina.com/n25/index.html/n2014789/n2014809/c4734435/content.html</link>
+      <guid isPermaLink="true">http://www.spacechina.com/n25/index.html/n2014789/n2014809/c4734435/content.html</guid>
+      <pubDate>Wed, 21 Oct 2026 00:00:00 +0800</pubDate>
+      <description>中国航天科技集团有限公司｜央企-中国航天科技集团有限公司</description>
+    </item>
     <item>
       <title>工业和信息化部就科技赋能商品消费提质、推动人形机器人产业在消费商贸领域应用等答记者问</title>
-      <link>https://www.miit.gov.cn/xwfb/xwfbh/gxbxwfbh/art/2026/art_213c82c9bf69441ab42252e6fcbc9f1f.html</link>
-      <guid isPermaLink="true">https://www.miit.gov.cn/xwfb/xwfbh/gxbxwfbh/art/2026/art_213c82c9bf69441ab42252e6fcbc9f1f.html</guid>
+      <link>https://www.miit.gov.cn/xwfb/gxdt/sjdt/art/2026/art_34e6e8e918bd424482287fc02a5cbffd.html</link>
+      <guid isPermaLink="true">https://www.miit.gov.cn/xwfb/gxdt/sjdt/art/2026/art_34e6e8e918bd424482287fc02a5cbffd.html</guid>
       <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
-      <description>工业和信息化部｜工信部官网-新闻发布</description>
+      <description>工业和信息化部｜工信部官网-司局动态</description>
+    </item>
+    <item>
+      <title>国务院国资委关于组建国家数据集团有限公司的公告</title>
+      <link>http://www.sasac.gov.cn/n2588035/c36071870/content.html</link>
+      <guid isPermaLink="true">http://www.sasac.gov.cn/n2588035/c36071870/content.html</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>国务院国有资产监督管理委员会｜国资委官网</description>
+    </item>
+    <item>
+      <title>联播 | 丁薛祥在河北雄安新区出席国家数据集团有限公司成立大会并调研</title>
+      <link>https://www.nda.gov.cn/sjj/swdt/mtsy/1020/20261020195735363096858_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/mtsy/1020/20261020195735363096858_pc.html</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>国家数据局｜国家数据局-媒体声音</description>
+    </item>
+    <item>
+      <title>新华社权威快报｜国家数据集团成立</title>
+      <link>https://www.nda.gov.cn/sjj/swdt/mtsy/1020/20261020191823470535612_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/mtsy/1020/20261020191823470535612_pc.html</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>国家数据局｜国家数据局-媒体声音</description>
+    </item>
+    <item>
+      <title>“三不能”划出了底线红线 讲清楚未来产业、新兴产业、传统产业之间的关系</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5356160971112450&amp;luicode=10000011&amp;lfid=1005055663214224&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5356160971112450&amp;luicode=10000011&amp;lfid=1005055663214224&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>国家发展和改革委员会｜微博-国家发展改革委</description>
+    </item>
+    <item>
+      <title>福建省工业和信息化厅关于开展2027年工业数智化转型项目申报工作的通知</title>
+      <link>http://gxt.fujian.gov.cn/./zwgk/zfxxgk/fdzdgknr/gzdt/202610/t20261020_7238286.htm</link>
+      <guid isPermaLink="true">http://gxt.fujian.gov.cn/./zwgk/zfxxgk/fdzdgknr/gzdt/202610/t20261020_7238286.htm</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>福建省工业和信息化厅｜地方工信-福建</description>
+    </item>
+    <item>
+      <title>北京市政务服务和数据管理局关于征集词元经济领域数据标准研制需求的通知</title>
+      <link>https://www.beijing.gov.cn/./zhengce/zhengcefagui/202610/t20261020_4911898.html</link>
+      <guid isPermaLink="true">https://www.beijing.gov.cn/./zhengce/zhengcefagui/202610/t20261020_4911898.html</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>北京市人民政府｜地方政府-北京</description>
+    </item>
+    <item>
+      <title>山东七项目入选工信部安全应急装备应用推广案例</title>
+      <link>http://www.shandong.gov.cn/art/2026/10/20/art_97560_777260.html</link>
+      <guid isPermaLink="true">http://www.shandong.gov.cn/art/2026/10/20/art_97560_777260.html</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>山东省人民政府｜地方政府-山东</description>
+    </item>
+    <item>
+      <title>#新央企国家数据集团成立# 欢迎“数据国家队”上新！我已抢先关注</title>
+      <link>https://m.weibo.cn/detail/5356174601881178</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5356174601881178</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>国资小新｜微博-国资小新</description>
+    </item>
+    <item>
+      <title>民政部养老助残领域项目入选首批标志性重大应用场景建设项目</title>
+      <link>https://weibo.com/ttarticle/p/show?id=2309405356201201500353&amp;luicode=10000011&amp;lfid=1005052565811051&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://weibo.com/ttarticle/p/show?id=2309405356201201500353&amp;luicode=10000011&amp;lfid=1005052565811051&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>民政微语｜微博-民政微语</description>
+    </item>
+    <item>
+      <title>【答记者问｜坚持“三化”方向，聚力提升“齐鲁建造”核心竞争力和品牌影响力】省住房城乡建设厅副厅长刘明伟介绍，建筑业是山东的传统优势产业、支柱产业和富民产业，推动</title>
+      <link>https://m.weibo.cn/detail/5356223109006899</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5356223109006899</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>山东发布｜微博-山东发布</description>
+    </item>
+    <item>
+      <title>#数据领域国家队登场# 【 #国家数据集团今日成立# 】10月20日，国家数据集团有限公司在河北雄安新区成立。记者从集团获悉，该集团是一家以数据资源开发利用为主</title>
+      <link>https://m.weibo.cn/detail/5356168748206566</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5356168748206566</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>河南政府网｜微博-河南政府网</description>
+    </item>
+    <item>
+      <title>#今日要闻# 【第4期省直机关学习大讲堂举行，聚焦“人工智能+”赋能高质量发展】10月20日，2026年第4期省直机关学习大讲堂举行，邀请浦江实验室主任、首席科</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5356174120255509&amp;luicode=10000011&amp;lfid=1005053687019147&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5356174120255509&amp;luicode=10000011&amp;lfid=1005053687019147&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>江西发布｜微博-江西发布</description>
+    </item>
+    <item>
+      <title>智竞未来也是致敬未来</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5356218601111588&amp;luicode=10000011&amp;lfid=1005052541592687&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5356218601111588&amp;luicode=10000011&amp;lfid=1005052541592687&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>新疆发布｜微博-新疆发布</description>
+    </item>
+    <item>
+      <title>#一家新央企成立# 【 #国家数据集团成立# 】10月20日，国家数据集团有限公司在河北雄安新区成立。记者从集团获悉，该集团是一家以数据资源开发利用为主责主业的</title>
+      <link>https://m.weibo.cn/detail/5356197838587786</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5356197838587786</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>云南发布｜微博-云南发布</description>
+    </item>
+    <item>
+      <title>#广西发布# 全球首发AI智能助盲眼镜，广西推进科技助残产品研发。【拍摄：张祖妍 唐贤 剪辑：李想 实习生 李斌维 二审：邓达 三审：黄洲英 校对：彭滨滨】</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5356164561436731&amp;luicode=10000011&amp;lfid=1005057921790417&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5356164561436731&amp;luicode=10000011&amp;lfid=1005057921790417&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
+      <description>广西发布｜微博-广西发布</description>
     </item>
     <item>
       <title>《吉林省加快发展新一代智能制造行动方案（2026—2029年）》向社会公开征求意见</title>
@@ -19,13 +131,6 @@
       <guid isPermaLink="true">http://gxt.jl.gov.cn/./xxgk/tzgg/202610/t20261020_3679885.html</guid>
       <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
       <description>吉林省工业和信息化厅｜地方工信-吉林</description>
-    </item>
-    <item>
-      <title>山东七项目入选工信部安全应急装备应用推广案例</title>
-      <link>http://gxt.shandong.gov.cn/art/2026/10/20/art_15171_10369676.html</link>
-      <guid isPermaLink="true">http://gxt.shandong.gov.cn/art/2026/10/20/art_15171_10369676.html</guid>
-      <pubDate>Tue, 20 Oct 2026 00:00:00 +0800</pubDate>
-      <description>山东省工业和信息化厅｜地方工信-山东</description>
     </item>
     <item>
       <title>你的算力够“绿”吗？山东启动国家绿色算力设施遴选推荐</title>
@@ -561,10 +666,10 @@
     </item>
     <item>
       <title>李强主持召开国务院常务会议 听取“人工智能+”行动进展情况汇报等</title>
-      <link>http://www.hunan.gov.cn/hnyw/ywtj/202610/t20261017_34083162.html</link>
-      <guid isPermaLink="true">http://www.hunan.gov.cn/hnyw/ywtj/202610/t20261017_34083162.html</guid>
+      <link>https://www.gd.gov.cn/gdywdt/gdyw/content/post_4967675.html</link>
+      <guid isPermaLink="true">https://www.gd.gov.cn/gdywdt/gdyw/content/post_4967675.html</guid>
       <pubDate>Sat, 17 Oct 2026 00:00:00 +0800</pubDate>
-      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
+      <description>广东省人民政府｜地方政府-广东</description>
     </item>
     <item>
       <title>2026世界航海装备大会在福州开幕</title>
@@ -2255,10 +2360,10 @@
     </item>
     <item>
       <title>关于举行2026年“数据要素×”大赛全国总决赛线下终评及颁奖仪式活动的通知</title>
-      <link>https://www.nda.gov.cn/sjj/zwgk/tzgg/1009/20261009165059083009494_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/zwgk/tzgg/1009/20261009165059083009494_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/ywpd/zcgh/1009/20261009165059083009494_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/ywpd/zcgh/1009/20261009165059083009494_pc.html</guid>
       <pubDate>Fri, 09 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-通知公告</description>
+      <description>国家数据局｜国家数据局-业务频道</description>
     </item>
     <item>
       <title>重型装备顺利“出海”</title>

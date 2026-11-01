@@ -5,13 +5,69 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sun, 01 Nov 2026 05:22:47 +0800</lastBuildDate>
+    <lastBuildDate>Sun, 01 Nov 2026 20:11:50 +0800</lastBuildDate>
+    <item>
+      <title>身在河北 服务北京 环京算力供给走廊加快构建</title>
+      <link>https://www.beijing.gov.cn/fuwu/lqfw/gggs/202611/t20261101_4926908.html</link>
+      <guid isPermaLink="true">https://www.beijing.gov.cn/fuwu/lqfw/gggs/202611/t20261101_4926908.html</guid>
+      <pubDate>Sun, 01 Nov 2026 00:00:00 +0800</pubDate>
+      <description>北京市人民政府｜地方政府-北京</description>
+    </item>
+    <item>
+      <title>护航新能源装备出海</title>
+      <link>https://www.ln.gov.cn/web/ywdt/jrln/wzxx2018/2026110108470593840/index.shtml</link>
+      <guid isPermaLink="true">https://www.ln.gov.cn/web/ywdt/jrln/wzxx2018/2026110108470593840/index.shtml</guid>
+      <pubDate>Sun, 01 Nov 2026 00:00:00 +0800</pubDate>
+      <description>辽宁省人民政府｜地方政府-辽宁</description>
+    </item>
+    <item>
+      <title>浚智慧之源 汇合作之力 聚创新之势 2026世界顶尖科学家论坛开幕式举行</title>
+      <link>https://www.shanghai.gov.cn/nw4411/20261101/42dd5ed2e7d845a0b16e65a054f2bbb4.html</link>
+      <guid isPermaLink="true">https://www.shanghai.gov.cn/nw4411/20261101/42dd5ed2e7d845a0b16e65a054f2bbb4.html</guid>
+      <pubDate>Sun, 01 Nov 2026 00:00:00 +0800</pubDate>
+      <description>上海市人民政府｜地方政府-上海</description>
+    </item>
+    <item>
+      <title>江苏推进道路普货运输全链条智能网办</title>
+      <link>https://www.jiangsu.gov.cn/art/2026/11/1/art_60095_11852920.html</link>
+      <guid isPermaLink="true">https://www.jiangsu.gov.cn/art/2026/11/1/art_60095_11852920.html</guid>
+      <pubDate>Sun, 01 Nov 2026 00:00:00 +0800</pubDate>
+      <description>江苏省人民政府｜地方政府-江苏</description>
+    </item>
+    <item>
+      <title>中国机械总院应邀出席第十六届智慧城市与智能经济博</title>
+      <link>http://www.cam.com.cn/contents/336/19355.html</link>
+      <guid isPermaLink="true">http://www.cam.com.cn/contents/336/19355.html</guid>
+      <pubDate>Sun, 01 Nov 2026 00:00:00 +0800</pubDate>
+      <description>中国机械科学研究总院集团有限公司｜央企-中国机械科学研究总院集团有限公司</description>
+    </item>
+    <item>
+      <title>#最硬核的国货购物车# 双臂机器人带电接引，零接触操作，作业更安全。 @国家电网</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5360440532992034&amp;luicode=10000011&amp;lfid=1005052752396553&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5360440532992034&amp;luicode=10000011&amp;lfid=1005052752396553&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sun, 01 Nov 2026 00:00:00 +0800</pubDate>
+      <description>国资小新｜微博-国资小新</description>
+    </item>
+    <item>
+      <title>【校招+社招！ #国家数据集团招聘正式启动# 】 引领数据科技，繁荣数据产业， 服务人工智能，建设数字中国。 毕业不迷茫，前路自有光—— 2027届秋季校园招聘</title>
+      <link>https://m.weibo.cn/detail/5360398263387775</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5360398263387775</guid>
+      <pubDate>Sun, 01 Nov 2026 00:00:00 +0800</pubDate>
+      <description>国资小新｜微博-国资小新</description>
+    </item>
+    <item>
+      <title>【 #11月1日起一批国家标准开始实施# 】11月1日起，54项强制性国家标准、465项推荐性国家标准和1项指导性技术文件开始实施。其中，机械装备噪声限值、教室</title>
+      <link>https://m.weibo.cn/detail/5360398263650037</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5360398263650037</guid>
+      <pubDate>Sun, 01 Nov 2026 00:00:00 +0800</pubDate>
+      <description>山西发布｜微博-山西发布</description>
+    </item>
     <item>
       <title>国家数据局召开数据标注先行先试工作座谈会 推进高质量数据集建设“以需定供”“以用促建”</title>
-      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031150813942057163_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031150813942057163_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031150813942057163_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031150813942057163_pc.html</guid>
       <pubDate>Sat, 31 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-司局动态</description>
+      <description>国家数据局｜国家数据局-领导活动</description>
     </item>
     <item>
       <title>联播 | 算力网加速织就 助力数字中国建设</title>
@@ -322,6 +378,13 @@
       <description>安徽发布｜微博-安徽发布</description>
     </item>
     <item>
+      <title>高端装备扬帆出海</title>
+      <link>https://www.ln.gov.cn/web/ywdt/jrln/tpxw/2026102908550678239/index.shtml</link>
+      <guid isPermaLink="true">https://www.ln.gov.cn/web/ywdt/jrln/tpxw/2026102908550678239/index.shtml</guid>
+      <pubDate>Thu, 29 Oct 2026 00:00:00 +0800</pubDate>
+      <description>辽宁省人民政府｜地方政府-辽宁</description>
+    </item>
+    <item>
       <title>【《AI伦理十日谈》：直面人工智能十大伦理难题】 #读浙# 本书以对谈形式切入大众关注的无人驾驶、养老机器人等热点话题，从技术原理、伦理辨析、社会政策、文化传统</title>
       <link>https://m.weibo.cn/detail/5359462098667402</link>
       <guid isPermaLink="true">https://m.weibo.cn/detail/5359462098667402</guid>
@@ -397,13 +460,6 @@
       <guid isPermaLink="true">https://gdii.gd.gov.cn/zwgk/tzgg1011/content/post_4972605.html</guid>
       <pubDate>Thu, 29 Oct 2026 00:00:00 +0800</pubDate>
       <description>广东省工业和信息化厅｜地方工信-广东</description>
-    </item>
-    <item>
-      <title>高端装备扬帆出海</title>
-      <link>https://www.ln.gov.cn/web/ywdt/jrln/wzxx2018/2026102907014418360/index.shtml</link>
-      <guid isPermaLink="true">https://www.ln.gov.cn/web/ywdt/jrln/wzxx2018/2026102907014418360/index.shtml</guid>
-      <pubDate>Thu, 29 Oct 2026 00:00:00 +0800</pubDate>
-      <description>辽宁省人民政府｜地方政府-辽宁</description>
     </item>
     <item>
       <title>全球首个生物活性肽人工智能大语言模型发布</title>
@@ -1107,10 +1163,10 @@
     </item>
     <item>
       <title>关于发布《城市全域数字化转型标准体系研究报告》及《城市全域数字化转型 城市感知体系建设导则》等12项技术文件的通知</title>
-      <link>https://www.nda.gov.cn/sjj/zwgk/tzgg/1026/20261026210239813554415_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/zwgk/tzgg/1026/20261026210239813554415_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/ywpd/szsh/1027/20261026210239813554415_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/ywpd/szsh/1027/20261026210239813554415_pc.html</guid>
       <pubDate>Mon, 26 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-通知公告</description>
+      <description>国家数据局｜国家数据局-业务频道</description>
     </item>
     <item>
       <title>数智化贯穿生产全流程</title>
@@ -1541,10 +1597,10 @@
     </item>
     <item>
       <title>2026年“数据要素×”大赛全国总决赛颁奖仪式在青岛顺利举办</title>
-      <link>https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/1024/20261023221408358579821_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/1024/20261023221408358579821_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/swdt/xwfb/1023/20261023221408358579821_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/xwfb/1023/20261023221408358579821_pc.html</guid>
       <pubDate>Fri, 23 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-领导活动</description>
+      <description>国家数据局｜国家数据局-新闻发布</description>
     </item>
     <item>
       <title>上海市经济和信息化委员会关于印发《上海市加快推动人工智能赋能工业服务业高质量发展行动方案（2027-2028年）》的通知</title>

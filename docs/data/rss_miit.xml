@@ -5,7 +5,7 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>来源包含&quot;工信&quot;的新闻 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Tue, 03 Nov 2026 20:51:00 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 04 Nov 2026 07:09:39 +0800</lastBuildDate>
     <item>
       <title>【辽宁日报】护航新能源装备出海</title>
       <link>http://gxt.ln.gov.cn/gxt/mtgz/2026110314470665650/index.shtml</link>
@@ -124,6 +124,13 @@
       <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/xxgk_71033/gzdt/xintszs/202611/t20261102_34092798.html</guid>
       <pubDate>Mon, 02 Nov 2026 00:00:00 +0800</pubDate>
       <description>湖南省工业和信息化厅｜地方工信-湖南</description>
+    </item>
+    <item>
+      <title>关于组织开展2026年度国家绿色算力设施推荐工作的通知</title>
+      <link>http://gxt.jl.gov.cn/./xxgk/tzgg/202611/P020261103333014245608.pdf</link>
+      <guid isPermaLink="true">http://gxt.jl.gov.cn/./xxgk/tzgg/202611/P020261103333014245608.pdf</guid>
+      <pubDate>Sun, 01 Nov 2026 00:00:00 +0800</pubDate>
+      <description>吉林省工业和信息化厅｜地方工信-吉林</description>
     </item>
     <item>
       <title>2025年电子信息制造业年度统计数据</title>

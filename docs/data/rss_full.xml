@@ -5,7 +5,21 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sun, 08 Nov 2026 20:09:38 +0800</lastBuildDate>
+    <lastBuildDate>Mon, 09 Nov 2026 05:58:54 +0800</lastBuildDate>
+    <item>
+      <title>【《新的职业序列：新赛道的价值与机遇》】 #读浙# 本书立足我国高质量发展与产业变革时代背景，聚焦人工智能、大数据、集成电路、新能源、低空经济、新消费、养老托育</title>
+      <link>https://m.weibo.cn/detail/5363070873633922</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5363070873633922</guid>
+      <pubDate>Sun, 08 Nov 2026 00:00:00 +0800</pubDate>
+      <description>浙江发布｜微博-浙江发布</description>
+    </item>
+    <item>
+      <title>刘奇凡调研部分重点工业企业</title>
+      <link>https://weibo.com/ttarticle/p/show?id=2309405363108658151750&amp;luicode=10000011&amp;lfid=1005051662558237&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://weibo.com/ttarticle/p/show?id=2309405363108658151750&amp;luicode=10000011&amp;lfid=1005051662558237&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sun, 08 Nov 2026 00:00:00 +0800</pubDate>
+      <description>云南发布｜微博-云南发布</description>
+    </item>
     <item>
       <title>2026能源转型大会在京举办 人工智能时代 科技企业正成为能源投资重要力量</title>
       <link>https://www.beijing.gov.cn/fuwu/lqfw/gggs/202611/t20261108_4937269.html</link>
@@ -1365,6 +1379,13 @@
       <description>天津发布｜微博-天津发布</description>
     </item>
     <item>
+      <title>中国黄金集团召开战新产业和未来产业发展工作推进会</title>
+      <link>https://www.chinagoldgroup.com/zghj/xwzx/jtyw/2026/11/I1569110664234926080.html</link>
+      <guid isPermaLink="true">https://www.chinagoldgroup.com/zghj/xwzx/jtyw/2026/11/I1569110664234926080.html</guid>
+      <pubDate>Sun, 01 Nov 2026 00:00:00 +0800</pubDate>
+      <description>中国黄金集团有限公司｜央企-中国黄金集团有限公司</description>
+    </item>
+    <item>
       <title>2026年度拟享受增值税加计抵减先进制造业企业名单（第一批）公示</title>
       <link>http://gxt.xinjiang.gov.cn/gxt/tzgg/202611/a8b4767d091a4312ba6f1bd2aee57483.shtml</link>
       <guid isPermaLink="true">http://gxt.xinjiang.gov.cn/gxt/tzgg/202611/a8b4767d091a4312ba6f1bd2aee57483.shtml</guid>
@@ -1464,17 +1485,17 @@
     </item>
     <item>
       <title>国家数据局召开行业高质量数据集链主工作座谈会 深化高质量数据集建设“以需定供”“以用促建”</title>
-      <link>https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031151459885260005_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031151459885260005_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031151459885260005_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031151459885260005_pc.html</guid>
       <pubDate>Sat, 31 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-领导活动</description>
+      <description>国家数据局｜国家数据局-司局动态</description>
     </item>
     <item>
       <title>国家数据局召开数据标注先行先试工作座谈会 推进高质量数据集建设“以需定供”“以用促建”</title>
-      <link>https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031150813942057163_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031150813942057163_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031150813942057163_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031150813942057163_pc.html</guid>
       <pubDate>Sat, 31 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-领导活动</description>
+      <description>国家数据局｜国家数据局-司局动态</description>
     </item>
     <item>
       <title>国家电投集团召开人工智能工作动员部署会</title>
@@ -2591,10 +2612,10 @@
     </item>
     <item>
       <title>关于发布《城市全域数字化转型标准体系研究报告》及《城市全域数字化转型 城市感知体系建设导则》等12项技术文件的通知</title>
-      <link>https://www.nda.gov.cn/sjj/ywpd/szsh/1027/20261026210239813554415_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/ywpd/szsh/1027/20261026210239813554415_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/zwgk/tzgg/1026/20261026210239813554415_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/zwgk/tzgg/1026/20261026210239813554415_pc.html</guid>
       <pubDate>Mon, 26 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-业务频道</description>
+      <description>国家数据局｜国家数据局-通知公告</description>
     </item>
     <item>
       <title>数智化贯穿生产全流程</title>

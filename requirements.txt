@@ -4,5 +4,5 @@ PyYAML==6.0.2
 beautifulsoup4==4.13.4
 lxml==6.0.0
 python-dateutil==2.9.0.post0
-playwright==1.52.0
+playwright==1.61.0
 schedule==1.2.2

@@ -5,7 +5,7 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>来源包含&quot;工信&quot;的新闻 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Tue, 10 Nov 2026 21:27:35 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 11 Nov 2026 07:13:29 +0800</lastBuildDate>
     <item>
       <title>关于公布2026年辽宁省“人工智能+制造”高质量行业数据集名单的通知</title>
       <link>http://gxt.ln.gov.cn/gxt/tztg/2026111009285189930/index.shtml</link>
@@ -117,6 +117,13 @@
       <guid isPermaLink="true">https://gdii.gd.gov.cn/zwgk/tzgg1011/content/post_4977050.html</guid>
       <pubDate>Sat, 07 Nov 2026 00:00:00 +0800</pubDate>
       <description>广东省工业和信息化厅｜地方工信-广东</description>
+    </item>
+    <item>
+      <title>关于征集国家制造业创新中心创建需求的通知</title>
+      <link>http://gxt.hunan.gov.cn/gxt/hdjl_71064/dczj/dczj_1/202611/t20261106_34097170.html</link>
+      <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/hdjl_71064/dczj/dczj_1/202611/t20261106_34097170.html</guid>
+      <pubDate>Fri, 06 Nov 2026 00:00:00 +0800</pubDate>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
     </item>
     <item>
       <title>工业和信息化部：加强智能体终端设备进网管理</title>

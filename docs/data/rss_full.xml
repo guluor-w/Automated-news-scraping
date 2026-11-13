@@ -5,7 +5,14 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Fri, 13 Nov 2026 22:48:44 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 14 Nov 2026 07:19:14 +0800</lastBuildDate>
+    <item>
+      <title>#中央媒体上的天津# 【天津：红砖古树守根脉，老厂“织”出新消费】近日，人民日报、新华社、中央广播电视总台、央广网、经济日报、科技日报、工人日报、农民日报等中央</title>
+      <link>https://m.weibo.cn/detail/5364912005579050</link>
+      <guid isPermaLink="true">https://m.weibo.cn/detail/5364912005579050</guid>
+      <pubDate>Fri, 13 Nov 2026 00:00:00 +0800</pubDate>
+      <description>天津发布｜微博-天津发布</description>
+    </item>
     <item>
       <title>“露天矿现场混装乳化炸药车智能化技术研究与应用”项目通过工信部科技成果安全评估</title>
       <link>http://gxt.nmg.gov.cn/./gxdt_new/zzq/202611/t20261113_2977356.html</link>
@@ -1471,10 +1478,10 @@
     </item>
     <item>
       <title>关于征集国家制造业创新中心创建需求的通知</title>
-      <link>https://www.hunan.gov.cn/hnszf/hdjl/dczj/myzj/202611/t20261106_34098961.html</link>
-      <guid isPermaLink="true">https://www.hunan.gov.cn/hnszf/hdjl/dczj/myzj/202611/t20261106_34098961.html</guid>
+      <link>http://gxt.hunan.gov.cn/gxt/hdjl_71064/dczj/dczj_1/202611/t20261106_34097170.html</link>
+      <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/hdjl_71064/dczj/dczj_1/202611/t20261106_34097170.html</guid>
       <pubDate>Fri, 06 Nov 2026 00:00:00 +0800</pubDate>
-      <description>湖南省人民政府｜地方政府-湖南</description>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
     </item>
     <item>
       <title>关于征集2027年制造业高质量发展专项资金设备更新和技术改造方向入库项目的通知</title>
@@ -2927,17 +2934,17 @@
     </item>
     <item>
       <title>国家数据局召开行业高质量数据集链主工作座谈会 深化高质量数据集建设“以需定供”“以用促建”</title>
-      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031151459885260005_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031151459885260005_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031151459885260005_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031151459885260005_pc.html</guid>
       <pubDate>Sat, 31 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-司局动态</description>
+      <description>国家数据局｜国家数据局-领导活动</description>
     </item>
     <item>
       <title>国家数据局召开数据标注先行先试工作座谈会 推进高质量数据集建设“以需定供”“以用促建”</title>
-      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031150813942057163_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031150813942057163_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031150813942057163_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031150813942057163_pc.html</guid>
       <pubDate>Sat, 31 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-司局动态</description>
+      <description>国家数据局｜国家数据局-领导活动</description>
     </item>
     <item>
       <title>国家电投集团召开人工智能工作动员部署会</title>

@@ -203,43 +203,14 @@ def http_get(url: str, timeout: int = 30) -> str:
 import json
 from pathlib import Path
 
-# 详情页标题本地缓存：避免重复请求同一详情页
-_DETAIL_TITLE_CACHE_PATH = Path(".cache") / "detail_titles.json"
-_DETAIL_TITLE_CACHE: Optional[dict] = None  # 进程内单例
 
-# 详情页 <title> 标签常见的"- 站名 / _ 站名"后缀分隔符
-_RE_SITE_NAME_SUFFIX = re.compile(
-    r"\s*[-_|–—]\s*[^-_|–—]{2,20}\s*$"
-)
-
-
-def _load_detail_title_cache() -> dict:
-    """惰性加载详情页标题缓存（首次访问时读盘）。"""
-    global _DETAIL_TITLE_CACHE
-    if _DETAIL_TITLE_CACHE is not None:
-        return _DETAIL_TITLE_CACHE
-    try:
-        if _DETAIL_TITLE_CACHE_PATH.exists():
-            with _DETAIL_TITLE_CACHE_PATH.open("r", encoding="utf-8") as f:
-                _DETAIL_TITLE_CACHE = json.load(f)
-        else:
-            _DETAIL_TITLE_CACHE = {}
-    except Exception:
-        _DETAIL_TITLE_CACHE = {}
-    return _DETAIL_TITLE_CACHE
-
-
-def _save_detail_title_cache() -> None:
-    """将详情页标题缓存写盘。"""
-    if _DETAIL_TITLE_CACHE is None:
-        return
-    try:
-        _DETAIL_TITLE_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with _DETAIL_TITLE_CACHE_PATH.open("w", encoding="utf-8") as f:
-            json.dump(_DETAIL_TITLE_CACHE, f, ensure_ascii=False, indent=2)
-    except Exception:
-        # 缓存写入失败不影响主流程
-        pass
+def _clean_detail_text(value: str) -> str:
+    """清理详情页字段中的 HTML 换行和多余空白。"""
+    if not value:
+        return ""
+    from bs4 import BeautifulSoup
+    text = BeautifulSoup(value, "html.parser").get_text(" ", strip=True)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _extract_title_from_html(html: str) -> Optional[str]:
@@ -252,72 +223,154 @@ def _extract_title_from_html(html: str) -> Optional[str]:
         return None
     soup = BeautifulSoup(html, "html.parser")
 
-    # 优先级 1: <meta name="ArticleTitle">（国内政务站普遍遵循 GB/T 23287）
-    for attr_name in ("ArticleTitle", "articletitle", "article:title", "article_title"):
-        m = soup.find("meta", attrs={"name": attr_name})
-        if m and m.get("content"):
-            val = m.get("content").strip()
+    for meta in soup.find_all("meta"):
+        name = (meta.get("name") or meta.get("property") or "").lower()
+        if name in {"articletitle", "article:title", "article_title"}:
+            val = _clean_detail_text(meta.get("content") or "")
             if val:
+                for h5 in soup.find_all("h5"):
+                    h4 = h5.find_next_sibling("h4")
+                    if not h4:
+                        continue
+                    combined = _clean_detail_text(
+                        h5.get_text(" ", strip=True) + " " + h4.get_text(" ", strip=True)
+                    )
+                    if combined.startswith(val) and len(combined) > len(val):
+                        return combined
                 return val
 
-    # 优先级 2: <h1>
-    h1 = soup.find("h1")
-    if h1:
-        val = re.sub(r"\s+", " ", h1.get_text(strip=True))
-        if val and 4 <= len(val) <= 120:
-            return val
+    # 部分站点的第一个 h1 是导航，h2 才是文章标题。
+    for tag_name in ("h2", "h1"):
+        tag = soup.find(tag_name)
+        if tag:
+            val = _clean_detail_text(tag.get_text(" ", strip=True))
+            if 4 <= len(val) <= 120:
+                return val
 
-    # 优先级 3: <h2>（招商局、山东工信厅等用作主标题）
-    h2 = soup.find("h2")
-    if h2:
-        val = re.sub(r"\s+", " ", h2.get_text(strip=True))
-        if val and 4 <= len(val) <= 120:
-            return val
-
-    # 优先级 4: <title>，剥末尾"- 站名"后缀
     ttl = soup.find("title")
     if ttl:
-        val = re.sub(r"\s+", " ", ttl.get_text(strip=True))
-        # 反复剥末尾的"- 站名"段，直到稳定
-        for _ in range(3):
-            stripped = _RE_SITE_NAME_SUFFIX.sub("", val).strip()
+        val = _clean_detail_text(ttl.get_text(" ", strip=True))
+        for _ in range(2):
+            stripped = re.sub(
+                r"\s*[-_|－]\s*[^-_|－]{2,40}\s*$", "", val
+            ).strip()
             if stripped == val or len(stripped) < 4:
                 break
             val = stripped
-        if val and 4 <= len(val) <= 120:
+        # 个别源站会把摘要写入 title；保留较长候选，交由调用方做正文识别。
+        if 4 <= len(val) <= 1000:
             return val
 
     return None
 
 
-def fetch_detail_title(url: str, timeout: int = 15) -> Optional[str]:
-    """访问详情页，返回结构化字段提取的标题；带文件缓存与多重兜底。
+_PUBLISH_DATE_META_NAMES = (
+    "pubdate", "publishdate", "releasedate", "releasetime",
+    "article:published_time", "date",
+)
+_CREATE_DATE_META_NAMES = ("createdate", "createtime", "article:created_time")
+_RE_LABELED_PUBLISH_DATE = re.compile(
+    r"(?:发布时间|发布日期|发文日期|时间)\s*[:：]?\s*"
+    r"(20\d{2})\s*(?:年|[-./])\s*(\d{1,2})\s*(?:月|[-./])\s*"
+    r"(\d{1,2})\s*日?"
+)
 
-    用法：仅在列表页标题"可疑"时调用，避免每条都回源造成请求风暴。
 
-    返回 ``None`` 表示提取失败（HTTP 失败 / 无可用字段 / 长度异常），
-    调用方应回退到列表页清洗后的标题。
-    """
-    if not url or not isinstance(url, str):
+def _extract_pub_date_from_html(html: str) -> Optional[str]:
+    """提取明确标注的发布日期，不以正文首个日期充当发布日期。"""
+    if not html:
         return None
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
 
-    cache = _load_detail_title_cache()
-    if url in cache:
-        val = cache[url]
-        return val if val else None  # 缓存的失败结果（None / "")也会命中，避免重试
+    meta_values = {}
+    for meta in soup.find_all("meta"):
+        name = (meta.get("name") or meta.get("property") or "").lower()
+        content = (meta.get("content") or "").strip()
+        if name and content:
+            meta_values.setdefault(name, content)
 
-    title: Optional[str] = None
+    for name in _PUBLISH_DATE_META_NAMES:
+        if name in meta_values:
+            date = extract_date(meta_values[name])
+            if date:
+                return date
+
+    text = re.sub(r"\s+", " ", soup.get_text(" ", strip=True))
+    match = _RE_LABELED_PUBLISH_DATE.search(text)
+    if match:
+        return extract_date("-".join(match.groups()))
+
+    for name in _CREATE_DATE_META_NAMES:
+        if name in meta_values:
+            date = extract_date(meta_values[name])
+            if date:
+                return date
+    return None
+
+
+_DETAIL_METADATA_CACHE_PATH = Path(".cache") / "detail_metadata_v2.json"
+_DETAIL_METADATA_CACHE: Optional[dict] = None
+
+
+def _load_detail_metadata_cache() -> dict:
+    global _DETAIL_METADATA_CACHE
+    if _DETAIL_METADATA_CACHE is not None:
+        return _DETAIL_METADATA_CACHE
+    try:
+        if _DETAIL_METADATA_CACHE_PATH.exists():
+            with _DETAIL_METADATA_CACHE_PATH.open("r", encoding="utf-8") as f:
+                _DETAIL_METADATA_CACHE = json.load(f)
+        else:
+            _DETAIL_METADATA_CACHE = {}
+    except Exception:
+        _DETAIL_METADATA_CACHE = {}
+    return _DETAIL_METADATA_CACHE
+
+
+def _save_detail_metadata_cache() -> None:
+    if _DETAIL_METADATA_CACHE is None:
+        return
+    try:
+        _DETAIL_METADATA_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _DETAIL_METADATA_CACHE_PATH.open("w", encoding="utf-8") as f:
+            json.dump(_DETAIL_METADATA_CACHE, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def fetch_detail_metadata(url: str, timeout: int = 15) -> dict:
+    """一次请求提取详情页标题和发布日期；仅缓存有效结果。"""
+    empty = {"title": None, "pub_date": None}
+    if not url or not isinstance(url, str):
+        return empty
+
+    cache = _load_detail_metadata_cache()
+    cached = cache.get(url)
+    if cached and (cached.get("title") or cached.get("pub_date")):
+        return {**empty, **cached}
+
+    metadata = empty.copy()
     try:
         html = http_get(url, timeout=timeout)
-        title = _extract_title_from_html(html)
+        metadata = {
+            "title": _extract_title_from_html(html),
+            "pub_date": _extract_pub_date_from_html(html),
+        }
     except Exception:
-        title = None
+        pass
 
-    # 写缓存（无论成功失败都缓存，失败缓存可避免反复请求异常页）
-    cache[url] = title or ""
-    _save_detail_title_cache()
+    if metadata.get("title") or metadata.get("pub_date"):
+        cache[url] = metadata
+    else:
+        cache.pop(url, None)
+    _save_detail_metadata_cache()
+    return metadata
 
-    return title
+
+def fetch_detail_title(url: str, timeout: int = 15) -> Optional[str]:
+    """访问详情页并返回结构化标题；失败时返回 None。"""
+    return fetch_detail_metadata(url, timeout=timeout).get("title")
 
 
 def _strip_tracking_params(query: str) -> str:

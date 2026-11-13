@@ -1192,6 +1192,25 @@ class TestSoeParser:
             f"央企信源不应通过 SOE_EXCLUDED_KEYWORDS 匹配，实际返回: {[it.title for it in items]}"
         )
 
+    def test_cee_mission_page_excluded(self):
+        from parsers.soe import parse_soe
+        html = """
+            <a href="/info/1172/3488.htm">“赋能智慧电气”</a>
+            <a href="/info/200/12345.htm">智能制造项目正式启动</a>
+        """
+        test_sources = [{
+            "name": "中国电气装备集团有限公司", "url": "http://www.cee-group.cn/",
+            "exclude_paths": ["/info/1172/"],
+        }]
+        with patch("parsers.soe.SOE_SOURCES", test_sources), patch(
+            "parsers.soe.http_get", return_value=html
+        ), patch(
+            "parsers.miit_local.fetch_detail_metadata",
+            return_value={"title": None, "pub_date": None},
+        ):
+            items = parse_soe({**self._SOE_CONFIG, "keywords": MATCH_ALL_KEYWORDS}, NOW)
+        assert [item.title for item in items] == ["智能制造项目正式启动"]
+
     def test_exclude_paths_filters_column_sections(self):
         """per-source exclude_paths 应过滤掉指定栏目路径（如 CETC 业务领域）。"""
         from parsers.soe import parse_soe
@@ -1385,9 +1404,337 @@ class TestWeiboParser:
         assert result["title"] == "关于数字化转型的通知"
 
 
+class TestDetailMetadataAndDateRefine:
+    def test_article_title_html_and_publish_date(self):
+        from utils import _extract_pub_date_from_html, _extract_title_from_html
+        html = """
+        <html><head>
+          <meta name="ArticleTitle" content="第一行<br/>第二行">
+          <meta name="createDate" content="2026-08-26 16:00:29">
+        </head><body><div>发布时间：2026年08月24日</div></body></html>
+        """
+        assert _extract_title_from_html(html) == "第一行 第二行"
+        assert _extract_pub_date_from_html(html) == "2026-08-24"
+
+    def test_site_suffix_does_not_strip_chinese_subtitle(self):
+        from utils import _extract_title_from_html
+        title = "牢记嘱托勇担使命，体系智能实干转型——写在习近平总书记考察调研中国电科产业基础研究院三周年之际"
+        html = f"<title>{title}-中国电子科技集团有限公司</title>"
+        assert _extract_title_from_html(html) == title
+
+    def test_h2_precedes_navigation_h1(self):
+        from utils import _extract_title_from_html
+        html = "<h1>关于中建</h1><h2>智能无损检测雷达正式投入使用</h2>"
+        assert _extract_title_from_html(html) == "智能无损检测雷达正式投入使用"
+
+    def test_split_h5_h4_title_combined(self):
+        from utils import _extract_title_from_html
+        html = """
+        <meta name="ArticleTitle" content="省工业和信息化厅举办“智改数转赋能高质量发展”中小企业">
+        <h5>省工业和信息化厅举办“智改数转赋能高质量发展”中小企业</h5>
+        <h4>数字化转型主题沙龙锦州专场活动</h4>
+        """
+        assert _extract_title_from_html(html) == (
+            "省工业和信息化厅举办“智改数转赋能高质量发展”中小企业 数字化转型主题沙龙锦州专场活动"
+        )
+
+    def test_long_official_title_not_replaced_only_because_detail_is_shorter(self):
+        from parsers.miit_local import _refine_fields_by_detail
+        title = "山东省工业和信息化厅 山东省科技厅 山东省生态环境厅 山东省水利厅关于公布2025年度山东省工业领域先进适用绿色低碳技术装备名单的通知"
+        shorter = "关于公布2025年度山东省工业领域先进适用绿色低碳技术装备名单的通知"
+        with patch(
+            "parsers.miit_local.fetch_detail_metadata",
+            return_value={"title": shorter, "pub_date": "2026-08-31"},
+        ):
+            refined, _ = _refine_fields_by_detail(title, "2026-08-31", "http://gxt.shandong.gov.cn/a.html")
+        assert refined == title
+
+    def test_unrelated_detail_title_rejected(self):
+        from parsers.miit_local import _refine_fields_by_detail
+        title = "【中建集团科技创新产品推介⑤】外墙外保温检测雷达：探查墙体隐患的智能无损“听诊器”"
+        with patch(
+            "parsers.miit_local.fetch_detail_metadata",
+            return_value={"title": "关于中建", "pub_date": "2026-11-09"},
+        ):
+            refined, _ = _refine_fields_by_detail(title, "2026-11-01", "http://www.cscec.com/a.html")
+        assert refined == title
+
+    def test_meta_publish_date_fallback(self):
+        from utils import _extract_pub_date_from_html
+        html = '<meta name="PubDate" content="2026-11-12 09:14"><body>时间：2020-01-01</body>'
+        assert _extract_pub_date_from_html(html) == "2026-11-12"
+
+    def test_failed_detail_request_is_retried(self):
+        import utils
+        html = '<meta name="ArticleTitle" content="智能制造政策发布"><meta name="PubDate" content="2026-11-12">'
+        with patch("utils._DETAIL_METADATA_CACHE", {}), patch(
+            "utils._save_detail_metadata_cache"
+        ), patch("utils.http_get", side_effect=[RuntimeError("temporary"), html]) as get:
+            first = utils.fetch_detail_metadata("https://example.com/article")
+            second = utils.fetch_detail_metadata("https://example.com/article")
+        assert first == {"title": None, "pub_date": None}
+        assert second == {"title": "智能制造政策发布", "pub_date": "2026-11-12"}
+        assert get.call_count == 2
+
+    def test_valid_detail_metadata_uses_cache(self):
+        import utils
+        html = '<meta name="ArticleTitle" content="智能制造政策发布">'
+        with patch("utils._DETAIL_METADATA_CACHE", {}), patch(
+            "utils._save_detail_metadata_cache"
+        ), patch("utils.http_get", return_value=html) as get:
+            first = utils.fetch_detail_metadata("https://example.com/article")
+            second = utils.fetch_detail_metadata("https://example.com/article")
+        assert first == second
+        get.assert_called_once()
+
+    def test_body_date_is_not_guessed(self):
+        from utils import _extract_pub_date_from_html
+        html = "<body><p>活动于2026年10月20日举行</p></body>"
+        assert _extract_pub_date_from_html(html) is None
+
+    def test_cetc_polluted_title_cleaned(self):
+        from parsers.miit_local import _post_process_title
+        raw = "锻造“数智工匠”？赋能转型发展 当前，人工智能正从前沿技术演变为核心引擎。"
+        assert _post_process_title(raw) == "锻造“数智工匠”？赋能转型发展"
+
+    def test_media_title_prefix_preserved(self):
+        from parsers.miit_local import _post_process_title
+        title = "新华社 | 五载深耕，数智破局——招商银行金融科技创新观察"
+        assert _post_process_title(title) == title
+
+    def test_truncated_sasac_title_and_date_refined(self):
+        from parsers.miit_local import _refine_fields_by_detail
+        full = "国家数据集团2026年社会招聘和2027届秋季校园招聘正式启动"
+        metadata = {"title": full, "pub_date": "2026-11-03"}
+        with patch("parsers.miit_local.fetch_detail_metadata", return_value=metadata):
+            title, date = _refine_fields_by_detail(
+                "国家数据集团2026年社会招聘和", None,
+                "http://www.sasac.gov.cn/n1/c1/content.html", resolve_date=True,
+            )
+        assert title == full
+        assert date == "2026-11-03"
+
+    def test_hard_truncated_title_accepts_longer_detail(self):
+        from parsers.miit_local import _refine_fields_by_detail
+        title = "黄" * 120
+        full = title + "楚平林克庆出席"
+        with patch(
+            "parsers.miit_local.fetch_detail_metadata",
+            return_value={"title": full, "pub_date": "2026-11-09"},
+        ):
+            refined, _ = _refine_fields_by_detail(title, "2026-11-09", "https://www.gd.gov.cn/a.html")
+        assert refined == full
+
+    def test_wrong_context_date_corrected_by_detail(self):
+        from parsers.miit_local import _refine_fields_by_detail
+        metadata = {
+            "title": "中旅入境圆满承办2026全球旅行商杭州文旅推广活动",
+            "pub_date": "2026-06-22",
+        }
+        with patch("parsers.miit_local.fetch_detail_metadata", return_value=metadata):
+            _, date = _refine_fields_by_detail(
+                "中旅入境圆满承办2026全球旅行商杭州文旅推广活动 近日，活动成功举办。",
+                "2026-06-13", "https://www.ctg.cn/article/19885", resolve_date=True,
+            )
+        assert date == "2026-06-22"
+
+    def test_legitimate_long_title_not_shortened(self):
+        from parsers.miit_local import _refine_fields_by_detail
+        title = "关于公开征求《智能网联汽车 组合驾驶辅助系统安全要求》等2项强制性国家标准（报批稿）意见的公示"
+        metadata = {"title": title, "pub_date": "2026-04-16"}
+        with patch("parsers.miit_local.fetch_detail_metadata", return_value=metadata):
+            refined, _ = _refine_fields_by_detail(
+                title, "2026-04-16", "https://www.miit.gov.cn/art/2026/art_1.html"
+            )
+        assert refined == title
+
+    def test_url_date_precision(self):
+        from parsers.miit_local import _has_coarse_date_in_url, _has_precise_date_in_url
+        assert _has_precise_date_in_url("https://a.cn/202611/t20261112_1.html")
+        assert not _has_coarse_date_in_url("https://a.cn/202611/t20261112_1.html")
+        assert not _has_precise_date_in_url("http://a.cn/xwzx/202611/3966448.html")
+        assert _has_coarse_date_in_url("http://a.cn/xwzx/202611/3966448.html")
+
+    def test_sasac_parser_uses_detail_metadata(self):
+        from parsers.sasac import parse_sasac_home
+        html = '<a href="/n2588035/c36126149/content.html">国家数据集团2026年社会招聘和</a>'
+        full = "国家数据集团2026年社会招聘和2027届秋季校园招聘正式启动"
+        config = {
+            **TestSasacParser._SASAC_CONFIG,
+            "keywords": MATCH_ALL_KEYWORDS,
+            "resolve_pub_date": True,
+        }
+        with patch("parsers.sasac.http_get", return_value=html), patch(
+            "parsers.miit_local.fetch_detail_metadata",
+            return_value={"title": full, "pub_date": "2026-11-03"},
+        ):
+            items = parse_sasac_home(config, datetime(2026, 11, 13, tzinfo=SG_TZ))
+        assert len(items) == 1
+        assert items[0].title == full
+        assert items[0].pub_date == "2026-11-03"
+
+    def test_gov_local_detail_date_budget(self):
+        from parsers.gov_local import _scrape_one_gov_site
+        html = '<a href="/gdywdt/bmdt/content/post_4978980.html">广东设立省级词元交易服务平台</a>'
+        source = {"province": "广东", "name": "广东省人民政府", "url": "https://www.gd.gov.cn/"}
+        with patch("parsers.gov_local.http_get", return_value=html), patch(
+            "parsers.miit_local.fetch_detail_metadata",
+            return_value={"title": "广东设立省级词元交易服务平台", "pub_date": "2026-11-12"},
+        ) as fetch:
+            items = _scrape_one_gov_site(
+                source, "2026-11-13 00:00:00", MATCH_ALL_KEYWORDS,
+                datetime(2026, 11, 13, tzinfo=SG_TZ), 15, 15, 20, [1],
+            )
+        assert items[0].pub_date == "2026-11-12"
+        fetch.assert_called_once()
+
+    def test_coarse_url_date_can_be_resolved_before_window_filter(self):
+        from parsers.gov_local import _scrape_one_gov_site
+        html = '<a href="/news/2026/article_123.html">广东设立省级词元交易服务平台</a>'
+        source = {"province": "广东", "name": "广东省人民政府", "url": "https://www.gd.gov.cn/"}
+        with patch("parsers.gov_local.http_get", return_value=html), patch(
+            "parsers.miit_local.fetch_detail_metadata",
+            return_value={"title": "广东设立省级词元交易服务平台", "pub_date": "2026-11-12"},
+        ) as fetch:
+            items = _scrape_one_gov_site(
+                source, "2026-11-13 00:00:00", MATCH_ALL_KEYWORDS,
+                datetime(2026, 11, 13, tzinfo=SG_TZ), 15, 15, 20, [1],
+            )
+        assert len(items) == 1
+        assert items[0].pub_date == "2026-11-12"
+        fetch.assert_called_once()
+
+
+class TestWebsiteMonitorBudget:
+    def test_detail_date_budget_shared_across_sources(self):
+        import asyncio
+        from parsers.website_monitor import _fetch_website_raw
+        budgets = []
+
+        class FakeClient:
+            async def fetch_news(self, name, url, **kwargs):
+                budgets.append(kwargs["detail_date_budget"][0])
+                kwargs["detail_date_budget"][0] -= 1
+                return []
+
+            async def close(self):
+                return None
+
+        sources = {
+            "来源一": {"url": "https://example.com/1"},
+            "来源二": {"url": "https://example.com/2"},
+        }
+        async def no_sleep(_):
+            return None
+
+        with patch("parsers.website_monitor.WebsiteNewsClient", return_value=FakeClient()), patch(
+            "parsers.website_monitor.asyncio.sleep", new=no_sleep
+        ):
+            asyncio.run(_fetch_website_raw(sources, resolve_cap=1))
+        assert budgets == [1, 0]
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 11. 集成与回归测试
 # ═══════════════════════════════════════════════════════════════════════════════
+
+class TestRepairExistingCsv:
+    def _df(self):
+        import pandas as pd
+        return pd.DataFrame([
+            {
+                "标题": "国家数据集团2026年社会招聘和", "发布单位": "国资委",
+                "新闻URL": "http://www.sasac.gov.cn/n1/c1/content.html",
+                "发布日期": "", "来源": "国资委官网", "查询时间": "2026-11-03 20:00:00",
+            },
+            {
+                "标题": "微博正文保持原样", "发布单位": "某账号",
+                "新闻URL": "https://m.weibo.cn/detail/1", "发布日期": "",
+                "来源": "微博-某账号", "查询时间": "2026-11-03 20:00:00",
+            },
+        ])
+
+    def test_repairs_only_non_weibo_rows(self):
+        from repair_existing_csv import repair_dataframe
+        df = self._df()
+        full = "国家数据集团2026年社会招聘和2027届秋季校园招聘正式启动"
+        with patch(
+            "repair_existing_csv.fetch_detail_metadata",
+            return_value={"title": full, "pub_date": "2026-11-03"},
+        ) as fetch:
+            repaired, changes, unresolved, candidates = repair_dataframe(df)
+        assert repaired.loc[0, "标题"] == full
+        assert repaired.loc[0, "发布日期"] == "2026-11-03"
+        assert repaired.loc[1].equals(df.loc[1])
+        assert len(changes) == candidates == 1
+        assert unresolved == 0
+        fetch.assert_called_once()
+
+    def test_date_suffix_cleanup_preserves_joint_issuer_title(self):
+        import pandas as pd
+        from repair_existing_csv import repair_dataframe
+        title = "党建引领聚合力 数智赋能促转型——省工业和信息化厅、省统计局多支部联合开展“智能制造+工业减碳”主题党日活动"
+        df = pd.DataFrame([{
+            "标题": title + "2026-05-15", "发布单位": "山东省工业和信息化厅",
+            "新闻URL": "http://gxt.shandong.gov.cn/art/2026/5/15/art_15165_10356944.html",
+            "发布日期": "2026-05-15", "来源": "地方工信-山东",
+            "查询时间": "2026-05-15 20:00:00",
+        }])
+        with patch(
+            "repair_existing_csv.fetch_detail_metadata",
+            return_value={"title": "党建引领聚合力 数智赋能促转型", "pub_date": "2026-05-15"},
+        ):
+            repaired, _, _, _ = repair_dataframe(df)
+        assert repaired.loc[0, "标题"] == title
+
+    def test_detail_date_after_fetch_time_rejected(self):
+        import pandas as pd
+        from repair_existing_csv import repair_dataframe
+        title = "国家档案局办公室关于公布人工智能应用试点项目的通知"
+        df = pd.DataFrame([{
+            "标题": title, "发布单位": "国家档案局",
+            "新闻URL": "https://www.saac.gov.cn/daj/tzgg/202607/example.shtml",
+            "发布日期": "2026-07-01", "来源": "官网-国家档案局",
+            "查询时间": "2026-07-30 14:30:53",
+        }])
+        with patch(
+            "repair_existing_csv.fetch_detail_metadata",
+            return_value={"title": title, "pub_date": "2026-09-04"},
+        ):
+            repaired, changes, _, _ = repair_dataframe(df)
+        assert repaired.equals(df)
+        assert not changes
+
+    def test_precise_url_date_is_not_overwritten(self):
+        import pandas as pd
+        from repair_existing_csv import repair_dataframe
+        title = "关于公开征求《智能网联汽车 组合驾驶辅助系统安全要求》等2项强制性国家标准（报批稿）、《智能网联汽车 自动驾驶数据记录系统》强制性国家标准外文版（报批稿）意见的公示"
+        df = pd.DataFrame([{
+            "标题": title, "发布单位": "工业和信息化部",
+            "新闻URL": "https://www.miit.gov.cn/202609/t20260928_1.html",
+            "发布日期": "2026-09-28", "来源": "工信部官网-文件公示",
+            "查询时间": "2026-09-28 20:00:00",
+        }])
+        with patch(
+            "repair_existing_csv.fetch_detail_metadata",
+            return_value={"title": title, "pub_date": "2026-09-25"},
+        ):
+            repaired, changes, _, _ = repair_dataframe(df)
+        assert repaired.equals(df)
+        assert not changes
+
+    def test_failed_detail_fetch_preserves_row(self):
+        from repair_existing_csv import repair_dataframe
+        df = self._df().iloc[[0]].copy()
+        with patch(
+            "repair_existing_csv.fetch_detail_metadata",
+            return_value={"title": None, "pub_date": None},
+        ):
+            repaired, changes, unresolved, _ = repair_dataframe(df)
+        assert repaired.equals(df)
+        assert not changes
+        assert unresolved == 1
+
 
 class TestIntegration:
     """集成和回归测试。"""

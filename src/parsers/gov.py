@@ -23,8 +23,8 @@ sources:
     name: 中国政府网
     rss: https://rsshub.app/gov/zhengce/zuixin
 
-resolve_pub_date: true         # 是否进入文章页补发布日期（仅 gov_home）
-resolve_pub_date_cap: 30       # 最多补日期的文章数量（仅 gov_home）
+resolve_pub_date: true         # 是否进入文章页补发布日期
+resolve_pub_date_cap: 30       # 各解析器最多补日期的文章数量
 
 新增来源提示
 ------------

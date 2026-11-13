@@ -39,6 +39,7 @@ from models import Item, MIIT_ONLY_KEYWORDS
 from utils import (
     dedup_items_keep_best,
     extract_date,
+    fetch_detail_metadata,
     fetch_detail_title,
     format_fetched_at,
     http_get,
@@ -236,20 +237,19 @@ _RE_EXCERPT_START = re.compile(
 # 触发摘要截断所需的最小标题前置长度（确保截断点之前有足够的标题内容）
 _MIN_TITLE_CHARS_BEFORE_EXCERPT = 5
 
-# 标题最大保留长度（中文标题通常 ≤ 80 字，超出视为正文混入）
-_TITLE_MAX_LEN = 120
+# 极端正文混入时的最后保护；正式政务长标题不按 80/120 字截断。
+_TITLE_MAX_LEN = 300
 
-# 正文起始关键词：当 <a> 标签同时含标题与正文时，正文常以这些词起头
-# （主要见于央企，如三峡集团 "本网讯（XXX）近日，..."）
-# 命中后视为整个文本就是正文摘要而无独立标题，返回空串让上层兜底（如 title 属性）。
+# 正文起始关键词：当 <a> 标签同时含标题与正文时，正文常以这些词起头。
+# “新华社 | 标题”是正式标题前缀，不按正文处理。
 _RE_BODY_LEAD_AT_START = re.compile(
-    r"^(?:本网讯|本报讯|本报记者|新华社|中新社|中新网|【.*?讯】)"
+    r"^(?:本网讯|本报讯|本报记者|新华社(?!\s*\|)|中新社|中新网|【.*?讯】)"
 )
 
-# 正文起始关键词出现在文本中部时：截断为前缀部分作为标题
-# 用于"标题  本网讯..."同 <a> 的少见情形
+# 标题后紧接正文的常见起点。
 _RE_BODY_LEAD_IN_MIDDLE = re.compile(
-    r"\s+(?:本网讯|本报讯|本报记者)[\s（(]"
+    r"\s+(?:(?:本网讯|本报讯|本报记者)[\s（(]|"
+    r"(?:当前|近日|日前)[，,]|当一位)"
 )
 
 # 截断标志后缀（华电等使用，标题被列表 CSS 截断并在末尾追加跳转按钮文本）
@@ -432,25 +432,109 @@ def _is_suspicious_title(title: str) -> bool:
     return False
 
 
-def _refine_title_by_detail(list_title: str, url: str, timeout: int = 15) -> str:
-    """对可疑标题访问详情页二次确认；失败时回退列表页清洗结果。
+def _has_precise_date_in_url(url: str) -> bool:
+    """URL 是否含精确到日的日期，而非仅年月或年份。"""
+    return any(pattern.search(url) for pattern in (
+        _RE_TRS_FILENAME,
+        _RE_ART_DATE,
+        _RE_URL_SLASH_DATE,
+        _RE_URL_HYPHEN_DATE,
+        _RE_URL_LONG_TS_DATE,
+        _RE_URL_YYYYMMDD,
+        _RE_URL_HYPHEN_YYYYMM_DD,
+    ))
 
-    返回值：详情页提取的权威标题（若可用且更短/更纯净），否则返回原 ``list_title``。
-    """
+
+def _has_coarse_date_in_url(url: str) -> bool:
+    """URL 是否只有会被补成月初/年初的日期信息。"""
+    if _has_precise_date_in_url(url):
+        return False
+    return bool(
+        _RE_URL_YYYYMM.search(url)
+        or _RE_URL_YYYY_MM.search(url)
+        or _RE_YEAR_DIR_ARTICLE.search(url)
+    )
+
+
+def _looks_truncated_title(title: str) -> bool:
+    """识别列表页明确省略或实测出现的截断结尾。"""
+    if not title:
+        return False
+    if "..." in title or "…" in title or len(title) in {120, _TITLE_MAX_LEN}:
+        return True
+    return bool(re.search(
+        r"(?:社会招聘和|校园招|有限公|智能制造专|新兴产业)$", title
+    ))
+
+
+def _detail_title_matches(list_title: str, detail_title: str) -> bool:
+    """详情标题必须与列表标题同源，避免采用导航或无关栏目标题。"""
+    if not list_title or not detail_title:
+        return False
+    if detail_title in list_title or list_title in detail_title:
+        return True
+    fragments = [
+        fragment.strip()
+        for fragment in re.split(r"\.{3,}|…+", list_title)
+        if len(fragment.strip()) >= 4
+    ]
+    return bool(fragments) and all(fragment in detail_title for fragment in fragments)
+
+
+def _title_needs_replacement(title: str) -> bool:
+    """只有明确的污染或截断证据时才允许详情标题替换列表标题。"""
+    return bool(
+        _looks_truncated_title(title)
+        or _RE_EXCERPT_START.search(title)
+        or _RE_BODY_LEAD_IN_MIDDLE.search(title)
+        or (_RE_BODY_LEAD_AT_START.search(title) and len(title) > 60)
+        or re.search(r"\s\|\s[^|]{1,12}$", title)
+    )
+
+
+def _refine_fields_by_detail(
+    list_title: str,
+    list_pub_date: Optional[str],
+    url: str,
+    timeout: int = 15,
+    resolve_date: bool = False,
+):
+    """按需回源并返回更可靠的标题、发布日期。"""
+    need_title = _is_suspicious_title(list_title) or _looks_truncated_title(list_title)
+    if not url or (not need_title and not resolve_date):
+        return list_title, list_pub_date
+
+    metadata = fetch_detail_metadata(url, timeout=timeout)
+    title = list_title
+    pub_date = list_pub_date
+    detail = metadata.get("title")
+    if need_title and detail:
+        detail_clean = _post_process_title(detail)
+        if (
+            len(detail_clean) >= 6
+            and _title_needs_replacement(list_title)
+            and _detail_title_matches(list_title, detail_clean)
+            and (
+                len(detail_clean) < len(list_title)
+                or _looks_truncated_title(list_title)
+            )
+        ):
+            title = detail_clean
+    if resolve_date and metadata.get("pub_date"):
+        pub_date = metadata["pub_date"]
+    return title, pub_date
+
+
+def _refine_title_by_detail(list_title: str, url: str, timeout: int = 15) -> str:
+    """兼容原有仅补标题的调用入口。"""
     if not url or not _is_suspicious_title(list_title):
         return list_title
-
     detail = fetch_detail_title(url, timeout=timeout)
     if not detail:
         return list_title
-
-    # 详情页标题需经同样的轻量清洗（剥日期后缀、去 [详细]）
     detail_clean = _post_process_title(detail)
-    if not detail_clean or len(detail_clean) < 6:
+    if len(detail_clean) < 6:
         return list_title
-
-    # 若详情页标题明显更短（剥离了摘要），采用详情页结果
-    # 若详情页标题反而更长，说明列表页标题已是子集，保留较短者
     return detail_clean if len(detail_clean) < len(list_title) else list_title
 
 
@@ -697,22 +781,9 @@ def _scrape_one_site(
     window_days: int,
     hard_cap_days: int,
     timeout: int,
+    detail_date_budget: Optional[List[int]] = None,
 ) -> List[Item]:
-    """
-    抓取单个地方工信部门网站并返回符合条件的 Item 列表。
-
-    Args:
-        source:        包含 province / name / url 的字典。
-        fetched_at:    格式化后的查询时间字符串。
-        keywords:      关键词列表。
-        now:           当前时间（带时区）。
-        window_days:   时间窗口天数。
-        hard_cap_days: 硬性截止天数。
-        timeout:       HTTP 请求超时秒数。
-
-    Returns:
-        过滤后的 Item 列表。
-    """
+    """抓取单个地方工信部门网站，必要时从详情页补齐字段。"""
     province = source["province"]
     dept_name = source["name"]
     base_url = source["url"]
@@ -720,58 +791,56 @@ def _scrape_one_site(
 
     html = http_get(base_url, timeout=timeout)
     soup = BeautifulSoup(html, "lxml")
-
     items: List[Item] = []
 
     for a_tag in soup.find_all("a", href=True):
         href = (a_tag.get("href") or "").strip()
-
-        # 跳过空链接和锚点（在提取标题前先过滤，节省 clean_title 调用）
         if not href or href.startswith("#") or href.startswith("javascript"):
             continue
 
-        # 先用 get_text 做快速导航/长度预过滤，再用 _clean_title 清洗
         raw_text = a_tag.get_text(" ", strip=True)
-
-        # 跳过导航性文字
-        if _is_nav_text(raw_text):
-            continue
-
-        # 跳过标题过短的链接（至少 6 个字符）
-        if len(raw_text) < 6:
+        if _is_nav_text(raw_text) or len(raw_text) < 6:
             continue
 
         url = normalize_url(base_url, href)
-
-        # 仅保留看起来像新闻文章的链接
         if not _is_news_like_url(url):
             continue
 
-        # 清洗标题：优先使用 title 属性，去除首尾日期，截断过长文本
         title = _clean_title(a_tag, raw_text)
         if len(title) < 6:
             continue
 
-        # 提取发布日期：优先从 URL，其次从上下文文本，再其次从原始链接文本
-        pub_date = _extract_date_from_url(url)
-        if not pub_date:
+        url_date = _extract_date_from_url(url)
+        if _has_precise_date_in_url(url):
+            pub_date = url_date
+        else:
             pub_date = _extract_date_from_context(a_tag, now)
-        if not pub_date:
-            pub_date = extract_date(raw_text)
-        if not pub_date:
-            pub_date = extract_date(title)
+            if not pub_date:
+                pub_date = extract_date(raw_text)
+            if not pub_date:
+                pub_date = extract_date(title)
+            if not pub_date:
+                pub_date = url_date
 
-        # 关键词过滤
         if not keyword_hit(title, keywords):
             continue
 
-        # 时间窗口过滤
+        precise_date = _has_precise_date_in_url(url)
+        resolve_date = bool(
+            (not pub_date or not precise_date)
+            and detail_date_budget is not None
+            and detail_date_budget[0] > 0
+        )
+        if not within_window(pub_date, now, window_days, hard_cap_days):
+            if precise_date or not resolve_date:
+                continue
+        if resolve_date:
+            detail_date_budget[0] -= 1
+        title, pub_date = _refine_fields_by_detail(
+            title, pub_date, url, timeout=timeout, resolve_date=resolve_date
+        )
         if not within_window(pub_date, now, window_days, hard_cap_days):
             continue
-
-        # 详情页标题二次确认（按需）：仅对通过过滤的条目，且标题命中
-        # "可疑特征"时才回源详情页，避免请求风暴。
-        title = _refine_title_by_detail(title, url, timeout=timeout)
 
         items.append(Item(
             title=title,
@@ -788,20 +857,7 @@ def _scrape_one_site(
 # ── 入口函数 ────────────────────────────────────────────────────────────────────
 
 def parse_miit_local(config: dict, now: datetime) -> List[Item]:
-    """
-    遍历全国地方工信主管部门网站，抓取并返回符合条件的新闻列表。
-
-    Args:
-        config: 来自 config.yaml 的全量配置字典，需包含：
-                - sources.miit_local.name / enabled
-                - keywords
-                - window_days
-                - hard_cap_days
-        now:    当前时间（带时区）。
-
-    Returns:
-        过滤并去重后的 Item 列表。
-    """
+    """遍历全国地方工信主管部门网站并返回过滤、去重后的新闻。"""
     src = config["sources"]["miit_local"]
     if not src.get("enabled", True):
         logger.info("miit_local 源已禁用，跳过")
@@ -812,9 +868,12 @@ def parse_miit_local(config: dict, now: datetime) -> List[Item]:
     window_days = int(config["window_days"])
     hard_cap_days = int(config["hard_cap_days"])
     timeout = int(config.get("miit_local_timeout", DEFAULT_TIMEOUT))
+    detail_date_budget = [
+        int(config.get("resolve_pub_date_cap", 30))
+        if config.get("resolve_pub_date", True) else 0
+    ]
 
     all_items: List[Item] = []
-
     for source in MIIT_LOCAL_SOURCES:
         province = source["province"]
         try:
@@ -826,6 +885,7 @@ def parse_miit_local(config: dict, now: datetime) -> List[Item]:
                 window_days=window_days,
                 hard_cap_days=hard_cap_days,
                 timeout=timeout,
+                detail_date_budget=detail_date_budget,
             )
             if site_items:
                 logger.info("地方工信-%s: 获取 %d 条", province, len(site_items))
@@ -834,9 +894,6 @@ def parse_miit_local(config: dict, now: datetime) -> List[Item]:
             logger.warning("地方工信-%s: 抓取失败", province, exc_info=True)
             continue
 
-    # ── 去重 ──────────────────────────────────────────────────────────────────
-    # 两级去重：先按规范化 URL，再在同一发布单位内按标题指纹合并主页/二级页同新闻
-    # （以能正确采集标题和发布日期的为准）。
     result = dedup_items_keep_best(all_items)
     logger.info("地方工信汇总: %d 条（去重后）", len(result))
     return result

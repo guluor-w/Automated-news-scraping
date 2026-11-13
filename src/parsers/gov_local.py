@@ -26,7 +26,7 @@ sources:
 
 import logging
 from datetime import datetime
-from typing import Dict, List
+from typing import List, Optional
 
 from bs4 import BeautifulSoup
 
@@ -47,8 +47,9 @@ from parsers.miit_local import (
     _is_nav_text,
     _extract_date_from_url,
     _extract_date_from_context,
+    _has_precise_date_in_url,
     _clean_title,
-    _refine_title_by_detail,
+    _refine_fields_by_detail,
     DEFAULT_TIMEOUT,
 )
 
@@ -157,27 +158,13 @@ def _scrape_one_gov_site(
     window_days: int,
     hard_cap_days: int,
     timeout: int,
+    detail_date_budget: Optional[List[int]] = None,
 ) -> List[Item]:
-    """
-    抓取单个省级政府门户网站并返回符合条件的 Item 列表。
-
-    Args:
-        source:        包含 province / name / url 的字典。
-        fetched_at:    格式化后的查询时间字符串。
-        keywords:      关键词列表。
-        now:           当前时间（带时区）。
-        window_days:   时间窗口天数。
-        hard_cap_days: 硬性截止天数。
-        timeout:       HTTP 请求超时秒数。
-
-    Returns:
-        过滤后的 Item 列表。
-    """
+    """抓取单个省级政府门户网站，必要时从详情页补齐字段。"""
     province = source["province"]
     gov_name = source["name"]
     source_tag = f"地方政府-{province}"
 
-    # 兼容旧的单 url 配置与新的 urls 列表配置（每个省份可配置多个新闻栏目入口）
     entry_urls: List[str] = []
     if source.get("urls"):
         entry_urls = list(source["urls"])
@@ -187,7 +174,6 @@ def _scrape_one_gov_site(
     entry_urls = [u for u in entry_urls if not (u in seen_entry or seen_entry.add(u))]
 
     items: List[Item] = []
-
     for base_url in entry_urls:
         try:
             html = http_get(base_url, timeout=timeout)
@@ -198,52 +184,52 @@ def _scrape_one_gov_site(
 
         for a_tag in soup.find_all("a", href=True):
             href = (a_tag.get("href") or "").strip()
-
-            # 跳过空链接和锚点（在提取标题前先过滤，节省 clean_title 调用）
             if not href or href.startswith("#") or href.startswith("javascript"):
                 continue
 
-            # 先用 get_text 做快速导航/长度预过滤，再用 _clean_title 清洗
             raw_text = a_tag.get_text(" ", strip=True)
-
-            # 跳过导航性文字
-            if _is_nav_text(raw_text):
-                continue
-
-            # 跳过标题过短的链接（至少 6 个字符）
-            if len(raw_text) < 6:
+            if _is_nav_text(raw_text) or len(raw_text) < 6:
                 continue
 
             url = normalize_url(base_url, href)
-
-            # 仅保留看起来像新闻文章的链接
             if not _is_news_like_url(url):
                 continue
 
-            # 清洗标题：优先使用 title 属性，去除首尾日期，截断过长文本
             title = _clean_title(a_tag, raw_text)
             if len(title) < 6:
                 continue
 
-            # 提取发布日期：优先从 URL，其次从上下文文本，再其次从原始链接文本
-            pub_date = _extract_date_from_url(url)
-            if not pub_date:
+            url_date = _extract_date_from_url(url)
+            if _has_precise_date_in_url(url):
+                pub_date = url_date
+            else:
                 pub_date = _extract_date_from_context(a_tag, now)
-            if not pub_date:
-                pub_date = extract_date(raw_text)
-            if not pub_date:
-                pub_date = extract_date(title)
+                if not pub_date:
+                    pub_date = extract_date(raw_text)
+                if not pub_date:
+                    pub_date = extract_date(title)
+                if not pub_date:
+                    pub_date = url_date
 
-            # 关键词过滤
             if not keyword_hit(title, keywords):
                 continue
 
-            # 时间窗口过滤
+            precise_date = _has_precise_date_in_url(url)
+            resolve_date = bool(
+                (not pub_date or not precise_date)
+                and detail_date_budget is not None
+                and detail_date_budget[0] > 0
+            )
+            if not within_window(pub_date, now, window_days, hard_cap_days):
+                if precise_date or not resolve_date:
+                    continue
+            if resolve_date:
+                detail_date_budget[0] -= 1
+            title, pub_date = _refine_fields_by_detail(
+                title, pub_date, url, timeout=timeout, resolve_date=resolve_date
+            )
             if not within_window(pub_date, now, window_days, hard_cap_days):
                 continue
-
-            # 详情页标题二次确认（按需）：仅对通过过滤的可疑长标题回源
-            title = _refine_title_by_detail(title, url, timeout=timeout)
 
             items.append(Item(
                 title=title,
@@ -256,24 +242,12 @@ def _scrape_one_gov_site(
 
     return items
 
+
 # ── 入口函数 ──────────────────────────────────────────────────────────────────────
 
 
 def parse_gov_local(config: dict, now: datetime) -> List[Item]:
-    """
-    遍历全国省级政府门户网站，抓取并返回符合条件的新闻列表。
-
-    Args:
-        config: 来自 config.yaml 的全量配置字典，需包含：
-                - sources.gov_local.name / enabled
-                - keywords
-                - window_days
-                - hard_cap_days
-        now:    当前时间（带时区）。
-
-    Returns:
-        过滤并去重后的 Item 列表。
-    """
+    """遍历全国省级政府门户网站并返回过滤、去重后的新闻。"""
     src = config["sources"]["gov_local"]
     if not src.get("enabled", True):
         logger.info("gov_local 源已禁用，跳过")
@@ -284,9 +258,12 @@ def parse_gov_local(config: dict, now: datetime) -> List[Item]:
     window_days = int(config["window_days"])
     hard_cap_days = int(config["hard_cap_days"])
     timeout = int(config.get("gov_local_timeout", DEFAULT_TIMEOUT))
+    detail_date_budget = [
+        int(config.get("resolve_pub_date_cap", 30))
+        if config.get("resolve_pub_date", True) else 0
+    ]
 
     all_items: List[Item] = []
-
     for source in GOV_LOCAL_SOURCES:
         province = source["province"]
         try:
@@ -298,6 +275,7 @@ def parse_gov_local(config: dict, now: datetime) -> List[Item]:
                 window_days=window_days,
                 hard_cap_days=hard_cap_days,
                 timeout=timeout,
+                detail_date_budget=detail_date_budget,
             )
             if site_items:
                 logger.info("地方政府-%s: 获取 %d 条", province, len(site_items))
@@ -306,9 +284,6 @@ def parse_gov_local(config: dict, now: datetime) -> List[Item]:
             logger.warning("地方政府-%s: 抓取失败", province, exc_info=True)
             continue
 
-    # ── 去重 ──────────────────────────────────────────────────────────────────
-    # 两级去重：先按规范化 URL，再在同一发布单位内按标题指纹合并主页/二级页同新闻
-    # （以能正确采集标题和发布日期的为准）。
     result = dedup_items_keep_best(all_items)
     logger.info("地方政府汇总: %d 条（去重后）", len(result))
     return result

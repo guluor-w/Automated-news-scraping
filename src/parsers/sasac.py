@@ -35,6 +35,7 @@ from typing import Dict, List, Optional
 from bs4 import BeautifulSoup
 
 from models import Item, MIIT_ONLY_KEYWORDS
+from parsers.miit_local import _refine_fields_by_detail
 from utils import (
     canonicalize_url_for_dedup,
     extract_date,
@@ -119,6 +120,10 @@ def parse_sasac_home(config: dict, now: datetime) -> List[Item]:
     window_days = int(config["window_days"])
     hard_cap_days = int(config["hard_cap_days"])
     current_year = now.year
+    detail_date_budget = [
+        int(config.get("resolve_pub_date_cap", 30))
+        if config.get("resolve_pub_date", True) else 0
+    ]
 
     for a_tag in soup.find_all("a", href=True):
         href = (a_tag.get("href") or "").strip()
@@ -131,21 +136,24 @@ def parse_sasac_home(config: dict, now: datetime) -> List[Item]:
             continue
 
         url = normalize_url(base_url, href)
-
-        # 仅保留 Channel-Content 格式的文章链接
         if not _RE_CHANNEL_CONTENT.search(url):
             continue
 
-        # 日期提取
         pub_date = _extract_date_from_context(a_tag, current_year, now.date())
         if not pub_date:
             pub_date = extract_date(title)
 
-        # 关键词过滤
         if not keyword_hit(title, keywords):
             continue
+        if not within_window(pub_date, now, window_days, hard_cap_days):
+            continue
 
-        # 时间窗口过滤
+        resolve_date = not pub_date and detail_date_budget[0] > 0
+        if resolve_date:
+            detail_date_budget[0] -= 1
+        title, pub_date = _refine_fields_by_detail(
+            title, pub_date, url, resolve_date=resolve_date
+        )
         if not within_window(pub_date, now, window_days, hard_cap_days):
             continue
 

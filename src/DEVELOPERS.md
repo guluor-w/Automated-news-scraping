@@ -17,15 +17,16 @@
 │   ├── rss_full.xml             # 全量 RSS 2.0
 │   └── rss_miit.xml             # 来源名称包含"工信"的子集 RSS 2.0
 ├── .cache/                      # 本地缓存目录（已在 .gitignore 中排除）
-│   └── detail_titles.json       # 详情页标题二次确认结果缓存
+│   └── detail_metadata_v2.json     # 详情页标题和发布日期二次确认结果缓存
 └── src/
     ├── collect.py               # 主入口：加载配置、调用各 parser、二次检验、去重、写 CSV/RSS
     ├── models.py                # 数据模型（Item）和公共常量（SG_TZ 等）
-    ├── utils.py                 # 通用工具（日期解析、关键词匹配、HTTP、域名比对、详情页标题提取等）
+    ├── utils.py                 # 通用工具（日期解析、关键词匹配、HTTP、域名比对、详情页元数据提取等）
     ├── storage.py               # 持久化：CSV 读写 + RSS 生成 + 去重合并
     ├── test_collect.py          # collect/storage 相关单元测试
     ├── test_parsers.py          # 各 parser 单元测试
     ├── verify_existing_csv.py   # 对存量 CSV 回溯执行外站跳转二次检验
+    ├── repair_existing_csv.py   # 非微博存量 CSV 的标题/发布日期定向修复
     ├── DEVELOPERS.md            # 本文件
     └── parsers/                 # 各信源解析器（每个来源一个文件）
         ├── __init__.py          # 统一导出 parse_* 与各 *_SOURCES 常量
@@ -105,28 +106,40 @@
 - 识别正文摘要起始点（`……当一位` `。一是` `，背景是` 等连接词），截取摘要前的标题主体
 - 拒绝纯导航文本（`_is_nav_text`）
 
-### 第三层：详情页按需二次确认（新）
+### 第三层：详情页按需二次确认
 
-对于经第二层清洗后仍"可疑"的标题（典型场景：列表页 `<a>` 同时承载标题与摘要片段，结构上无法分离），按需访问详情页提取规范标题。
+对于经第二层清洗后仍可疑的标题，以及缺失或只有年月的发布日期，按需访问详情页提取规范字段。
 
-**判定条件**（`_is_suspicious_title`，位于 `parsers/miit_local.py`）：
+**判定条件**（`parsers/miit_local.py`）：
 
-- 长度 ≥ 60 字（普通新闻标题极少超过此长度）
-- 中部出现典型摘要标志：标点后跟 ≥15 字连续叙述、`……`、`...`、`一是/二是` 等枚举
+- 标题长度 ≥ 60 字，中部出现连续叙述、省略号或明确截断结尾
+- URL 不含精确到日的日期，或完全缺少发布日期
+- 正常长标题只会与详情页核对，不会因长度被机械截短
 
-**字段提取优先级**（`_extract_title_from_html`，位于 `utils.py`）：
+**字段提取**（`utils.py`）：
 
-1. `<meta name="ArticleTitle">`（国内政务站普遍遵循 GB/T 23287）
-2. `<h1>`
-3. `<h2>`（部分央企/省厅站用作主标题）
-4. `<title>`（自动反复剥离末尾的 `- 站名` / `_ 站名` 后缀）
+- `fetch_detail_metadata` 通过一次请求同时返回标题和发布日期
+- 标题优先读取 `ArticleTitle`、`h1` / `h2`，最后读取剥离站名后缀的 `<title>`；`ArticleTitle` 中的 `<br/>` 会转为空格
+- 日期优先读取明确的“发布时间/发布日期/发文日期”及 `PubDate` / `publishdate`，最后才考虑 `createDate`；不使用正文首个日期猜测发布日期
+- `_refine_fields_by_detail` 统一处理字段替换，保留原有 `_refine_title_by_detail` 作为仅补标题的兼容入口
 
-**安全兜底**（`_refine_title_by_detail`）：
+**安全兜底与请求控制**：
 
-- 详情页请求失败、解析失败、或返回长度 ≥ 列表页清洗结果时 → 保留原标题
-- 同一 URL 请求结果（含失败）写入 `.cache/detail_titles.json`，进程内单例 + 跨次复用，避免请求风暴
+- 详情页请求失败或没有更可靠字段时保留原值；缺日期本身不会导致删除新闻
+- 同一 URL 的有效请求结果写入 `.cache/detail_metadata_v2.json`，进程内单例 + 跨次复用；失败结果不缓存，后续运行可重试恢复
+- `miit_local.py` / `gov_local.py` / `soe.py` / `sasac.py` 在关键词初筛后回源，使用 `resolve_pub_date` 和 `resolve_pub_date_cap` 控制补日期请求；`website_monitor.py` 使用同一提取逻辑、共享请求预算，并执行相同的时间窗过滤
+- 粗略 URL 日期允许先回源再执行最终时间窗判断；存量回填不会覆盖精确 URL 日期，也不会接受晚于查询时间的详情日期
 
-**调用位置**：三个解析器（`miit_local.py` / `soe.py` / `gov_local.py`）的主循环中，**在关键词与时间窗口过滤通过之后、`items.append` 之前**调用，确保被丢弃的条目不产生额外请求。
+### 存量数据定向修复
+
+`src/repair_existing_csv.py` 只处理非微博记录，对缺日期、粗略日期和可疑标题回源。默认 dry-run，不写 CSV/RSS：
+
+```bash
+python src/repair_existing_csv.py
+python src/repair_existing_csv.py --apply
+```
+
+`--apply` 写回前自动备份原 CSV，并同步重建两个 RSS 文件；无法可靠回源的记录原样保留，微博记录不会参与修复。
 
 ### HTTP 容错（`http_get`）
 

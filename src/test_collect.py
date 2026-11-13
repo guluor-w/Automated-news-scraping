@@ -167,6 +167,16 @@ def test_weibo_time_window_within():
     print("✓ test_weibo_time_window_within")
 
 
+def test_website_time_window_filter():
+    """超出时间窗口的官网文章应被过滤"""
+    config = make_config()
+    article = make_website_article("数字化转型白皮书发布")
+    article["pub_date"] = (datetime.now(SG_TZ) - timedelta(days=20)).strftime("%Y-%m-%d")
+    result = run_parse_weibo_with_mock(config, {"国家数据局": [article]})
+    assert result == [], f"期望 0 条（超出时间窗口），实际: {result}"
+    print("✓ test_website_time_window_filter")
+
+
 def test_mode_website_only():
     """mode=website_only 时应传入空 accounts，只抓官网"""
     config = make_config(mode="website_only")
@@ -454,6 +464,7 @@ if __name__ == "__main__":
         test_weibo_post_article_url_preferred,
         test_website_article_keyword_hit,
         test_website_article_keyword_miss,
+        test_website_time_window_filter,
         test_weibo_time_window_filter,
         test_weibo_time_window_within,
         test_mode_website_only,

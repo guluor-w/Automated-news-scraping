@@ -50,9 +50,10 @@ from parsers.miit_local import (
     _clean_title,
     _extract_date_from_context,
     _extract_date_from_url,
+    _has_precise_date_in_url,
+    _refine_fields_by_detail,
 )
-from parsers.soe import _fetch_detail_date
-from utils import format_fetched_at, keyword_hit, normalize_url
+from utils import format_fetched_at, keyword_hit, normalize_url, within_window
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +146,8 @@ class WebsiteNewsClient:
         self._playwright = None
 
     async def fetch_news(self, name: str, url: str, max_items: int = 20,
-                         timeout: int = 30000, now=None) -> list:
+                         timeout: int = 30000, now=None,
+                         detail_date_budget=None) -> list:
         """
         从指定 URL 抓取新闻列表。
         使用 Playwright 渲染页面后，用 BeautifulSoup 解析以复用现有的
@@ -213,10 +215,13 @@ class WebsiteNewsClient:
 
                 seen_urls.add(abs_url)
 
-                # 提取日期：优先 URL，其次上下文
-                pub_date = _extract_date_from_url(abs_url)
-                if not pub_date:
+                url_date = _extract_date_from_url(abs_url)
+                if _has_precise_date_in_url(abs_url):
+                    pub_date = url_date
+                else:
                     pub_date = _extract_date_from_context(a_tag, now or datetime.now())
+                    if not pub_date:
+                        pub_date = url_date
 
                 # 计算新闻相关性分数（用于排序）
                 score = 0
@@ -230,7 +235,7 @@ class WebsiteNewsClient:
                     score -= 5  # 栏目页降级
 
                 candidates.append({
-                    "title": title[:120],
+                    "title": title,
                     "url": abs_url,
                     "source": name,
                     "pub_date": pub_date,
@@ -241,15 +246,22 @@ class WebsiteNewsClient:
             # 按相关性排序，优先真实新闻链接
             candidates.sort(key=lambda x: x["score"], reverse=True)
 
-            # 取前 max_items 个，无日期的尝试详情页获取
             for cand in candidates[:max_items]:
-                pub_date = cand["pub_date"]
-                if not pub_date:
-                    pub_date = await asyncio.to_thread(
-                        _fetch_detail_date, cand["url"], 8
-                    )
+                resolve_date = not _has_precise_date_in_url(cand["url"]) and (
+                    detail_date_budget is None or detail_date_budget[0] > 0
+                )
+                if resolve_date and detail_date_budget is not None:
+                    detail_date_budget[0] -= 1
+                title, pub_date = await asyncio.to_thread(
+                    _refine_fields_by_detail,
+                    cand["title"],
+                    cand["pub_date"],
+                    cand["url"],
+                    8,
+                    resolve_date,
+                )
                 articles.append({
-                    "title": cand["title"],
+                    "title": title,
                     "url": cand["url"],
                     "source": name,
                     "pub_date": pub_date,
@@ -266,19 +278,16 @@ class WebsiteNewsClient:
 
 # ─────────────── 内部抓取函数（可在测试中 patch） ────────────────────────────
 
-async def _fetch_website_raw(sources: dict, now=None) -> dict:
-    """
-    使用 WebsiteNewsClient 抓取所有官网新闻。
-
-    Args:
-        sources: WEBSITE_SOURCES 格式的字典。
-        now: 当前时间，用于日期上下文提取。
-
-    Returns:
-        {显示名: [article, ...]} 字典（已跳过 disabled 源）。
-    """
+async def _fetch_website_raw(
+    sources: dict,
+    now=None,
+    resolve_pub_date: bool = True,
+    resolve_cap: int = 30,
+) -> dict:
+    """使用 WebsiteNewsClient 抓取所有官网新闻，并共享详情请求预算。"""
     client = WebsiteNewsClient()
     all_results: dict = {}
+    detail_date_budget = [int(resolve_cap) if resolve_pub_date else 0]
     try:
         for name, cfg in sources.items():
             if cfg.get("disabled"):
@@ -286,7 +295,13 @@ async def _fetch_website_raw(sources: dict, now=None) -> dict:
             url = cfg["url"]
             timeout = 60000 if cfg.get("slow") else 30000
             logger.info(f"[官网] {name}")
-            articles = await client.fetch_news(name, url, timeout=timeout, now=now)
+            articles = await client.fetch_news(
+                name,
+                url,
+                timeout=timeout,
+                now=now,
+                detail_date_budget=detail_date_budget,
+            )
             all_results[name] = articles
             await asyncio.sleep(random.uniform(1, 3))
     finally:
@@ -320,9 +335,14 @@ def parse_website_monitor(config: dict, now: datetime) -> List[Item]:
     keywords = config.get("keywords", [])
     website_keywords = [k for k in keywords if k not in MIIT_ONLY_KEYWORDS]
     fetched_at = format_fetched_at(now)
+    fetch_options = {}
+    if "resolve_pub_date" in config:
+        fetch_options["resolve_pub_date"] = bool(config["resolve_pub_date"])
+    if "resolve_pub_date_cap" in config:
+        fetch_options["resolve_cap"] = int(config["resolve_pub_date_cap"])
 
     async def _fetch() -> dict:
-        return await _fetch_website_raw(WEBSITE_SOURCES, now=now)
+        return await _fetch_website_raw(WEBSITE_SOURCES, now=now, **fetch_options)
 
     def _run_fetch() -> dict:
         return asyncio.run(_fetch())
@@ -356,6 +376,13 @@ def parse_website_monitor(config: dict, now: datetime) -> List[Item]:
             if not title or not url:
                 continue
             if not keyword_hit(title, website_keywords):
+                continue
+            if not within_window(
+                pub_date,
+                now,
+                int(config.get("window_days", 15)),
+                int(config.get("hard_cap_days", 15)),
+            ):
                 continue
 
             items.append(Item(

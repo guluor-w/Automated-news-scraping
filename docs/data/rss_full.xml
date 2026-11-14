@@ -5,13 +5,20 @@
     <link>https://guluor-w.github.io/Automated-news-scraping/</link>
     <description>新闻完整清单 RSS 订阅</description>
     <language>zh-CN</language>
-    <lastBuildDate>Sat, 14 Nov 2026 20:17:05 +0800</lastBuildDate>
+    <lastBuildDate>Sun, 15 Nov 2026 06:08:58 +0800</lastBuildDate>
     <item>
       <title>高质量数据集和数据标注先行先试现场会在厦门市召开</title>
-      <link>https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/1114/20261114110623086743990_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/llh/llhldhd/1114/20261114110623086743990_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/ywpd/szkjyjcss/1114/20261114110623086743990_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/ywpd/szkjyjcss/1114/20261114110623086743990_pc.html</guid>
       <pubDate>Sat, 14 Nov 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-领导活动</description>
+      <description>国家数据局｜国家数据局-业务频道</description>
+    </item>
+    <item>
+      <title>【首飞画面！ #CE-25A有人驾驶智能首飞视频# 】 #CE-25A可搭载19名乘客# 今天，我国自主研制的10吨级电动商用飞机CE-25A在山东滨州完成首次</title>
+      <link>https://video.weibo.com/show?fid=1034%3A5365178427179077&amp;luicode=10000011&amp;lfid=1005052752396553&amp;launchid=10000360-page_H5</link>
+      <guid isPermaLink="true">https://video.weibo.com/show?fid=1034%3A5365178427179077&amp;luicode=10000011&amp;lfid=1005052752396553&amp;launchid=10000360-page_H5</guid>
+      <pubDate>Sat, 14 Nov 2026 00:00:00 +0800</pubDate>
+      <description>国资小新｜微博-国资小新</description>
     </item>
     <item>
       <title>地方动态 | 51个优秀项目在“数据要素×”大赛甘肃分赛中脱颖而出</title>
@@ -1583,10 +1590,10 @@
     </item>
     <item>
       <title>关于征集国家制造业创新中心创建需求的通知</title>
-      <link>https://www.hunan.gov.cn/hnszf/hdjl/dczj/myzj/202611/t20261106_34098961.html</link>
-      <guid isPermaLink="true">https://www.hunan.gov.cn/hnszf/hdjl/dczj/myzj/202611/t20261106_34098961.html</guid>
+      <link>http://gxt.hunan.gov.cn/gxt/hdjl_71064/dczj/dczj_1/202611/t20261106_34097170.html</link>
+      <guid isPermaLink="true">http://gxt.hunan.gov.cn/gxt/hdjl_71064/dczj/dczj_1/202611/t20261106_34097170.html</guid>
       <pubDate>Fri, 06 Nov 2026 00:00:00 +0800</pubDate>
-      <description>湖南省人民政府｜地方政府-湖南</description>
+      <description>湖南省工业和信息化厅｜地方工信-湖南</description>
     </item>
     <item>
       <title>关于征集2027年制造业高质量发展专项资金设备更新和技术改造方向入库项目的通知</title>
@@ -3039,17 +3046,17 @@
     </item>
     <item>
       <title>国家数据局召开行业高质量数据集链主工作座谈会 深化高质量数据集建设“以需定供”“以用促建”</title>
-      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031151459885260005_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031151459885260005_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031151459885260005_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031151459885260005_pc.html</guid>
       <pubDate>Sat, 31 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-司局动态</description>
+      <description>国家数据局｜国家数据局-领导活动</description>
     </item>
     <item>
       <title>国家数据局召开数据标注先行先试工作座谈会 推进高质量数据集建设“以需定供”“以用促建”</title>
-      <link>https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031150813942057163_pc.html</link>
-      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/swdt/sjdt/1031/20261031150813942057163_pc.html</guid>
+      <link>https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031150813942057163_pc.html</link>
+      <guid isPermaLink="true">https://www.nda.gov.cn/sjj/jgsz/jld/xb/xbldhd/1031/20261031150813942057163_pc.html</guid>
       <pubDate>Sat, 31 Oct 2026 00:00:00 +0800</pubDate>
-      <description>国家数据局｜国家数据局-司局动态</description>
+      <description>国家数据局｜国家数据局-领导活动</description>
     </item>
     <item>
       <title>国家电投集团召开人工智能工作动员部署会</title>
